@@ -1,0 +1,929 @@
+{% extends "base.html" %}
+
+{% block title %}Gestione Dispositivi - Traccar{% endblock %}
+
+{% block page_title %}Gestione Dispositivi{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Gestione Dispositivi</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header con pulsanti azioni -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h3><i class="fas fa-mobile-alt"></i> Gestione Dispositivi</h3>
+                    <p class="text-muted mb-0">Aggiungi, modifica ed elimina dispositivi GPS</p>
+                </div>
+                <div>
+                    <button class="btn btn-primary" onclick="showAddDeviceModal()">
+                        <i class="fas fa-plus"></i> Nuovo Dispositivo
+                    </button>
+                    <button class="btn btn-outline-secondary" onclick="loadDevices()">
+                        <i class="fas fa-sync-alt"></i> Ricarica
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtri di ricerca -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body py-2">
+                    <div class="row align-items-center">
+                        <div class="col-md-4">
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text">
+                                    <i class="fas fa-search"></i>
+                                </span>
+                                <input type="text" class="form-control" id="searchInput"
+                                       placeholder="Cerca per nome o IMEI...">
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <select class="form-select form-select-sm" id="statusFilter">
+                                <option value="">Tutti gli stati</option>
+                                <option value="online">Solo online</option>
+                                <option value="offline">Solo offline</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <select class="form-select form-select-sm" id="sortBy">
+                                <option value="name">Nome</option>
+                                <option value="uniqueId">IMEI</option>
+                                <option value="id">ID</option>
+                                <option value="lastUpdate">Ultimo aggiornamento</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3 text-end">
+                            <small class="text-muted">
+                                Totale: <span id="totalDevices">0</span> dispositivi
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading -->
+    <div id="loadingSpinner" class="text-center p-5" style="display: none;">
+        <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;"></div>
+        <div class="mt-3">
+            <h5>Caricamento dispositivi...</h5>
+        </div>
+    </div>
+
+    <!-- Tabella dispositivi -->
+    <div class="card" id="devicesCard">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="fas fa-list"></i> Lista Dispositivi</h5>
+            <div>
+                <button class="btn btn-sm btn-outline-primary" onclick="selectAll()">
+                    <i class="fas fa-check-square"></i> Seleziona tutti
+                </button>
+                <button class="btn btn-sm btn-outline-danger" onclick="bulkDelete()" disabled id="bulkDeleteBtn">
+                    <i class="fas fa-trash"></i> Elimina selezionati
+                </button>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0" id="devicesTable">
+                    <thead class="table-dark">
+                        <tr>
+                            <th width="40">
+                                <input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll()">
+                            </th>
+                            <th>Nome</th>
+                            <th>IMEI</th>
+                            <th>Telefono</th>
+                            <th>Modello</th>
+                            <th>Categoria</th>
+                            <th>Stato</th>
+                            <th>Ultima Posizione</th>
+                            <th width="120">Azioni</th>
+                        </tr>
+                    </thead>
+                    <tbody id="devicesTableBody">
+                        <!-- I dispositivi verranno caricati qui -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Messaggio vuoto -->
+    <div id="emptyMessage" class="text-center p-5" style="display: none;">
+        <div class="mb-4">
+            <i class="fas fa-mobile-alt fa-4x text-muted"></i>
+        </div>
+        <h4 class="text-muted">Nessun dispositivo trovato</h4>
+        <p class="text-muted">Inizia aggiungendo il tuo primo dispositivo GPS</p>
+        <button class="btn btn-primary" onclick="showAddDeviceModal()">
+            <i class="fas fa-plus"></i> Aggiungi Dispositivo
+        </button>
+    </div>
+</div>
+
+<!-- Modal Aggiungi/Modifica Dispositivo -->
+<div class="modal fade" id="deviceModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deviceModalTitle">
+                    <i class="fas fa-plus"></i> Nuovo Dispositivo
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="deviceForm">
+                    <input type="hidden" id="deviceId" name="id">
+
+                    <!-- Informazioni base -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h6 class="border-bottom pb-2 mb-3">
+                                <i class="fas fa-info-circle"></i> Informazioni Base
+                            </h6>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Nome Dispositivo *</label>
+                            <input type="text" class="form-control" id="deviceName" name="name"
+                                   placeholder="Es: Veicolo Aziendale 01" required>
+                            <div class="form-text">Nome identificativo del dispositivo</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">IMEI *</label>
+                            <input type="text" class="form-control" id="deviceUniqueId" name="uniqueId"
+                                   placeholder="Es: 123456789012345" required>
+                            <div class="form-text">Codice IMEI univoco del dispositivo</div>
+                        </div>
+                    </div>
+
+                    <!-- Informazioni aggiuntive -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h6 class="border-bottom pb-2 mb-3">
+                                <i class="fas fa-cogs"></i> Informazioni Aggiuntive
+                            </h6>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Numero Telefono</label>
+                            <input type="tel" class="form-control" id="devicePhone" name="phone"
+                                   placeholder="Es: +39 123 456 7890">
+                            <div class="form-text">Numero SIM del dispositivo</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Modello</label>
+                            <input type="text" class="form-control" id="deviceModel" name="model"
+                                   placeholder="Es: GT06N">
+                            <div class="form-text">Modello del dispositivo GPS</div>
+                        </div>
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label">Categoria</label>
+                            <select class="form-select" id="deviceCategory" name="category">
+                                <option value="">Seleziona categoria</option>
+                                <option value="car">Automobile</option>
+                                <option value="truck">Camion</option>
+                                <option value="motorcycle">Motocicletta</option>
+                                <option value="bus">Autobus</option>
+                                <option value="van">Furgone</option>
+                                <option value="boat">Barca</option>
+                                <option value="person">Persona</option>
+                                <option value="animal">Animale</option>
+                                <option value="other">Altro</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Contatto</label>
+                            <input type="text" class="form-control" id="deviceContact" name="contact"
+                                   placeholder="Es: Mario Rossi">
+                            <div class="form-text">Persona di riferimento</div>
+                        </div>
+                    </div>
+
+                    <!-- Attributi avanzati -->
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <h6 class="border-bottom pb-2 mb-3">
+                                <i class="fas fa-sliders-h"></i> Configurazioni Avanzate
+                            </h6>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="deviceDisabled" name="disabled">
+                                <label class="form-check-label" for="deviceDisabled">
+                                    Dispositivo disabilitato
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Gruppo</label>
+                            <select class="form-select" id="deviceGroupId" name="groupId">
+                                <option value="">Nessun gruppo</option>
+                                <!-- I gruppi verranno caricati dinamicamente -->
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Attributi personalizzati -->
+                    <div class="row">
+                        <div class="col-12">
+                            <h6 class="border-bottom pb-2 mb-3">
+                                <i class="fas fa-tags"></i> Attributi Personalizzati
+                            </h6>
+                            <div id="customAttributes">
+                                <div class="row mb-2">
+                                    <div class="col-md-5">
+                                        <input type="text" class="form-control form-control-sm"
+                                               placeholder="Nome attributo" name="attrName[]">
+                                    </div>
+                                    <div class="col-md-5">
+                                        <input type="text" class="form-control form-control-sm"
+                                               placeholder="Valore" name="attrValue[]">
+                                    </div>
+                                    <div class="col-md-2">
+                                        <button type="button" class="btn btn-sm btn-outline-success"
+                                                onclick="addAttributeRow()">
+                                            <i class="fas fa-plus"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times"></i> Annulla
+                </button>
+                <button type="button" class="btn btn-primary" onclick="saveDevice()">
+                    <i class="fas fa-save"></i> <span id="saveButtonText">Salva Dispositivo</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Conferma Eliminazione -->
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-exclamation-triangle"></i> Conferma Eliminazione
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>Attenzione!</strong> Questa azione non può essere annullata.
+                </div>
+                <p id="deleteMessage">Sei sicuro di voler eliminare questo dispositivo?</p>
+                <div class="bg-light p-3 rounded" id="deviceToDelete">
+                    <!-- Informazioni dispositivo da eliminare -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times"></i> Annulla
+                </button>
+                <button type="button" class="btn btn-danger" onclick="confirmDelete()">
+                    <i class="fas fa-trash"></i> Elimina Dispositivo
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let allDevices = [];
+let deviceStatuses = {};
+let selectedDevices = [];
+let isEditing = false;
+let deviceToDeleteId = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadDevices();
+    setupEventListeners();
+});
+
+function setupEventListeners() {
+    // Filtro di ricerca
+    document.getElementById('searchInput').addEventListener('input', filterDevices);
+
+    // Filtro stato
+    document.getElementById('statusFilter').addEventListener('change', filterDevices);
+
+    // Ordinamento
+    document.getElementById('sortBy').addEventListener('change', sortDevices);
+
+    // Reset form quando modal si chiude
+    document.getElementById('deviceModal').addEventListener('hidden.bs.modal', function() {
+        resetDeviceForm();
+    });
+}
+
+function loadDevices() {
+    showLoading(true);
+
+    fetch('/api/devices')
+        .then(response => response.json())
+        .then(devices => {
+            allDevices = devices;
+            loadDevicesStatus();
+        })
+        .catch(error => {
+            console.error('Errore nel caricamento dispositivi:', error);
+            showAlert('Errore nel caricamento dei dispositivi', 'danger');
+            showEmptyMessage();
+        })
+        .finally(() => {
+            showLoading(false);
+        });
+}
+
+function loadDevicesStatus() {
+    const promises = allDevices.map(device =>
+        fetch(`/api/device/${device.id}/status`)
+            .then(response => response.json())
+            .then(status => {
+                deviceStatuses[device.id] = status;
+            })
+            .catch(() => {
+                deviceStatuses[device.id] = null;
+            })
+    );
+
+    Promise.all(promises).then(() => {
+        renderDevicesTable();
+    });
+}
+
+function renderDevicesTable() {
+    const tbody = document.getElementById('devicesTableBody');
+
+    if (allDevices.length === 0) {
+        showEmptyMessage();
+        return;
+    }
+
+    tbody.innerHTML = '';
+    let filteredDevices = [...allDevices];
+
+    // Applica filtri
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+    const statusFilter = document.getElementById('statusFilter').value;
+
+    if (searchTerm) {
+        filteredDevices = filteredDevices.filter(device =>
+            device.name.toLowerCase().includes(searchTerm) ||
+            device.uniqueId.toLowerCase().includes(searchTerm) ||
+            (device.phone && device.phone.toLowerCase().includes(searchTerm))
+        );
+    }
+
+    if (statusFilter) {
+        filteredDevices = filteredDevices.filter(device => {
+            const status = deviceStatuses[device.id];
+            const isOnline = isDeviceOnline(status);
+            return statusFilter === 'online' ? isOnline : !isOnline;
+        });
+    }
+
+    // Ordinamento
+    const sortBy = document.getElementById('sortBy').value;
+    filteredDevices.sort((a, b) => {
+        if (sortBy === 'lastUpdate') {
+            const statusA = deviceStatuses[a.id];
+            const statusB = deviceStatuses[b.id];
+            const timeA = statusA ? new Date(statusA.serverTime) : new Date(0);
+            const timeB = statusB ? new Date(statusB.serverTime) : new Date(0);
+            return timeB - timeA;
+        } else {
+            return (a[sortBy] || '').localeCompare(b[sortBy] || '');
+        }
+    });
+
+    filteredDevices.forEach(device => {
+        const status = deviceStatuses[device.id];
+        const isOnline = isDeviceOnline(status);
+        const isMoving = status && status.speed && status.speed > 5;
+
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>
+                <input type="checkbox" class="device-checkbox" value="${device.id}"
+                       onchange="updateBulkActions()">
+            </td>
+            <td>
+                <div class="d-flex align-items-center">
+                    <div class="device-icon me-2">
+                        <i class="fas fa-${getDeviceIcon(device.category)} ${isOnline ? 'text-success' : 'text-secondary'}"></i>
+                    </div>
+                    <div>
+                        <strong>${device.name}</strong>
+                        ${device.disabled ? '<span class="badge bg-secondary ms-1">Disabilitato</span>' : ''}
+                    </div>
+                </div>
+            </td>
+            <td><code>${device.uniqueId}</code></td>
+            <td>${device.phone || '-'}</td>
+            <td>${device.model || '-'}</td>
+            <td>
+                ${device.category ? `<span class="badge bg-info">${getCategoryName(device.category)}</span>` : '-'}
+            </td>
+            <td>
+                <span class="badge ${isOnline ? 'bg-success' : 'bg-danger'}">
+                    <i class="fas fa-circle"></i> ${isOnline ? 'Online' : 'Offline'}
+                </span>
+                ${isMoving ? '<span class="badge bg-warning ms-1"><i class="fas fa-car"></i></span>' : ''}
+            </td>
+            <td>
+                ${status ? `
+                    <small>
+                        <div>${status.latitude.toFixed(4)}, ${status.longitude.toFixed(4)}</div>
+                        <div class="text-muted">${formatDateTime(status.serverTime)}</div>
+                    </small>
+                ` : '<span class="text-muted">Nessuna posizione</span>'}
+            </td>
+            <td>
+                <div class="btn-group btn-group-sm" role="group">
+                    <button class="btn btn-outline-primary btn-sm" onclick="editDevice(${device.id})"
+                            title="Modifica">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-outline-info btn-sm" onclick="viewDevice(${device.id})"
+                            title="Dettagli">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    <button class="btn btn-outline-danger btn-sm" onclick="showDeleteModal(${device.id})"
+                            title="Elimina">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+
+    // Aggiorna contatore
+    document.getElementById('totalDevices').textContent = filteredDevices.length;
+
+    document.getElementById('devicesCard').style.display = 'block';
+    document.getElementById('emptyMessage').style.display = 'none';
+}
+
+function showEmptyMessage() {
+    document.getElementById('devicesCard').style.display = 'none';
+    document.getElementById('emptyMessage').style.display = 'block';
+}
+
+function filterDevices() {
+    renderDevicesTable();
+}
+
+function sortDevices() {
+    renderDevicesTable();
+}
+
+function showAddDeviceModal() {
+    resetDeviceForm();
+    isEditing = false;
+    document.getElementById('deviceModalTitle').innerHTML = '<i class="fas fa-plus"></i> Nuovo Dispositivo';
+    document.getElementById('saveButtonText').textContent = 'Salva Dispositivo';
+
+    const modal = new bootstrap.Modal(document.getElementById('deviceModal'));
+    modal.show();
+}
+
+function editDevice(deviceId) {
+    const device = allDevices.find(d => d.id === deviceId);
+    if (!device) return;
+
+    isEditing = true;
+    document.getElementById('deviceModalTitle').innerHTML = '<i class="fas fa-edit"></i> Modifica Dispositivo';
+    document.getElementById('saveButtonText').textContent = 'Aggiorna Dispositivo';
+
+    // Popola il form
+    document.getElementById('deviceId').value = device.id;
+    document.getElementById('deviceName').value = device.name || '';
+    document.getElementById('deviceUniqueId').value = device.uniqueId || '';
+    document.getElementById('devicePhone').value = device.phone || '';
+    document.getElementById('deviceModel').value = device.model || '';
+    document.getElementById('deviceCategory').value = device.category || '';
+    document.getElementById('deviceContact').value = device.contact || '';
+    document.getElementById('deviceDisabled').checked = device.disabled || false;
+    document.getElementById('deviceGroupId').value = device.groupId || '';
+
+    // Popola attributi personalizzati
+    if (device.attributes) {
+        populateCustomAttributes(device.attributes);
+    }
+
+    const modal = new bootstrap.Modal(document.getElementById('deviceModal'));
+    modal.show();
+}
+
+function viewDevice(deviceId) {
+    window.location.href = `/device/${deviceId}`;
+}
+
+function showDeleteModal(deviceId) {
+    const device = allDevices.find(d => d.id === deviceId);
+    if (!device) return;
+
+    deviceToDeleteId = deviceId;
+
+    document.getElementById('deviceToDelete').innerHTML = `
+        <div class="row">
+            <div class="col-sm-4"><strong>Nome:</strong></div>
+            <div class="col-sm-8">${device.name}</div>
+        </div>
+        <div class="row">
+            <div class="col-sm-4"><strong>IMEI:</strong></div>
+            <div class="col-sm-8"><code>${device.uniqueId}</code></div>
+        </div>
+        ${device.phone ? `
+        <div class="row">
+            <div class="col-sm-4"><strong>Telefono:</strong></div>
+            <div class="col-sm-8">${device.phone}</div>
+        </div>
+        ` : ''}
+    `;
+
+    const modal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
+    modal.show();
+}
+
+function confirmDelete() {
+    if (!deviceToDeleteId) return;
+
+    fetch(`/api/devices/${deviceToDeleteId}`, {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('Dispositivo eliminato con successo', 'success');
+            const modal = bootstrap.Modal.getInstance(document.getElementById('deleteConfirmModal'));
+            modal.hide();
+            loadDevices();
+        } else {
+            showAlert(data.error || 'Errore nell\'eliminazione del dispositivo', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Errore:', error);
+        showAlert('Errore nell\'eliminazione del dispositivo', 'danger');
+    })
+    .finally(() => {
+        deviceToDeleteId = null;
+    });
+}
+
+function saveDevice() {
+    const form = document.getElementById('deviceForm');
+    const formData = new FormData(form);
+
+    // Validazione base
+    if (!formData.get('name') || !formData.get('uniqueId')) {
+        showAlert('Nome e IMEI sono campi obbligatori', 'warning');
+        return;
+    }
+
+    // Costruisci oggetto dispositivo
+    const deviceData = {
+        name: formData.get('name'),
+        uniqueId: formData.get('uniqueId'),
+        phone: formData.get('phone') || null,
+        model: formData.get('model') || null,
+        category: formData.get('category') || null,
+        contact: formData.get('contact') || null,
+        disabled: formData.get('disabled') === 'on',
+        groupId: parseInt(formData.get('groupId')) || null,
+        attributes: {}
+    };
+
+    // Aggiungi attributi personalizzati
+    const attrNames = formData.getAll('attrName[]');
+    const attrValues = formData.getAll('attrValue[]');
+
+    for (let i = 0; i < attrNames.length; i++) {
+        if (attrNames[i] && attrValues[i]) {
+            deviceData.attributes[attrNames[i]] = attrValues[i];
+        }
+    }
+
+    // Determina se stiamo creando o aggiornando
+    const method = isEditing ? 'PUT' : 'POST';
+    const url = isEditing ? `/api/devices/${formData.get('id')}` : '/api/devices';
+
+    if (isEditing) {
+        deviceData.id = parseInt(formData.get('id'));
+    }
+
+    fetch(url, {
+        method: method,
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(deviceData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const action = isEditing ? 'aggiornato' : 'creato';
+            showAlert(`Dispositivo ${action} con successo`, 'success');
+
+            const modal = bootstrap.Modal.getInstance(document.getElementById('deviceModal'));
+            modal.hide();
+            loadDevices();
+        } else {
+            showAlert(data.error || 'Errore nel salvataggio del dispositivo', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Errore:', error);
+        showAlert('Errore nel salvataggio del dispositivo', 'danger');
+    });
+}
+
+function resetDeviceForm() {
+    document.getElementById('deviceForm').reset();
+    document.getElementById('deviceId').value = '';
+
+    // Reset attributi personalizzati
+    const attributesContainer = document.getElementById('customAttributes');
+    attributesContainer.innerHTML = `
+        <div class="row mb-2">
+            <div class="col-md-5">
+                <input type="text" class="form-control form-control-sm"
+                       placeholder="Nome attributo" name="attrName[]">
+            </div>
+            <div class="col-md-5">
+                <input type="text" class="form-control form-control-sm"
+                       placeholder="Valore" name="attrValue[]">
+            </div>
+            <div class="col-md-2">
+                <button type="button" class="btn btn-sm btn-outline-success"
+                        onclick="addAttributeRow()">
+                    <i class="fas fa-plus"></i>
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+function populateCustomAttributes(attributes) {
+    const container = document.getElementById('customAttributes');
+    container.innerHTML = '';
+
+    const entries = Object.entries(attributes);
+
+    if (entries.length === 0) {
+        addAttributeRow();
+        return;
+    }
+
+    entries.forEach(([name, value], index) => {
+        const isLast = index === entries.length - 1;
+        container.innerHTML += `
+            <div class="row mb-2">
+                <div class="col-md-5">
+                    <input type="text" class="form-control form-control-sm"
+                           placeholder="Nome attributo" name="attrName[]" value="${name}">
+                </div>
+                <div class="col-md-5">
+                    <input type="text" class="form-control form-control-sm"
+                           placeholder="Valore" name="attrValue[]" value="${value}">
+                </div>
+                <div class="col-md-2">
+                    <button type="button" class="btn btn-sm ${isLast ? 'btn-outline-success' : 'btn-outline-danger'}"
+                            onclick="${isLast ? 'addAttributeRow()' : 'removeAttributeRow(this)'}">
+                        <i class="fas fa-${isLast ? 'plus' : 'trash'}"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+    });
+
+    // Aggiungi una riga vuota alla fine
+    addAttributeRow();
+}
+
+function addAttributeRow() {
+    const container = document.getElementById('customAttributes');
+
+    // Converti il pulsante + dell'ultima riga in pulsante -
+    const lastPlusBtn = container.querySelector('.btn-outline-success:last-of-type');
+    if (lastPlusBtn) {
+        lastPlusBtn.className = 'btn btn-sm btn-outline-danger';
+        lastPlusBtn.innerHTML = '<i class="fas fa-trash"></i>';
+        lastPlusBtn.setAttribute('onclick', 'removeAttributeRow(this)');
+    }
+
+    // Aggiungi nuova riga
+    const newRow = document.createElement('div');
+    newRow.className = 'row mb-2';
+    newRow.innerHTML = `
+        <div class="col-md-5">
+            <input type="text" class="form-control form-control-sm"
+                   placeholder="Nome attributo" name="attrName[]">
+        </div>
+        <div class="col-md-5">
+            <input type="text" class="form-control form-control-sm"
+                   placeholder="Valore" name="attrValue[]">
+        </div>
+        <div class="col-md-2">
+            <button type="button" class="btn btn-sm btn-outline-success"
+                    onclick="addAttributeRow()">
+                <i class="fas fa-plus"></i>
+            </button>
+        </div>
+    `;
+
+    container.appendChild(newRow);
+}
+
+function removeAttributeRow(button) {
+    button.closest('.row').remove();
+}
+
+function selectAll() {
+    const checkboxes = document.querySelectorAll('.device-checkbox');
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+
+    checkboxes.forEach(cb => {
+        cb.checked = !selectAllCheckbox.checked;
+    });
+
+    selectAllCheckbox.checked = !selectAllCheckbox.checked;
+    updateBulkActions();
+}
+
+function toggleSelectAll() {
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+    const checkboxes = document.querySelectorAll('.device-checkbox');
+
+    checkboxes.forEach(cb => {
+        cb.checked = selectAllCheckbox.checked;
+    });
+
+    updateBulkActions();
+}
+
+function updateBulkActions() {
+    const checkboxes = document.querySelectorAll('.device-checkbox:checked');
+    const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+
+    bulkDeleteBtn.disabled = checkboxes.length === 0;
+
+    // Aggiorna stato checkbox "seleziona tutti"
+    const allCheckboxes = document.querySelectorAll('.device-checkbox');
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+
+    if (checkboxes.length === 0) {
+        selectAllCheckbox.indeterminate = false;
+        selectAllCheckbox.checked = false;
+    } else if (checkboxes.length === allCheckboxes.length) {
+        selectAllCheckbox.indeterminate = false;
+        selectAllCheckbox.checked = true;
+    } else {
+        selectAllCheckbox.indeterminate = true;
+    }
+}
+
+function bulkDelete() {
+    const checkboxes = document.querySelectorAll('.device-checkbox:checked');
+    const selectedIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
+
+    if (selectedIds.length === 0) return;
+
+    const confirmMsg = `Sei sicuro di voler eliminare ${selectedIds.length} dispositivi selezionati? Questa azione non può essere annullata.`;
+
+    if (confirm(confirmMsg)) {
+        const promises = selectedIds.map(id =>
+            fetch(`/api/devices/${id}`, { method: 'DELETE' })
+                .then(response => response.json())
+        );
+
+        Promise.all(promises)
+            .then(results => {
+                const successful = results.filter(r => r.success).length;
+                const failed = results.length - successful;
+
+                if (failed === 0) {
+                    showAlert(`${successful} dispositivi eliminati con successo`, 'success');
+                } else {
+                    showAlert(`${successful} eliminati, ${failed} errori`, 'warning');
+                }
+
+                loadDevices();
+            })
+            .catch(error => {
+                console.error('Errore nell\'eliminazione multipla:', error);
+                showAlert('Errore nell\'eliminazione dei dispositivi', 'danger');
+            });
+    }
+}
+
+function showLoading(show) {
+    document.getElementById('loadingSpinner').style.display = show ? 'block' : 'none';
+    document.getElementById('devicesCard').style.display = show ? 'none' : 'block';
+}
+
+// Utility functions
+function isDeviceOnline(status) {
+    if (!status) return false;
+    const lastUpdate = new Date(status.serverTime);
+    const now = new Date();
+    const diffMinutes = (now - lastUpdate) / (1000 * 60);
+    return diffMinutes < 5;
+}
+
+function getDeviceIcon(category) {
+    const icons = {
+        'car': 'car',
+        'truck': 'truck',
+        'motorcycle': 'motorcycle',
+        'bus': 'bus',
+        'van': 'shuttle-van',
+        'boat': 'ship',
+        'person': 'walking',
+        'animal': 'paw',
+        'other': 'mobile-alt'
+    };
+    return icons[category] || 'mobile-alt';
+}
+
+function getCategoryName(category) {
+    const names = {
+        'car': 'Auto',
+        'truck': 'Camion',
+        'motorcycle': 'Moto',
+        'bus': 'Autobus',
+        'van': 'Furgone',
+        'boat': 'Barca',
+        'person': 'Persona',
+        'animal': 'Animale',
+        'other': 'Altro'
+    };
+    return names[category] || category;
+}
+
+function formatDateTime(dateTimeString) {
+    return new Date(dateTimeString).toLocaleString('it-IT');
+}
+
+function showAlert(message, type = 'info') {
+    const alertHtml = `
+        <div class="alert alert-${type} alert-dismissible fade show position-fixed"
+             style="top: 80px; right: 20px; z-index: 2000; min-width: 300px;" role="alert">
+            <i class="fas fa-${getAlertIcon(type)}"></i> ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', alertHtml);
+
+    setTimeout(() => {
+        const alert = document.querySelector('.alert');
+        if (alert) {
+            alert.remove();
+        }
+    }, 5000);
+}
+
+function getAlertIcon(type) {
+    const icons = {
+        'success': 'check-circle',
+        'danger': 'exclamation-triangle',
+        'warning': 'exclamation-circle',
+        'info': 'info-circle'
+    };
+    return icons[type] || 'info-circle';
+}
+</script>
+{% endblock %}
