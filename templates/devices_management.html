@@ -35,6 +35,46 @@
         </div>
     </div>
 
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-mobile-alt fa-2x mb-2"></i>
+                    <h4 id="totalDevices">0</h4>
+                    <p class="mb-0">Dispositivi Totali</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-wifi fa-2x mb-2"></i>
+                    <h4 id="onlineDevices">0</h4>
+                    <p class="mb-0">Online</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-danger text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-wifi-slash fa-2x mb-2"></i>
+                    <h4 id="offlineDevices">0</h4>
+                    <p class="mb-0">Offline</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-car fa-2x mb-2"></i>
+                    <h4 id="movingDevices">0</h4>
+                    <p class="mb-0">In Movimento</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Filtri di ricerca -->
     <div class="row mb-4">
         <div class="col-12">
@@ -67,7 +107,7 @@
                         </div>
                         <div class="col-md-3 text-end">
                             <small class="text-muted">
-                                Totale: <span id="totalDevices">0</span> dispositivi
+                                Totale: <span id="totalDevicesCount">0</span> dispositivi
                             </small>
                         </div>
                     </div>
@@ -315,71 +355,266 @@
 
 {% block scripts %}
 <script>
+// ============================================================================
+// VARIABILI GLOBALI
+// ============================================================================
 let allDevices = [];
 let deviceStatuses = {};
 let selectedDevices = [];
 let isEditing = false;
 let deviceToDeleteId = null;
 
+// ============================================================================
+// INIZIALIZZAZIONE
+// ============================================================================
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM Content Loaded - Device Management');
     loadDevices();
     setupEventListeners();
+
+    // Check iniziale dopo un piccolo delay
+    setTimeout(() => {
+        if (allDevices.length === 0) {
+            console.log('No devices loaded after initialization - showing help');
+            const helpMessage = `
+                <div>
+                    <strong>ℹ️ Nessun dispositivo trovato</strong><br><br>
+                    Possibili cause:<br>
+                    • I dispositivi non sono stati assegnati al tuo utente<br>
+                    • Problemi di connessione al server Traccar<br>
+                    • Permessi utente insufficienti<br><br>
+                    <button onclick="testConnection()" class="btn btn-sm btn-primary">🔄 Test Connessione</button>
+                    <button onclick="showDebugInfo()" class="btn btn-sm btn-info">🔧 Info Debug</button>
+                </div>
+            `;
+            showAlert(helpMessage, 'warning', 15000);
+        }
+    }, 3000);
 });
 
 function setupEventListeners() {
-    // Filtro di ricerca
-    document.getElementById('searchInput').addEventListener('input', filterDevices);
+    console.log('Setting up event listeners...');
+
+    // Filtro di ricerca con debounce
+    let searchTimeout;
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(filterDevices, 300);
+        });
+    }
 
     // Filtro stato
-    document.getElementById('statusFilter').addEventListener('change', filterDevices);
+    const statusFilter = document.getElementById('statusFilter');
+    if (statusFilter) {
+        statusFilter.addEventListener('change', filterDevices);
+    }
 
     // Ordinamento
-    document.getElementById('sortBy').addEventListener('change', sortDevices);
+    const sortBy = document.getElementById('sortBy');
+    if (sortBy) {
+        sortBy.addEventListener('change', sortDevices);
+    }
 
     // Reset form quando modal si chiude
-    document.getElementById('deviceModal').addEventListener('hidden.bs.modal', function() {
-        resetDeviceForm();
-    });
+    const deviceModal = document.getElementById('deviceModal');
+    if (deviceModal) {
+        deviceModal.addEventListener('hidden.bs.modal', function() {
+            resetDeviceForm();
+        });
+    }
+
+    // Event listener per checkbox "seleziona tutti"
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', toggleSelectAll);
+    }
+
+    // Aggiungi pulsante di debug
+    addDebugButton();
 }
 
+// ============================================================================
+// CARICAMENTO DISPOSITIVI
+// ============================================================================
 function loadDevices() {
+    console.log('=== LOADING DEVICES ===');
     showLoading(true);
 
-    fetch('/api/devices')
+    // Prima verifica lo stato della connessione
+    fetch('/api/debug/traccar-status')
         .then(response => response.json())
+        .then(debugInfo => {
+            console.log('Debug info:', debugInfo);
+
+            if (!debugInfo.server_reachable) {
+                showAlert('Server Traccar non raggiungibile', 'danger');
+                showEmptyMessage();
+                showLoading(false);
+                return;
+            }
+
+            if (!debugInfo.session_valid) {
+                showAlert('Sessione Traccar non valida', 'warning');
+            }
+
+            // Ora tenta di caricare i dispositivi
+            return loadDevicesActual();
+        })
+        .catch(error => {
+            console.error('Errore nel debug status:', error);
+            // Continua comunque con il caricamento normale
+            loadDevicesActual();
+        });
+}
+
+function loadDevicesActual() {
+    console.log('=== LOADING DEVICES ACTUAL ===');
+
+    fetch('/api/devices')
+        .then(response => {
+            console.log('Devices API response status:', response.status);
+            return response.json();
+        })
         .then(devices => {
-            allDevices = devices;
-            loadDevicesStatus();
+            console.log('Devices received:', devices);
+
+            if (devices.error) {
+                console.error('Devices API error:', devices.error);
+                showAlert(`Errore API: ${devices.error}`, 'danger');
+
+                // Prova il force reload come fallback
+                console.log('Tentativo force reload...');
+                return fetch('/api/devices/force-reload')
+                    .then(response => response.json())
+                    .then(forceResult => {
+                        if (forceResult.success) {
+                            console.log('Force reload successful:', forceResult.devices);
+                            allDevices = forceResult.devices;
+                            updateStatistics();
+                            loadDevicesStatus();
+                            showAlert(`Dispositivi caricati con force reload: ${forceResult.devices.length}`, 'success');
+                        } else {
+                            console.error('Force reload failed:', forceResult.error);
+                            showAlert(`Force reload fallito: ${forceResult.error}`, 'danger');
+                            showEmptyMessage();
+                        }
+                        showLoading(false);
+                    });
+            } else {
+                // Caricamento normale riuscito
+                allDevices = Array.isArray(devices) ? devices : [];
+                console.log('Devices loaded successfully:', allDevices.length);
+
+                if (allDevices.length === 0) {
+                    console.log('No devices found - showing empty message');
+                    showAlert('Nessun dispositivo trovato. Verifica i permessi utente.', 'info');
+                    showEmptyMessage();
+                } else {
+                    updateStatistics();
+                    loadDevicesStatus();
+                    showAlert(`${allDevices.length} dispositivi caricati con successo`, 'success');
+                }
+                showLoading(false);
+            }
         })
         .catch(error => {
             console.error('Errore nel caricamento dispositivi:', error);
-            showAlert('Errore nel caricamento dei dispositivi', 'danger');
+            showAlert('Errore di rete nel caricamento dei dispositivi', 'danger');
             showEmptyMessage();
-        })
-        .finally(() => {
             showLoading(false);
         });
 }
 
+function updateStatistics() {
+    console.log('Updating statistics for', allDevices.length, 'devices');
+
+    const totalDevicesElement = document.getElementById('totalDevices');
+    const totalDevicesCountElement = document.getElementById('totalDevicesCount');
+
+    if (totalDevicesElement) {
+        totalDevicesElement.textContent = allDevices.length;
+    }
+    if (totalDevicesCountElement) {
+        totalDevicesCountElement.textContent = allDevices.length;
+    }
+
+    // Calcola statistiche aggiuntive se necessario
+    let onlineCount = 0;
+    let offlineCount = 0;
+    let movingCount = 0;
+
+    Object.values(deviceStatuses).forEach(status => {
+        if (isDeviceOnline(status)) {
+            onlineCount++;
+            if (status && status.speed && status.speed > 5) {
+                movingCount++;
+            }
+        } else {
+            offlineCount++;
+        }
+    });
+
+    // Se i contatori non esistono ancora, usa valori di default
+    if (deviceStatuses && Object.keys(deviceStatuses).length > 0) {
+        const onlineElement = document.getElementById('onlineDevices');
+        const offlineElement = document.getElementById('offlineDevices');
+        const movingElement = document.getElementById('movingDevices');
+
+        if (onlineElement) onlineElement.textContent = onlineCount;
+        if (offlineElement) offlineElement.textContent = offlineCount;
+        if (movingElement) movingElement.textContent = movingCount;
+    }
+}
+
 function loadDevicesStatus() {
+    console.log('Loading devices status...');
+
+    if (allDevices.length === 0) {
+        console.log('No devices to load status for');
+        deviceStatuses = {};
+        renderDevicesTable();
+        return;
+    }
+
     const promises = allDevices.map(device =>
         fetch(`/api/device/${device.id}/status`)
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    console.warn(`Status API failed for device ${device.id}: ${response.status}`);
+                    return null;
+                }
+                return response.json();
+            })
             .then(status => {
                 deviceStatuses[device.id] = status;
+                return { device, status };
             })
-            .catch(() => {
+            .catch(error => {
+                console.error(`Error loading status for device ${device.id}:`, error);
                 deviceStatuses[device.id] = null;
+                return { device, status: null };
             })
     );
 
-    Promise.all(promises).then(() => {
+    Promise.allSettled(promises).then((results) => {
+        console.log('Device statuses loaded:', Object.keys(deviceStatuses).length);
+        updateStatistics(); // Aggiorna le statistiche dopo aver caricato gli status
         renderDevicesTable();
     });
 }
 
+// ============================================================================
+// RENDERING TABELLA
+// ============================================================================
 function renderDevicesTable() {
     const tbody = document.getElementById('devicesTableBody');
+
+    if (!tbody) {
+        console.error('Table body element not found');
+        return;
+    }
 
     if (allDevices.length === 0) {
         showEmptyMessage();
@@ -390,8 +625,12 @@ function renderDevicesTable() {
     let filteredDevices = [...allDevices];
 
     // Applica filtri
-    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-    const statusFilter = document.getElementById('statusFilter').value;
+    const searchInput = document.getElementById('searchInput');
+    const statusFilter = document.getElementById('statusFilter');
+    const sortBy = document.getElementById('sortBy');
+
+    const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
+    const statusFilterValue = statusFilter ? statusFilter.value : '';
 
     if (searchTerm) {
         filteredDevices = filteredDevices.filter(device =>
@@ -401,25 +640,25 @@ function renderDevicesTable() {
         );
     }
 
-    if (statusFilter) {
+    if (statusFilterValue) {
         filteredDevices = filteredDevices.filter(device => {
             const status = deviceStatuses[device.id];
             const isOnline = isDeviceOnline(status);
-            return statusFilter === 'online' ? isOnline : !isOnline;
+            return statusFilterValue === 'online' ? isOnline : !isOnline;
         });
     }
 
     // Ordinamento
-    const sortBy = document.getElementById('sortBy').value;
+    const sortByValue = sortBy ? sortBy.value : 'name';
     filteredDevices.sort((a, b) => {
-        if (sortBy === 'lastUpdate') {
+        if (sortByValue === 'lastUpdate') {
             const statusA = deviceStatuses[a.id];
             const statusB = deviceStatuses[b.id];
             const timeA = statusA ? new Date(statusA.serverTime) : new Date(0);
             const timeB = statusB ? new Date(statusB.serverTime) : new Date(0);
             return timeB - timeA;
         } else {
-            return (a[sortBy] || '').localeCompare(b[sortBy] || '');
+            return (a[sortByValue] || '').localeCompare(b[sortByValue] || '');
         }
     });
 
@@ -485,138 +724,153 @@ function renderDevicesTable() {
         tbody.appendChild(row);
     });
 
-    // Aggiorna contatore
-    document.getElementById('totalDevices').textContent = filteredDevices.length;
+    // Aggiorna contatore filtrato
+    updateStatistics();
 
     document.getElementById('devicesCard').style.display = 'block';
     document.getElementById('emptyMessage').style.display = 'none';
 }
 
-function showEmptyMessage() {
-    document.getElementById('devicesCard').style.display = 'none';
-    document.getElementById('emptyMessage').style.display = 'block';
-}
-
-function filterDevices() {
-    renderDevicesTable();
-}
-
-function sortDevices() {
-    renderDevicesTable();
-}
-
+// ============================================================================
+// GESTIONE MODALS E FORM
+// ============================================================================
 function showAddDeviceModal() {
+    console.log('Opening add device modal');
     resetDeviceForm();
     isEditing = false;
-    document.getElementById('deviceModalTitle').innerHTML = '<i class="fas fa-plus"></i> Nuovo Dispositivo';
-    document.getElementById('saveButtonText').textContent = 'Salva Dispositivo';
+
+    const modalTitle = document.getElementById('deviceModalTitle');
+    const saveButtonText = document.getElementById('saveButtonText');
+
+    if (modalTitle) {
+        modalTitle.innerHTML = '<i class="fas fa-plus"></i> Nuovo Dispositivo';
+    }
+    if (saveButtonText) {
+        saveButtonText.textContent = 'Salva Dispositivo';
+    }
 
     const modal = new bootstrap.Modal(document.getElementById('deviceModal'));
     modal.show();
 }
 
 function editDevice(deviceId) {
+    console.log('Edit device:', deviceId);
     const device = allDevices.find(d => d.id === deviceId);
-    if (!device) return;
+    if (!device) {
+        showAlert('Dispositivo non trovato', 'danger');
+        return;
+    }
 
     isEditing = true;
-    document.getElementById('deviceModalTitle').innerHTML = '<i class="fas fa-edit"></i> Modifica Dispositivo';
-    document.getElementById('saveButtonText').textContent = 'Aggiorna Dispositivo';
+    const modalTitle = document.getElementById('deviceModalTitle');
+    const saveButtonText = document.getElementById('saveButtonText');
 
-    // Popola il form
-    document.getElementById('deviceId').value = device.id;
-    document.getElementById('deviceName').value = device.name || '';
-    document.getElementById('deviceUniqueId').value = device.uniqueId || '';
-    document.getElementById('devicePhone').value = device.phone || '';
-    document.getElementById('deviceModel').value = device.model || '';
-    document.getElementById('deviceCategory').value = device.category || '';
-    document.getElementById('deviceContact').value = device.contact || '';
-    document.getElementById('deviceDisabled').checked = device.disabled || false;
-    document.getElementById('deviceGroupId').value = device.groupId || '';
-
-    // Popola attributi personalizzati
-    if (device.attributes) {
-        populateCustomAttributes(device.attributes);
+    if (modalTitle) {
+        modalTitle.innerHTML = '<i class="fas fa-edit"></i> Modifica Dispositivo';
     }
+    if (saveButtonText) {
+        saveButtonText.textContent = 'Aggiorna Dispositivo';
+    }
+
+    // Popola il form con i dati del dispositivo
+    populateDeviceForm(device);
 
     const modal = new bootstrap.Modal(document.getElementById('deviceModal'));
     modal.show();
 }
 
-function viewDevice(deviceId) {
-    window.location.href = `/device/${deviceId}`;
-}
+function populateDeviceForm(device) {
+    const fields = {
+        'deviceId': device.id,
+        'deviceName': device.name || '',
+        'deviceUniqueId': device.uniqueId || '',
+        'devicePhone': device.phone || '',
+        'deviceModel': device.model || '',
+        'deviceCategory': device.category || '',
+        'deviceContact': device.contact || '',
+        'deviceDisabled': device.disabled || false,
+        'deviceGroupId': device.groupId || ''
+    };
 
-function showDeleteModal(deviceId) {
-    const device = allDevices.find(d => d.id === deviceId);
-    if (!device) return;
-
-    deviceToDeleteId = deviceId;
-
-    document.getElementById('deviceToDelete').innerHTML = `
-        <div class="row">
-            <div class="col-sm-4"><strong>Nome:</strong></div>
-            <div class="col-sm-8">${device.name}</div>
-        </div>
-        <div class="row">
-            <div class="col-sm-4"><strong>IMEI:</strong></div>
-            <div class="col-sm-8"><code>${device.uniqueId}</code></div>
-        </div>
-        ${device.phone ? `
-        <div class="row">
-            <div class="col-sm-4"><strong>Telefono:</strong></div>
-            <div class="col-sm-8">${device.phone}</div>
-        </div>
-        ` : ''}
-    `;
-
-    const modal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
-    modal.show();
-}
-
-function confirmDelete() {
-    if (!deviceToDeleteId) return;
-
-    fetch(`/api/devices/${deviceToDeleteId}`, {
-        method: 'DELETE',
-        headers: {
-            'Content-Type': 'application/json'
+    Object.entries(fields).forEach(([fieldId, value]) => {
+        const element = document.getElementById(fieldId);
+        if (element) {
+            if (element.type === 'checkbox') {
+                element.checked = value;
+            } else {
+                element.value = value;
+            }
         }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showAlert('Dispositivo eliminato con successo', 'success');
-            const modal = bootstrap.Modal.getInstance(document.getElementById('deleteConfirmModal'));
-            modal.hide();
-            loadDevices();
-        } else {
-            showAlert(data.error || 'Errore nell\'eliminazione del dispositivo', 'danger');
-        }
-    })
-    .catch(error => {
-        console.error('Errore:', error);
-        showAlert('Errore nell\'eliminazione del dispositivo', 'danger');
-    })
-    .finally(() => {
-        deviceToDeleteId = null;
     });
+
+    // Popola attributi personalizzati se presenti
+    if (device.attributes) {
+        populateCustomAttributes(device.attributes);
+    }
+}
+
+function resetDeviceForm() {
+    console.log('Reset device form');
+
+    const form = document.getElementById('deviceForm');
+    if (form) {
+        form.reset();
+    }
+
+    // Reset degli ID nascosti
+    const deviceId = document.getElementById('deviceId');
+    if (deviceId) {
+        deviceId.value = '';
+    }
+
+    // Reset attributi personalizzati
+    const customAttributes = document.getElementById('customAttributes');
+    if (customAttributes) {
+        customAttributes.innerHTML = `
+            <div class="row mb-2">
+                <div class="col-md-5">
+                    <input type="text" class="form-control form-control-sm"
+                           placeholder="Nome attributo" name="attrName[]">
+                </div>
+                <div class="col-md-5">
+                    <input type="text" class="form-control form-control-sm"
+                           placeholder="Valore" name="attrValue[]">
+                </div>
+                <div class="col-md-2">
+                    <button type="button" class="btn btn-sm btn-outline-success"
+                            onclick="addAttributeRow()">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+    }
 }
 
 function saveDevice() {
+    console.log('Saving device...');
+
     const form = document.getElementById('deviceForm');
+    if (!form) {
+        showAlert('Form non trovato', 'danger');
+        return;
+    }
+
     const formData = new FormData(form);
 
-    // Validazione base
-    if (!formData.get('name') || !formData.get('uniqueId')) {
+    // Validazione dati richiesti
+    const name = formData.get('name');
+    const uniqueId = formData.get('uniqueId');
+
+    if (!name || !uniqueId) {
         showAlert('Nome e IMEI sono campi obbligatori', 'warning');
         return;
     }
 
     // Costruisci oggetto dispositivo
     const deviceData = {
-        name: formData.get('name'),
-        uniqueId: formData.get('uniqueId'),
+        name: name,
+        uniqueId: uniqueId,
         phone: formData.get('phone') || null,
         model: formData.get('model') || null,
         category: formData.get('category') || null,
@@ -644,6 +898,12 @@ function saveDevice() {
         deviceData.id = parseInt(formData.get('id'));
     }
 
+    // Mostra loading
+    const saveButton = document.querySelector('#deviceModal .btn-primary');
+    const originalText = saveButton.innerHTML;
+    saveButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvataggio...';
+    saveButton.disabled = true;
+
     fetch(url, {
         method: method,
         headers: {
@@ -659,7 +919,7 @@ function saveDevice() {
 
             const modal = bootstrap.Modal.getInstance(document.getElementById('deviceModal'));
             modal.hide();
-            loadDevices();
+            loadDevices(); // Ricarica la lista
         } else {
             showAlert(data.error || 'Errore nel salvataggio del dispositivo', 'danger');
         }
@@ -667,66 +927,214 @@ function saveDevice() {
     .catch(error => {
         console.error('Errore:', error);
         showAlert('Errore nel salvataggio del dispositivo', 'danger');
+    })
+    .finally(() => {
+        // Ripristina il pulsante
+        saveButton.innerHTML = originalText;
+        saveButton.disabled = false;
     });
 }
 
-function resetDeviceForm() {
-    document.getElementById('deviceForm').reset();
-    document.getElementById('deviceId').value = '';
+// ============================================================================
+// GESTIONE ELIMINAZIONE
+// ============================================================================
+function showDeleteModal(deviceId) {
+    console.log('Show delete modal for device:', deviceId);
+    const device = allDevices.find(d => d.id === deviceId);
+    if (!device) {
+        showAlert('Dispositivo non trovato', 'danger');
+        return;
+    }
 
-    // Reset attributi personalizzati
-    const attributesContainer = document.getElementById('customAttributes');
-    attributesContainer.innerHTML = `
-        <div class="row mb-2">
-            <div class="col-md-5">
-                <input type="text" class="form-control form-control-sm"
-                       placeholder="Nome attributo" name="attrName[]">
+    deviceToDeleteId = deviceId;
+
+    const deviceToDelete = document.getElementById('deviceToDelete');
+    if (deviceToDelete) {
+        deviceToDelete.innerHTML = `
+            <div class="row">
+                <div class="col-sm-4"><strong>Nome:</strong></div>
+                <div class="col-sm-8">${device.name}</div>
             </div>
-            <div class="col-md-5">
-                <input type="text" class="form-control form-control-sm"
-                       placeholder="Valore" name="attrValue[]">
+            <div class="row">
+                <div class="col-sm-4"><strong>IMEI:</strong></div>
+                <div class="col-sm-8"><code>${device.uniqueId}</code></div>
             </div>
-            <div class="col-md-2">
-                <button type="button" class="btn btn-sm btn-outline-success"
-                        onclick="addAttributeRow()">
-                    <i class="fas fa-plus"></i>
-                </button>
+            ${device.phone ? `
+            <div class="row">
+                <div class="col-sm-4"><strong>Telefono:</strong></div>
+                <div class="col-sm-8">${device.phone}</div>
             </div>
-        </div>
-    `;
+            ` : ''}
+        `;
+    }
+
+    const modal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
+    modal.show();
 }
 
+function confirmDelete() {
+    if (!deviceToDeleteId) return;
+
+    console.log('Confirming delete for device:', deviceToDeleteId);
+
+    // Mostra loading
+    const deleteButton = document.querySelector('#deleteConfirmModal .btn-danger');
+    const originalText = deleteButton.innerHTML;
+    deleteButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Eliminazione...';
+    deleteButton.disabled = true;
+
+    fetch(`/api/devices/${deviceToDeleteId}`, {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('Dispositivo eliminato con successo', 'success');
+            const modal = bootstrap.Modal.getInstance(document.getElementById('deleteConfirmModal'));
+            modal.hide();
+            loadDevices(); // Ricarica la lista
+        } else {
+            showAlert(data.error || 'Errore nell\'eliminazione del dispositivo', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Errore:', error);
+        showAlert('Errore nell\'eliminazione del dispositivo', 'danger');
+    })
+    .finally(() => {
+        // Ripristina il pulsante
+        deleteButton.innerHTML = originalText;
+        deleteButton.disabled = false;
+        deviceToDeleteId = null;
+    });
+}
+
+// ============================================================================
+// AZIONI BULK
+// ============================================================================
+function selectAll() {
+    const checkboxes = document.querySelectorAll('.device-checkbox');
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+
+    checkboxes.forEach(cb => {
+        cb.checked = !selectAllCheckbox.checked;
+    });
+
+    selectAllCheckbox.checked = !selectAllCheckbox.checked;
+    updateBulkActions();
+}
+
+function toggleSelectAll() {
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+    const checkboxes = document.querySelectorAll('.device-checkbox');
+
+    checkboxes.forEach(cb => {
+        cb.checked = selectAllCheckbox.checked;
+    });
+
+    updateBulkActions();
+}
+
+function updateBulkActions() {
+    const checkboxes = document.querySelectorAll('.device-checkbox:checked');
+    const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+
+    if (bulkDeleteBtn) {
+        bulkDeleteBtn.disabled = checkboxes.length === 0;
+    }
+
+    // Aggiorna stato checkbox "seleziona tutti"
+    const allCheckboxes = document.querySelectorAll('.device-checkbox');
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+
+    if (selectAllCheckbox) {
+        if (checkboxes.length === 0) {
+            selectAllCheckbox.indeterminate = false;
+            selectAllCheckbox.checked = false;
+        } else if (checkboxes.length === allCheckboxes.length) {
+            selectAllCheckbox.indeterminate = false;
+            selectAllCheckbox.checked = true;
+        } else {
+            selectAllCheckbox.indeterminate = true;
+        }
+    }
+}
+
+function bulkDelete() {
+    const checkboxes = document.querySelectorAll('.device-checkbox:checked');
+    const selectedIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
+
+    if (selectedIds.length === 0) return;
+
+    const confirmMsg = `Sei sicuro di voler eliminare ${selectedIds.length} dispositivi selezionati? Questa azione non può essere annullata.`;
+
+    if (confirm(confirmMsg)) {
+        showAlert(`Eliminazione di ${selectedIds.length} dispositivi in corso...`, 'info');
+
+        const promises = selectedIds.map(id =>
+            fetch(`/api/devices/${id}`, { method: 'DELETE' })
+                .then(response => response.json())
+        );
+
+        Promise.all(promises)
+            .then(results => {
+                const successful = results.filter(r => r.success).length;
+                const failed = results.length - successful;
+
+                if (failed === 0) {
+                    showAlert(`${successful} dispositivi eliminati con successo`, 'success');
+                } else {
+                    showAlert(`${successful} eliminati, ${failed} errori`, 'warning');
+                }
+
+                loadDevices(); // Ricarica la lista
+            })
+            .catch(error => {
+                console.error('Errore nell\'eliminazione multipla:', error);
+                showAlert('Errore nell\'eliminazione dei dispositivi', 'danger');
+            });
+    }
+}
+
+// ============================================================================
+// GESTIONE ATTRIBUTI PERSONALIZZATI
+// ============================================================================
 function populateCustomAttributes(attributes) {
     const container = document.getElementById('customAttributes');
+    if (!container) return;
+
     container.innerHTML = '';
 
-    const entries = Object.entries(attributes);
-
-    if (entries.length === 0) {
+    if (!attributes || typeof attributes !== 'object') {
         addAttributeRow();
         return;
     }
 
-    entries.forEach(([name, value], index) => {
-        const isLast = index === entries.length - 1;
-        container.innerHTML += `
-            <div class="row mb-2">
-                <div class="col-md-5">
-                    <input type="text" class="form-control form-control-sm"
-                           placeholder="Nome attributo" name="attrName[]" value="${name}">
-                </div>
-                <div class="col-md-5">
-                    <input type="text" class="form-control form-control-sm"
-                           placeholder="Valore" name="attrValue[]" value="${value}">
-                </div>
-                <div class="col-md-2">
-                    <button type="button" class="btn btn-sm ${isLast ? 'btn-outline-success' : 'btn-outline-danger'}"
-                            onclick="${isLast ? 'addAttributeRow()' : 'removeAttributeRow(this)'}">
-                        <i class="fas fa-${isLast ? 'plus' : 'trash'}"></i>
-                    </button>
-                </div>
+    Object.entries(attributes).forEach(([key, value], index, array) => {
+        const isLast = index === array.length - 1;
+
+        const row = document.createElement('div');
+        row.className = 'row mb-2';
+        row.innerHTML = `
+            <div class="col-md-5">
+                <input type="text" class="form-control form-control-sm"
+                       placeholder="Nome attributo" name="attrName[]" value="${key}">
+            </div>
+            <div class="col-md-5">
+                <input type="text" class="form-control form-control-sm"
+                       placeholder="Valore" name="attrValue[]" value="${value}">
+            </div>
+            <div class="col-md-2">
+                <button type="button" class="btn btn-sm ${isLast ? 'btn-outline-success' : 'btn-outline-danger'}"
+                        onclick="${isLast ? 'addAttributeRow()' : 'removeAttributeRow(this)'}">
+                    <i class="fas fa-${isLast ? 'plus' : 'trash'}"></i>
+                </button>
             </div>
         `;
+        container.appendChild(row);
     });
 
     // Aggiungi una riga vuota alla fine
@@ -735,6 +1143,7 @@ function populateCustomAttributes(attributes) {
 
 function addAttributeRow() {
     const container = document.getElementById('customAttributes');
+    if (!container) return;
 
     // Converti il pulsante + dell'ultima riga in pulsante -
     const lastPlusBtn = container.querySelector('.btn-outline-success:last-of-type');
@@ -771,90 +1180,135 @@ function removeAttributeRow(button) {
     button.closest('.row').remove();
 }
 
-function selectAll() {
-    const checkboxes = document.querySelectorAll('.device-checkbox');
-    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+// ============================================================================
+// FILTRI E ORDINAMENTI
+// ============================================================================
+function showEmptyMessage() {
+    const devicesCard = document.getElementById('devicesCard');
+    const emptyMessage = document.getElementById('emptyMessage');
 
-    checkboxes.forEach(cb => {
-        cb.checked = !selectAllCheckbox.checked;
-    });
-
-    selectAllCheckbox.checked = !selectAllCheckbox.checked;
-    updateBulkActions();
+    if (devicesCard) devicesCard.style.display = 'none';
+    if (emptyMessage) emptyMessage.style.display = 'block';
 }
 
-function toggleSelectAll() {
-    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
-    const checkboxes = document.querySelectorAll('.device-checkbox');
-
-    checkboxes.forEach(cb => {
-        cb.checked = selectAllCheckbox.checked;
-    });
-
-    updateBulkActions();
+function filterDevices() {
+    renderDevicesTable();
 }
 
-function updateBulkActions() {
-    const checkboxes = document.querySelectorAll('.device-checkbox:checked');
-    const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+function sortDevices() {
+    renderDevicesTable();
+}
 
-    bulkDeleteBtn.disabled = checkboxes.length === 0;
+// ============================================================================
+// DEBUG E TEST
+// ============================================================================
+function addDebugButton() {
+    // Aggiungi un pulsante di debug nell'header
+    const headerDiv = document.querySelector('.d-flex.justify-content-between.align-items-center');
+    if (headerDiv && !document.getElementById('debugButton')) {
+        const debugBtn = document.createElement('button');
+        debugBtn.id = 'debugButton';
+        debugBtn.className = 'btn btn-outline-info btn-sm ms-2';
+        debugBtn.innerHTML = '<i class="fas fa-bug"></i> Debug';
+        debugBtn.onclick = showDebugInfo;
 
-    // Aggiorna stato checkbox "seleziona tutti"
-    const allCheckboxes = document.querySelectorAll('.device-checkbox');
-    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
-
-    if (checkboxes.length === 0) {
-        selectAllCheckbox.indeterminate = false;
-        selectAllCheckbox.checked = false;
-    } else if (checkboxes.length === allCheckboxes.length) {
-        selectAllCheckbox.indeterminate = false;
-        selectAllCheckbox.checked = true;
-    } else {
-        selectAllCheckbox.indeterminate = true;
+        const buttonGroup = headerDiv.querySelector('div');
+        if (buttonGroup) {
+            buttonGroup.appendChild(debugBtn);
+        }
     }
 }
 
-function bulkDelete() {
-    const checkboxes = document.querySelectorAll('.device-checkbox:checked');
-    const selectedIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
+function showDebugInfo() {
+    console.log('=== SHOWING DEBUG INFO ===');
 
-    if (selectedIds.length === 0) return;
+    Promise.all([
+        fetch('/api/debug/traccar-status').then(r => r.json()).catch(e => ({error: e.message})),
+        fetch('/api/devices/force-reload').then(r => r.json()).catch(e => ({error: e.message}))
+    ]).then(([debugInfo, forceReload]) => {
 
-    const confirmMsg = `Sei sicuro di voler eliminare ${selectedIds.length} dispositivi selezionati? Questa azione non può essere annullata.`;
+        const debugContent = `
+            <div style="text-align: left; font-family: monospace; font-size: 12px;">
+                <h6>🔧 Informazioni Debug</h6>
+                <hr>
 
-    if (confirm(confirmMsg)) {
-        const promises = selectedIds.map(id =>
-            fetch(`/api/devices/${id}`, { method: 'DELETE' })
-                .then(response => response.json())
-        );
+                <strong>📡 Server Traccar:</strong><br>
+                • URL: ${debugInfo.traccar_server || 'N/A'}<br>
+                • Raggiungibile: ${debugInfo.server_reachable ? '✅' : '❌'}<br>
+                • Sessione valida: ${debugInfo.session_valid ? '✅' : '❌'}<br><br>
 
-        Promise.all(promises)
-            .then(results => {
-                const successful = results.filter(r => r.success).length;
-                const failed = results.length - successful;
+                <strong>👤 Utente corrente:</strong><br>
+                • Nome: ${debugInfo.current_user?.name || 'N/A'}<br>
+                • Email: ${debugInfo.current_user?.email || 'N/A'}<br>
+                • Admin: ${debugInfo.current_user?.administrator ? '✅' : '❌'}<br><br>
 
-                if (failed === 0) {
-                    showAlert(`${successful} dispositivi eliminati con successo`, 'success');
-                } else {
-                    showAlert(`${successful} eliminati, ${failed} errori`, 'warning');
-                }
+                <strong>🔐 Permessi Flask:</strong><br>
+                • Logged in: ${debugInfo.flask_session?.logged_in ? '✅' : '❌'}<br>
+                • Username: ${debugInfo.flask_session?.username || 'N/A'}<br>
+                • Admin: ${debugInfo.flask_session?.user_admin ? '✅' : '❌'}<br>
+                • Manager: ${debugInfo.flask_session?.user_manager ? '✅' : '❌'}<br><br>
 
+                <strong>📱 API Dispositivi:</strong><br>
+                • Status: ${debugInfo.devices_api?.status_code || 'N/A'}<br>
+                • Count: ${debugInfo.devices_api?.count || 0}<br>
+                • Error: ${debugInfo.devices_api?.error || 'Nessuno'}<br><br>
+
+                <strong>🔄 Force Reload:</strong><br>
+                • Success: ${forceReload.success ? '✅' : '❌'}<br>
+                • Count: ${forceReload.count || 0}<br>
+                • Error: ${forceReload.error || 'Nessuno'}<br><br>
+
+                <strong>📊 Stato corrente:</strong><br>
+                • Dispositivi caricati: ${allDevices.length}<br>
+                • Status caricati: ${Object.keys(deviceStatuses).length}<br>
+                • Ultimo aggiornamento: ${new Date().toLocaleTimeString()}<br>
+            </div>
+        `;
+
+        // Mostra in un alert più duraturo (20 secondi)
+        showAlert(debugContent, 'info', 20000);
+
+        // Log completo in console
+        console.log('=== DEBUG INFO COMPLETO ===');
+        console.log('Traccar Status:', debugInfo);
+        console.log('Force Reload:', forceReload);
+        console.log('All Devices:', allDevices);
+        console.log('Device Statuses:', deviceStatuses);
+
+    }).catch(error => {
+        console.error('Errore nel debug:', error);
+        showAlert('Errore nel caricamento informazioni debug', 'danger');
+    });
+}
+
+function testConnection() {
+    console.log('Testing connection...');
+    showAlert('Test connessione in corso...', 'info', 2000);
+
+    fetch('/api/server/status')
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'online') {
+                showAlert('✅ Connessione a Traccar attiva', 'success');
+                // Riprova il caricamento dispositivi
                 loadDevices();
-            })
-            .catch(error => {
-                console.error('Errore nell\'eliminazione multipla:', error);
-                showAlert('Errore nell\'eliminazione dei dispositivi', 'danger');
-            });
-    }
+            } else {
+                showAlert(`❌ Problemi di connessione: ${data.message}`, 'danger');
+            }
+        })
+        .catch(error => {
+            showAlert('❌ Errore test connessione', 'danger');
+        });
 }
 
-function showLoading(show) {
-    document.getElementById('loadingSpinner').style.display = show ? 'block' : 'none';
-    document.getElementById('devicesCard').style.display = show ? 'none' : 'block';
+function viewDevice(deviceId) {
+    console.log('View device:', deviceId);
+    window.location.href = `/device/${deviceId}`;
 }
 
-// Utility functions
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
 function isDeviceOnline(status) {
     if (!status) return false;
     const lastUpdate = new Date(status.serverTime);
@@ -894,36 +1348,66 @@ function getCategoryName(category) {
 }
 
 function formatDateTime(dateTimeString) {
-    return new Date(dateTimeString).toLocaleString('it-IT');
+    if (!dateTimeString) return 'N/A';
+    try {
+        return new Date(dateTimeString).toLocaleString('it-IT');
+    } catch (e) {
+        return 'Data non valida';
+    }
 }
 
-function showAlert(message, type = 'info') {
-    const alertHtml = `
-        <div class="alert alert-${type} alert-dismissible fade show position-fixed"
-             style="top: 80px; right: 20px; z-index: 2000; min-width: 300px;" role="alert">
-            <i class="fas fa-${getAlertIcon(type)}"></i> ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    `;
+function showLoading(show) {
+    const loadingSpinner = document.getElementById('loadingSpinner');
+    const devicesCard = document.getElementById('devicesCard');
 
-    document.body.insertAdjacentHTML('beforeend', alertHtml);
+    if (loadingSpinner) {
+        loadingSpinner.style.display = show ? 'block' : 'none';
+    }
+    if (devicesCard) {
+        devicesCard.style.display = show ? 'none' : 'block';
+    }
+}
 
-    setTimeout(() => {
-        const alert = document.querySelector('.alert');
-        if (alert) {
+function showAlert(message, type = 'info', duration = 5000) {
+    console.log(`Alert ${type}: ${message}`);
+
+    // Rimuovi eventuali alert esistenti dello stesso tipo per evitare spam
+    const existingAlerts = document.querySelectorAll(`.alert-${type}`);
+    existingAlerts.forEach(alert => {
+        if (alert.parentNode) {
             alert.remove();
         }
-    }, 5000);
+    });
+
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 2000; max-width: 500px; word-wrap: break-word;';
+
+    const iconClass = {
+        'success': 'fa-check-circle',
+        'danger': 'fa-exclamation-triangle',
+        'warning': 'fa-exclamation-circle',
+        'info': 'fa-info-circle'
+    }[type] || 'fa-info-circle';
+
+    alertDiv.innerHTML = `
+        <i class="fas ${iconClass}"></i>
+        <span style="margin-left: 8px;">${message}</span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+
+    document.body.appendChild(alertDiv);
+
+    if (duration > 0) {
+        setTimeout(() => {
+            if (alertDiv.parentNode) {
+                alertDiv.remove();
+            }
+        }, duration);
+    }
 }
 
-function getAlertIcon(type) {
-    const icons = {
-        'success': 'check-circle',
-        'danger': 'exclamation-triangle',
-        'warning': 'exclamation-circle',
-        'info': 'info-circle'
-    };
-    return icons[type] || 'info-circle';
-}
+// Log finale
+console.log('✅ Device management script loaded successfully');
 </script>
 {% endblock %}
