@@ -2,170 +2,537 @@
 
 {% block title %}Mappa - Traccar{% endblock %}
 
+{% block extra_css %}
+<style>
+    /* Override base layout for fullscreen map */
+    .main-content {
+        margin-left: 0 !important;
+        padding: 0 !important;
+    }
+
+    .sidebar {
+        display: none;
+    }
+
+    .top-bar {
+        display: none;
+    }
+
+    /* Fullscreen map container */
+    .map-container {
+        position: relative;
+        height: 100vh;
+        width: 100vw;
+        overflow: hidden;
+    }
+
+    #map {
+        height: 100vh;
+        width: 100vw;
+        z-index: 1;
+    }
+
+    /* Floating controls panel */
+    .controls-panel {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        width: 320px;
+        max-height: calc(100vh - 120px);
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-radius: 15px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        z-index: 1000;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        overflow: hidden;
+    }
+
+    .controls-panel.collapsed {
+        width: 60px;
+        height: 60px;
+    }
+
+    .controls-panel.collapsed .panel-content {
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .controls-panel.collapsed .panel-header h6 {
+        opacity: 0;
+    }
+
+    .panel-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 15px 20px;
+        border-radius: 15px 15px 0 0;
+        display: flex;
+        justify-content: between;
+        align-items: center;
+        cursor: pointer;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .controls-panel.collapsed .panel-header {
+        border-radius: 15px;
+        justify-content: center;
+        padding: 18px;
+    }
+
+    .panel-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(45deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 100%);
+        pointer-events: none;
+    }
+
+    .panel-header h6 {
+        margin: 0;
+        font-weight: 600;
+        transition: opacity 0.3s ease;
+    }
+
+    .toggle-btn {
+        background: none;
+        border: none;
+        color: white;
+        font-size: 18px;
+        cursor: pointer;
+        padding: 0;
+        transition: transform 0.3s ease;
+        margin-left: auto;
+    }
+
+    .controls-panel.collapsed .toggle-btn {
+        transform: rotate(180deg);
+        margin: 0;
+    }
+
+    .panel-content {
+        padding: 20px;
+        max-height: calc(100vh - 200px);
+        overflow-y: auto;
+        transition: opacity 0.3s ease;
+    }
+
+    /* Custom scrollbar */
+    .panel-content::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .panel-content::-webkit-scrollbar-track {
+        background: rgba(0,0,0,0.05);
+        border-radius: 3px;
+    }
+
+    .panel-content::-webkit-scrollbar-thumb {
+        background: rgba(0,0,0,0.2);
+        border-radius: 3px;
+    }
+
+    .panel-content::-webkit-scrollbar-thumb:hover {
+        background: rgba(0,0,0,0.3);
+    }
+
+    /* Form controls styling */
+    .form-label {
+        font-weight: 600;
+        color: #4a5568;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .form-select, .form-control {
+        border: 1px solid rgba(0,0,0,0.1);
+        border-radius: 8px;
+        transition: all 0.2s ease;
+        background: rgba(255,255,255,0.8);
+    }
+
+    .form-select:focus, .form-control:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        background: white;
+    }
+
+    .form-check-input:checked {
+        background-color: #667eea;
+        border-color: #667eea;
+    }
+
+    /* Buttons */
+    .btn-gradient {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        color: white;
+        border-radius: 8px;
+        font-weight: 500;
+        transition: all 0.2s ease;
+    }
+
+    .btn-gradient:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        color: white;
+    }
+
+    /* Statistics panel */
+    .stats-panel {
+        background: rgba(255,255,255,0.9);
+        backdrop-filter: blur(10px);
+        border-radius: 12px;
+        padding: 15px;
+        margin-top: 15px;
+        border: 1px solid rgba(255,255,255,0.2);
+    }
+
+    .stat-item {
+        text-align: center;
+        padding: 8px;
+    }
+
+    .stat-value {
+        font-size: 1.25rem;
+        font-weight: bold;
+        margin: 0;
+    }
+
+    .stat-label {
+        font-size: 0.85rem;
+        color: #6c757d;
+        margin: 0;
+    }
+
+    /* Floating action buttons */
+    .floating-controls {
+        position: absolute;
+        bottom: 20px;
+        right: 20px;
+        z-index: 1000;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .floating-btn {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        color: #4a5568;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .floating-btn:hover {
+        background: #667eea;
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(102, 126, 234, 0.3);
+    }
+
+    /* Top navigation bar */
+    .top-nav {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        z-index: 1000;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-radius: 12px;
+        padding: 10px 15px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        display: flex;
+        gap: 10px;
+    }
+
+    .nav-btn {
+        background: none;
+        border: none;
+        color: #4a5568;
+        padding: 8px 12px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-size: 14px;
+        text-decoration: none;
+    }
+
+    .nav-btn:hover {
+        background: #667eea;
+        color: white;
+    }
+
+    /* Mobile responsiveness */
+    @media (max-width: 768px) {
+        .controls-panel {
+            left: 10px;
+            right: 10px;
+            width: calc(100vw - 20px);
+            max-width: none;
+        }
+
+        .controls-panel.collapsed {
+            width: 50px;
+            right: auto;
+        }
+
+        .top-nav {
+            right: 10px;
+            top: 10px;
+            flex-wrap: wrap;
+        }
+
+        .floating-controls {
+            bottom: 10px;
+            right: 10px;
+        }
+
+        .floating-btn {
+            width: 45px;
+            height: 45px;
+        }
+    }
+
+    /* Loading overlay */
+    .loading-overlay {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 2000;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-radius: 12px;
+        padding: 30px;
+        text-align: center;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+    }
+
+    /* Animations */
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .fade-in {
+        animation: fadeIn 0.3s ease;
+    }
+
+    /* Custom date inputs */
+    input[type="datetime-local"] {
+        border: 1px solid rgba(0,0,0,0.1);
+        border-radius: 8px;
+        padding: 8px 12px;
+        background: rgba(255,255,255,0.8);
+        transition: all 0.2s ease;
+    }
+
+    input[type="datetime-local"]:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        background: white;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container-fluid mt-4">
-    <div class="row">
-        <!-- Sidebar Controls -->
-        <div class="col-md-3">
-            <div class="card sticky-top" style="top: 20px;">
-                <div class="card-header">
-                    <h6 class="mb-0"><i class="fas fa-sliders-h"></i> Controlli Mappa</h6>
+<div class="map-container">
+    <!-- Main Map -->
+    <div id="map"></div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+        <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;"></div>
+        <h6>Caricamento dati...</h6>
+        <p class="text-muted mb-0">Elaborazione tracce GPS</p>
+    </div>
+
+    <!-- Top Navigation -->
+    <div class="top-nav">
+        <a href="/dashboard" class="nav-btn">
+            <i class="fas fa-tachometer-alt"></i> Dashboard
+        </a>
+        <a href="/reports" class="nav-btn">
+            <i class="fas fa-chart-line"></i> Reports
+        </a>
+        <button class="nav-btn" onclick="toggleFullscreen()">
+            <i class="fas fa-expand"></i> Fullscreen
+        </button>
+    </div>
+
+    <!-- Floating Controls Panel -->
+    <div class="controls-panel" id="controlsPanel">
+        <div class="panel-header" onclick="togglePanel()">
+            <h6><i class="fas fa-sliders-h"></i> Controlli Mappa</h6>
+            <button class="toggle-btn">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+        </div>
+
+        <div class="panel-content">
+            <!-- Device Selection -->
+            <div class="mb-4">
+                <label class="form-label">
+                    <i class="fas fa-mobile-alt"></i> Dispositivo
+                </label>
+                <select class="form-select" id="deviceSelect">
+                    <option value="">Caricamento...</option>
+                </select>
+                <div class="form-check mt-3">
+                    <input class="form-check-input" type="checkbox" id="showAllDevices">
+                    <label class="form-check-label" for="showAllDevices">
+                        Mostra tutti i dispositivi
+                    </label>
                 </div>
-                <div class="card-body">
-                    <!-- Device Selection -->
-                    <div class="mb-3">
-                        <label class="form-label">
-                            <i class="fas fa-mobile-alt"></i> Dispositivo
-                        </label>
-                        <select class="form-select" id="deviceSelect">
-                            <option value="">Caricamento...</option>
-                        </select>
-                        <div class="form-check mt-2">
-                            <input class="form-check-input" type="checkbox" id="showAllDevices">
-                            <label class="form-check-label" for="showAllDevices">
-                                Mostra tutti i dispositivi
-                            </label>
-                        </div>
-                    </div>
+            </div>
 
-                    <!-- Time Range -->
-                    <div class="mb-3">
-                        <label class="form-label">
-                            <i class="fas fa-clock"></i> Periodo
-                        </label>
-                        <select class="form-select" id="timeRange">
-                            <option value="1">Ultima ora</option>
-                            <option value="6">Ultime 6 ore</option>
-                            <option value="24" selected>Ultime 24 ore</option>
-                            <option value="72">Ultimi 3 giorni</option>
-                            <option value="168">Ultima settimana</option>
-                            <option value="custom">Periodo personalizzato</option>
-                        </select>
-                    </div>
+            <!-- Time Range -->
+            <div class="mb-4">
+                <label class="form-label">
+                    <i class="fas fa-clock"></i> Periodo
+                </label>
+                <select class="form-select" id="timeRange">
+                    <option value="1">Ultima ora</option>
+                    <option value="6">Ultime 6 ore</option>
+                    <option value="24" selected>Ultime 24 ore</option>
+                    <option value="72">Ultimi 3 giorni</option>
+                    <option value="168">Ultima settimana</option>
+                    <option value="custom">Periodo personalizzato</option>
+                </select>
 
-                    <!-- Custom Time Range -->
-                    <div id="customTimeRange" style="display: none;">
-                        <div class="mb-2">
-                            <label class="form-label">Da</label>
-                            <input type="datetime-local" class="form-control form-control-sm" id="fromTime">
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">A</label>
-                            <input type="datetime-local" class="form-control form-control-sm" id="toTime">
-                        </div>
-                    </div>
-
-                    <!-- Map Options -->
+                <!-- Custom Time Range -->
+                <div id="customTimeRange" style="display: none;" class="mt-3">
                     <div class="mb-3">
-                        <label class="form-label">
-                            <i class="fas fa-layer-group"></i> Opzioni Visualizzazione
-                        </label>
-                        <div class="form-check">
+                        <label class="form-label">Da</label>
+                        <input type="datetime-local" class="form-control form-control-sm" id="fromTime">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">A</label>
+                        <input type="datetime-local" class="form-control form-control-sm" id="toTime">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Map Options -->
+            <div class="mb-4">
+                <label class="form-label">
+                    <i class="fas fa-layer-group"></i> Visualizzazione
+                </label>
+                <div class="row">
+                    <div class="col-6">
+                        <div class="form-check mb-2">
                             <input class="form-check-input" type="checkbox" id="showPath" checked>
                             <label class="form-check-label" for="showPath">
-                                Mostra percorso
+                                Percorso
                             </label>
                         </div>
-                        <div class="form-check">
+                        <div class="form-check mb-2">
                             <input class="form-check-input" type="checkbox" id="showMarkers" checked>
                             <label class="form-check-label" for="showMarkers">
-                                Mostra punti posizione
-                            </label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="showSpeed">
-                            <label class="form-check-label" for="showSpeed">
-                                Colora per velocità
-                            </label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="animatePath">
-                            <label class="form-check-label" for="animatePath">
-                                Anima percorso
+                                Punti
                             </label>
                         </div>
                     </div>
-
-                    <!-- Update Button -->
-                    <button class="btn btn-primary w-100 mb-2" onclick="updateMap()">
-                        <i class="fas fa-sync-alt"></i> Aggiorna Mappa
-                    </button>
-
-                    <!-- Export Button -->
-                    <button class="btn btn-outline-secondary w-100 mb-2" onclick="exportData()">
-                        <i class="fas fa-download"></i> Esporta Dati
-                    </button>
-
-                    <!-- Statistics -->
-                    <div id="mapStats" class="mt-3" style="display: none;">
-                        <hr>
-                        <h6><i class="fas fa-chart-bar"></i> Statistiche</h6>
-                        <div class="row text-center">
-                            <div class="col-6">
-                                <div class="border-end">
-                                    <div class="text-primary h6" id="totalDistance">0 km</div>
-                                    <small class="text-muted">Distanza</small>
-                                </div>
-                            </div>
-                            <div class="col-6">
-                                <div class="text-success h6" id="avgSpeed">0 km/h</div>
-                                <small class="text-muted">Vel. Media</small>
-                            </div>
+                    <div class="col-6">
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="showSpeed">
+                            <label class="form-check-label" for="showSpeed">
+                                Velocità
+                            </label>
                         </div>
-                        <div class="row text-center mt-2">
-                            <div class="col-6">
-                                <div class="border-end">
-                                    <div class="text-warning h6" id="maxSpeed">0 km/h</div>
-                                    <small class="text-muted">Vel. Max</small>
-                                </div>
-                            </div>
-                            <div class="col-6">
-                                <div class="text-info h6" id="totalTime">0h 0m</div>
-                                <small class="text-muted">Tempo</small>
-                            </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="animatePath">
+                            <label class="form-check-label" for="animatePath">
+                                Anima
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="d-grid gap-2 mb-4">
+                <button class="btn btn-gradient" onclick="updateMap()">
+                    <i class="fas fa-sync-alt"></i> Aggiorna Mappa
+                </button>
+                <div class="row g-2">
+                    <div class="col-6">
+                        <button class="btn btn-outline-secondary btn-sm w-100" onclick="fitMapToBounds()">
+                            <i class="fas fa-expand-arrows-alt"></i> Adatta
+                        </button>
+                    </div>
+                    <div class="col-6">
+                        <button class="btn btn-outline-secondary btn-sm w-100" onclick="exportData()">
+                            <i class="fas fa-download"></i> Esporta
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Statistics -->
+            <div id="mapStats" class="stats-panel" style="display: none;">
+                <h6 class="mb-3"><i class="fas fa-chart-bar"></i> Statistiche</h6>
+                <div class="row g-2">
+                    <div class="col-6">
+                        <div class="stat-item">
+                            <div class="stat-value text-primary" id="totalDistance">0 km</div>
+                            <div class="stat-label">Distanza</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="stat-item">
+                            <div class="stat-value text-success" id="avgSpeed">0 km/h</div>
+                            <div class="stat-label">Vel. Media</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="stat-item">
+                            <div class="stat-value text-warning" id="maxSpeed">0 km/h</div>
+                            <div class="stat-label">Vel. Max</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="stat-item">
+                            <div class="stat-value text-info" id="totalTime">0h 0m</div>
+                            <div class="stat-label">Tempo</div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
+    </div>
 
-        <!-- Map Container -->
-        <div class="col-md-9">
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h6 class="mb-0"><i class="fas fa-map"></i> Mappa Tracciamento</h6>
-                    <div>
-                        <button class="btn btn-sm btn-outline-secondary" onclick="fitMapToBounds()">
-                            <i class="fas fa-expand-arrows-alt"></i> Adatta vista
-                        </button>
-                        <button class="btn btn-sm btn-outline-secondary" onclick="toggleFullscreen()">
-                            <i class="fas fa-expand"></i> Schermo intero
-                        </button>
-                    </div>
-                </div>
-                <div class="card-body p-0 position-relative">
-                    <div id="map"></div>
-
-                    <!-- Loading overlay -->
-                    <div id="mapLoading" class="position-absolute top-50 start-50 translate-middle" style="display: none; z-index: 1000;">
-                        <div class="spinner-border text-primary" role="status">
-                            <span class="visually-hidden">Caricamento...</span>
-                        </div>
-                    </div>
-
-                    <!-- Map controls -->
-                    <div class="position-absolute top-0 end-0 m-2" style="z-index: 1000;">
-                        <div class="btn-group-vertical">
-                            <button class="btn btn-sm btn-light" onclick="map.zoomIn()" title="Zoom In">
-                                <i class="fas fa-plus"></i>
-                            </button>
-                            <button class="btn btn-sm btn-light" onclick="map.zoomOut()" title="Zoom Out">
-                                <i class="fas fa-minus"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
+    <!-- Floating Action Buttons -->
+    <div class="floating-controls">
+        <div class="floating-btn" onclick="map.zoomIn()" title="Zoom In">
+            <i class="fas fa-plus"></i>
+        </div>
+        <div class="floating-btn" onclick="map.zoomOut()" title="Zoom Out">
+            <i class="fas fa-minus"></i>
+        </div>
+        <div class="floating-btn" onclick="locateUser()" title="Mia Posizione">
+            <i class="fas fa-crosshairs"></i>
+        </div>
+        <div class="floating-btn" onclick="toggleLayerControl()" title="Livelli">
+            <i class="fas fa-layers"></i>
         </div>
     </div>
 </div>
@@ -178,11 +545,14 @@ let markersLayer;
 let pathLayer;
 let currentData = [];
 let allDevices = [];
+let isControlsPanelCollapsed = false;
+let autoHideTimeout;
 
 document.addEventListener('DOMContentLoaded', function() {
     initMap();
     loadDevicesForMap();
     setupEventListeners();
+    setupAutoHide();
 
     // Check URL parameters
     const urlParams = new URLSearchParams(window.location.search);
@@ -203,14 +573,13 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function setupEventListeners() {
+    // Time range change
     document.getElementById('timeRange').addEventListener('change', function() {
         const customRange = document.getElementById('customTimeRange');
         if (this.value === 'custom') {
             customRange.style.display = 'block';
-            // Set default values
             const now = new Date();
             const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-
             document.getElementById('toTime').value = formatDateTimeLocal(now);
             document.getElementById('fromTime').value = formatDateTimeLocal(yesterday);
         } else {
@@ -218,19 +587,77 @@ function setupEventListeners() {
         }
     });
 
+    // Show all devices toggle
     document.getElementById('showAllDevices').addEventListener('change', function() {
         const deviceSelect = document.getElementById('deviceSelect');
-        if (this.checked) {
-            deviceSelect.disabled = true;
-            deviceSelect.value = '';
-        } else {
-            deviceSelect.disabled = false;
+        deviceSelect.disabled = this.checked;
+        if (!this.checked) deviceSelect.value = '';
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            if (!isControlsPanelCollapsed) {
+                togglePanel();
+            }
+        } else if (e.ctrlKey && e.key === 'm') {
+            e.preventDefault();
+            togglePanel();
+        } else if (e.ctrlKey && e.key === 'u') {
+            e.preventDefault();
+            updateMap();
         }
     });
 }
 
+function setupAutoHide() {
+    const controlsPanel = document.getElementById('controlsPanel');
+
+    // Auto-hide after 5 seconds of inactivity
+    function resetAutoHide() {
+        clearTimeout(autoHideTimeout);
+        if (!isControlsPanelCollapsed) {
+            autoHideTimeout = setTimeout(() => {
+                if (!controlsPanel.matches(':hover')) {
+                    togglePanel();
+                }
+            }, 5000);
+        }
+    }
+
+    // Reset auto-hide on mouse move over map
+    document.getElementById('map').addEventListener('mousemove', resetAutoHide);
+
+    // Cancel auto-hide when hovering over controls
+    controlsPanel.addEventListener('mouseenter', () => clearTimeout(autoHideTimeout));
+    controlsPanel.addEventListener('mouseleave', resetAutoHide);
+
+    resetAutoHide();
+}
+
+function togglePanel() {
+    const panel = document.getElementById('controlsPanel');
+    const toggleBtn = panel.querySelector('.toggle-btn i');
+
+    isControlsPanelCollapsed = !isControlsPanelCollapsed;
+
+    if (isControlsPanelCollapsed) {
+        panel.classList.add('collapsed');
+        toggleBtn.className = 'fas fa-chevron-right';
+    } else {
+        panel.classList.remove('collapsed');
+        toggleBtn.className = 'fas fa-chevron-left';
+    }
+
+    // Invalidate map size after transition
+    setTimeout(() => map.invalidateSize(), 300);
+}
+
 function initMap() {
-    map = L.map('map').setView([41.9028, 12.4964], 6); // Centro Italia
+    map = L.map('map', {
+        zoomControl: false,
+        attributionControl: false
+    }).setView([41.9028, 12.4964], 6);
 
     // Add tile layers
     const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -241,20 +668,38 @@ function initMap() {
         attribution: '© Esri'
     });
 
+    const darkLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        attribution: '© CartoDB'
+    });
+
     const baseLayers = {
-        "OpenStreetMap": osmLayer,
-        "Satellite": satelliteLayer
+        "Mappa Standard": osmLayer,
+        "Satellite": satelliteLayer,
+        "Modalità Scura": darkLayer
     };
 
     osmLayer.addTo(map);
-    L.control.layers(baseLayers).addTo(map);
+
+    // Custom layer control (hidden by default)
+    const layerControl = L.control.layers(baseLayers, null, {
+        position: 'topright',
+        collapsed: true
+    });
+
+    window.layerControl = layerControl; // Make it globally accessible
 
     // Initialize layer groups
     markersLayer = L.layerGroup().addTo(map);
     pathLayer = L.layerGroup().addTo(map);
 
     // Add scale control
-    L.control.scale().addTo(map);
+    L.control.scale({position: 'bottomleft'}).addTo(map);
+
+    // Add attribution
+    L.control.attribution({
+        position: 'bottomright',
+        prefix: false
+    }).addAttribution('Traccar GPS Dashboard').addTo(map);
 }
 
 function loadDevicesForMap() {
@@ -274,7 +719,7 @@ function loadDevicesForMap() {
         })
         .catch(error => {
             console.error('Errore nel caricamento dispositivi:', error);
-            showAlert('Errore nel caricamento dei dispositivi', 'danger');
+            showNotification('Errore nel caricamento dei dispositivi', 'error');
         });
 }
 
@@ -284,16 +729,12 @@ function updateMap() {
     const timeRange = document.getElementById('timeRange').value;
 
     if (!showAllDevices && !deviceId) {
-        showAlert('Seleziona un dispositivo o abilita "Mostra tutti i dispositivi"', 'warning');
+        showNotification('Seleziona un dispositivo o abilita "Mostra tutti i dispositivi"', 'warning');
         return;
     }
 
-    // Show loading
-    document.getElementById('mapLoading').style.display = 'block';
-
-    // Clear existing layers
-    markersLayer.clearLayers();
-    pathLayer.clearLayers();
+    showLoading(true);
+    clearMapLayers();
 
     let url = '/api/positions?';
 
@@ -302,12 +743,11 @@ function updateMap() {
         const toTime = document.getElementById('toTime').value;
 
         if (!fromTime || !toTime) {
-            showAlert('Inserisci entrambe le date per il periodo personalizzato', 'warning');
-            document.getElementById('mapLoading').style.display = 'none';
+            showNotification('Inserisci entrambe le date per il periodo personalizzato', 'warning');
+            showLoading(false);
             return;
         }
 
-        // Convert to hours for API
         const from = new Date(fromTime);
         const to = new Date(toTime);
         const hours = Math.ceil((to - from) / (1000 * 60 * 60));
@@ -325,21 +765,31 @@ function updateMap() {
         .then(positions => {
             currentData = positions;
             if (positions.length === 0) {
-                showAlert('Nessuna posizione trovata per i parametri selezionati', 'info');
-                document.getElementById('mapLoading').style.display = 'none';
+                showNotification('Nessuna posizione trovata per i parametri selezionati', 'info');
                 return;
             }
 
-            renderPositionsOnMap(positions);
-            calculateStatistics(positions);
-            fitMapToBounds();
+            try {
+                renderPositionsOnMap(positions);
+                calculateStatistics(positions);
+
+                // Fit bounds with delay to ensure all layers are rendered
+                setTimeout(() => {
+                    fitMapToBounds();
+                }, 100);
+
+                showNotification(`Caricate ${positions.length} posizioni`, 'success');
+            } catch (error) {
+                console.error('Errore nel rendering della mappa:', error);
+                showNotification('Errore nel rendering dei dati sulla mappa', 'error');
+            }
         })
         .catch(error => {
             console.error('Errore nel caricamento posizioni:', error);
-            showAlert('Errore nel caricamento delle posizioni', 'danger');
+            showNotification('Errore nel caricamento delle posizioni', 'error');
         })
         .finally(() => {
-            document.getElementById('mapLoading').style.display = 'none';
+            showLoading(false);
         });
 }
 
@@ -348,6 +798,7 @@ function renderPositionsOnMap(positions) {
     const showPath = document.getElementById('showPath').checked;
     const showMarkers = document.getElementById('showMarkers').checked;
     const showSpeed = document.getElementById('showSpeed').checked;
+    const animatePath = document.getElementById('animatePath').checked;
 
     // Group positions by device
     positions.forEach(pos => {
@@ -381,6 +832,11 @@ function renderPositionsOnMap(positions) {
                 }).addTo(pathLayer);
 
                 polyline.bindPopup(`<b>${deviceName}</b><br>Percorso completo`);
+
+                // Animate path if requested
+                if (animatePath) {
+                    animatePolyline(polyline, latlngs);
+                }
             }
         }
 
@@ -391,30 +847,36 @@ function renderPositionsOnMap(positions) {
                 const isFirst = index === 0;
 
                 let iconHtml = '';
-                let iconColor = color;
+                let iconSize = [16, 16];
 
                 if (isFirst) {
-                    iconHtml = `<i class="fas fa-play" style="color: green; font-size: 14px;"></i>`;
+                    iconHtml = `<div style="background: green; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center;"><i class="fas fa-play" style="color: white; font-size: 10px;"></i></div>`;
+                    iconSize = [20, 20];
                 } else if (isLast) {
-                    iconHtml = `<i class="fas fa-stop" style="color: red; font-size: 14px;"></i>`;
+                    iconHtml = `<div style="background: red; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center;"><i class="fas fa-stop" style="color: white; font-size: 10px;"></i></div>`;
+                    iconSize = [20, 20];
                 } else {
-                    iconHtml = `<i class="fas fa-circle" style="color: ${iconColor}; font-size: 8px;"></i>`;
+                    iconHtml = `<div style="background: ${color}; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>`;
+                    iconSize = [12, 12];
                 }
 
                 const marker = L.marker([pos.latitude, pos.longitude], {
                     icon: L.divIcon({
                         html: iconHtml,
-                        iconSize: [16, 16],
+                        iconSize: iconSize,
                         className: 'custom-div-icon'
                     })
                 }).addTo(markersLayer);
 
                 const popupContent = `
-                    <b>${deviceName}</b><br>
-                    <strong>Posizione:</strong> ${pos.latitude.toFixed(6)}, ${pos.longitude.toFixed(6)}<br>
-                    <strong>Velocità:</strong> ${Math.round(pos.speed || 0)} km/h<br>
-                    <strong>Data:</strong> ${formatDateTime(pos.serverTime)}<br>
-                    ${pos.altitude ? `<strong>Altitudine:</strong> ${Math.round(pos.altitude)} m<br>` : ''}
+                    <div style="min-width: 200px;">
+                        <h6><i class="fas fa-mobile-alt"></i> ${deviceName}</h6>
+                        <hr style="margin: 8px 0;">
+                        <p style="margin: 4px 0;"><strong>Posizione:</strong><br><small>${pos.latitude.toFixed(6)}, ${pos.longitude.toFixed(6)}</small></p>
+                        <p style="margin: 4px 0;"><strong>Velocità:</strong> <span class="badge ${pos.speed > 5 ? 'bg-warning' : 'bg-secondary'}">${Math.round(pos.speed || 0)} km/h</span></p>
+                        <p style="margin: 4px 0;"><strong>Data:</strong><br><small>${formatDateTime(pos.serverTime)}</small></p>
+                        ${pos.altitude ? `<p style="margin: 4px 0;"><strong>Altitudine:</strong> ${Math.round(pos.altitude)} m</p>` : ''}
+                    </div>
                 `;
 
                 marker.bindPopup(popupContent);
@@ -427,25 +889,25 @@ function renderPositionsOnMap(positions) {
             // Start marker
             const startMarker = L.marker([firstPos.latitude, firstPos.longitude], {
                 icon: L.divIcon({
-                    html: `<i class="fas fa-play" style="color: green; font-size: 20px;"></i>`,
-                    iconSize: [20, 20],
+                    html: `<div style="background: green; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.3);"><i class="fas fa-play" style="color: white; font-size: 12px;"></i></div>`,
+                    iconSize: [24, 24],
                     className: 'custom-div-icon'
                 })
             }).addTo(markersLayer);
 
-            startMarker.bindPopup(`<b>${deviceName}</b><br>Inizio percorso<br>${formatDateTime(firstPos.serverTime)}`);
+            startMarker.bindPopup(`<h6><i class="fas fa-play"></i> ${deviceName}</h6><p>Inizio percorso<br><small>${formatDateTime(firstPos.serverTime)}</small></p>`);
 
             // End marker (if different from start)
             if (devicePositions.length > 1) {
                 const endMarker = L.marker([lastPos.latitude, lastPos.longitude], {
                     icon: L.divIcon({
-                        html: `<i class="fas fa-stop" style="color: red; font-size: 20px;"></i>`,
-                        iconSize: [20, 20],
+                        html: `<div style="background: red; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.3);"><i class="fas fa-stop" style="color: white; font-size: 12px;"></i></div>`,
+                        iconSize: [24, 24],
                         className: 'custom-div-icon'
                     })
                 }).addTo(markersLayer);
 
-                endMarker.bindPopup(`<b>${deviceName}</b><br>Fine percorso<br>${formatDateTime(lastPos.serverTime)}`);
+                endMarker.bindPopup(`<h6><i class="fas fa-stop"></i> ${deviceName}</h6><p>Fine percorso<br><small>${formatDateTime(lastPos.serverTime)}</small></p>`);
             }
         }
     });
@@ -458,25 +920,58 @@ function renderSpeedColoredPath(positions, deviceName) {
         const speed = pos1.speed || 0;
 
         let color = '#2ecc71'; // Green for low speed
-        if (speed > 50) color = '#f39c12'; // Orange for medium speed
-        if (speed > 80) color = '#e74c3c'; // Red for high speed
-        if (speed < 5) color = '#95a5a6';  // Gray for stopped
+        let weight = 3;
+
+        if (speed > 80) {
+            color = '#e74c3c'; // Red for high speed
+            weight = 5;
+        } else if (speed > 50) {
+            color = '#f39c12'; // Orange for medium speed
+            weight = 4;
+        } else if (speed < 5) {
+            color = '#95a5a6';  // Gray for stopped
+            weight = 2;
+        }
 
         const segment = L.polyline([
             [pos1.latitude, pos1.longitude],
             [pos2.latitude, pos2.longitude]
         ], {
             color: color,
-            weight: 4,
+            weight: weight,
             opacity: 0.8
         }).addTo(pathLayer);
 
         segment.bindPopup(`
-            <b>${deviceName}</b><br>
-            Velocità: ${Math.round(speed)} km/h<br>
-            ${formatDateTime(pos1.serverTime)}
+            <h6><i class="fas fa-tachometer-alt"></i> ${deviceName}</h6>
+            <p>Velocità: <span class="badge ${speed > 50 ? 'bg-warning' : 'bg-secondary'}">${Math.round(speed)} km/h</span><br>
+            <small>${formatDateTime(pos1.serverTime)}</small></p>
         `);
     }
+}
+
+function animatePolyline(polyline, latlngs) {
+    let index = 0;
+    const tempLine = L.polyline([], {
+        color: polyline.options.color,
+        weight: polyline.options.weight + 1,
+        opacity: 0.9,
+        dashArray: '10, 10'
+    }).addTo(pathLayer);
+
+    function addNextPoint() {
+        if (index < latlngs.length) {
+            tempLine.addLatLng(latlngs[index]);
+            index++;
+            setTimeout(addNextPoint, 50);
+        } else {
+            setTimeout(() => {
+                pathLayer.removeLayer(tempLine);
+            }, 2000);
+        }
+    }
+
+    addNextPoint();
 }
 
 function calculateStatistics(positions) {
@@ -504,7 +999,7 @@ function calculateStatistics(positions) {
             const pos1 = devicePositions[i];
             const pos2 = devicePositions[i + 1];
 
-            // Calculate distance using Haversine formula
+            // Calculate distance
             const distance = calculateDistance(
                 pos1.latitude, pos1.longitude,
                 pos2.latitude, pos2.longitude
@@ -526,16 +1021,27 @@ function calculateStatistics(positions) {
 
     const avgSpeed = speedCount > 0 ? speedSum / speedCount : 0;
 
-    // Update statistics display
-    document.getElementById('totalDistance').textContent = (totalDistance / 1000).toFixed(1) + ' km';
-    document.getElementById('avgSpeed').textContent = Math.round(avgSpeed) + ' km/h';
-    document.getElementById('maxSpeed').textContent = Math.round(maxSpeed) + ' km/h';
+    // Update statistics display with animation
+    animateStatUpdate('totalDistance', (totalDistance / 1000).toFixed(1) + ' km');
+    animateStatUpdate('avgSpeed', Math.round(avgSpeed) + ' km/h');
+    animateStatUpdate('maxSpeed', Math.round(maxSpeed) + ' km/h');
 
     const hours = Math.floor(totalTime / (1000 * 60 * 60));
     const minutes = Math.floor((totalTime % (1000 * 60 * 60)) / (1000 * 60));
-    document.getElementById('totalTime').textContent = `${hours}h ${minutes}m`;
+    animateStatUpdate('totalTime', `${hours}h ${minutes}m`);
 
     document.getElementById('mapStats').style.display = 'block';
+}
+
+function animateStatUpdate(elementId, newValue) {
+    const element = document.getElementById(elementId);
+    element.style.transform = 'scale(1.1)';
+    element.style.transition = 'all 0.2s ease';
+
+    setTimeout(() => {
+        element.textContent = newValue;
+        element.style.transform = 'scale(1)';
+    }, 100);
 }
 
 function calculateDistance(lat1, lon1, lat2, lon2) {
@@ -550,50 +1056,134 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
               Math.sin(Δλ/2) * Math.sin(Δλ/2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 
-    return R * c; // Distance in meters
+    return R * c;
 }
 
-function getDeviceName(deviceId) {
-    const device = allDevices.find(d => d.id == deviceId);
-    return device ? device.name : `Dispositivo ${deviceId}`;
+function clearMapLayers() {
+    try {
+        markersLayer.clearLayers();
+        pathLayer.clearLayers();
+        document.getElementById('mapStats').style.display = 'none';
+    } catch (error) {
+        console.error('Errore nella pulizia dei layer:', error);
+    }
+}
+
+function safeGetBounds(layers) {
+    let allLatLngs = [];
+
+    layers.forEach(layer => {
+        try {
+            if (layer.getLatLng) {
+                // Markers
+                allLatLngs.push(layer.getLatLng());
+            } else if (layer.getLatLngs) {
+                // Polylines
+                const latLngs = layer.getLatLngs();
+                if (Array.isArray(latLngs) && latLngs.length > 0) {
+                    allLatLngs = allLatLngs.concat(latLngs);
+                }
+            } else if (layer.getBounds && typeof layer.getBounds === 'function') {
+                // Other shapes with bounds
+                const bounds = layer.getBounds();
+                if (bounds.isValid()) {
+                    allLatLngs.push(bounds.getNorthEast());
+                    allLatLngs.push(bounds.getSouthWest());
+                }
+            }
+        } catch (error) {
+            console.warn('Errore nel processare layer per bounds:', error);
+        }
+    });
+
+    return allLatLngs;
 }
 
 function fitMapToBounds() {
-    if (markersLayer.getLayers().length === 0 && pathLayer.getLayers().length === 0) {
-        return;
-    }
+    try {
+        const allLayers = [...markersLayer.getLayers(), ...pathLayer.getLayers()];
 
-    const group = new L.featureGroup([markersLayer, pathLayer]);
-    const bounds = group.getBounds();
+        if (allLayers.length === 0) {
+            return;
+        }
 
-    if (bounds.isValid()) {
-        map.fitBounds(bounds.pad(0.1));
+        const allLatLngs = safeGetBounds(allLayers);
+
+        if (allLatLngs.length === 0) {
+            console.warn('Nessuna coordinata valida trovata per i bounds');
+            return;
+        }
+
+        // Create bounds from all coordinates
+        const bounds = L.latLngBounds(allLatLngs);
+
+        if (bounds && bounds.isValid()) {
+            map.fitBounds(bounds.pad(0.1));
+        } else {
+            console.warn('Bounds non validi calcolati');
+        }
+    } catch (error) {
+        console.error('Errore nel calcolo dei bounds:', error);
+        // Fallback: center on first valid position if available
+        if (currentData.length > 0) {
+            const firstPos = currentData[0];
+            map.setView([firstPos.latitude, firstPos.longitude], 10);
+        }
     }
 }
 
 function toggleFullscreen() {
-    const mapContainer = document.getElementById('map');
-
     if (!document.fullscreenElement) {
-        mapContainer.requestFullscreen().then(() => {
-            mapContainer.style.height = '100vh';
-            setTimeout(() => map.invalidateSize(), 100);
-        });
+        document.documentElement.requestFullscreen();
     } else {
-        document.exitFullscreen().then(() => {
-            mapContainer.style.height = '500px';
-            setTimeout(() => map.invalidateSize(), 100);
-        });
+        document.exitFullscreen();
+    }
+}
+
+function toggleLayerControl() {
+    if (window.layerControl._map) {
+        map.removeControl(window.layerControl);
+    } else {
+        map.addControl(window.layerControl);
+    }
+}
+
+function locateUser() {
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            function(position) {
+                const lat = position.coords.latitude;
+                const lng = position.coords.longitude;
+
+                map.setView([lat, lng], 16);
+
+                L.marker([lat, lng], {
+                    icon: L.divIcon({
+                        html: `<div style="background: #007bff; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 8px rgba(0,123,255,0.5);"></div>`,
+                        iconSize: [20, 20],
+                        className: 'custom-div-icon'
+                    })
+                }).addTo(markersLayer)
+                .bindPopup('<h6><i class="fas fa-map-marker-alt"></i> La tua posizione</h6>')
+                .openPopup();
+
+                showNotification('Posizione trovata', 'success');
+            },
+            function() {
+                showNotification('Impossibile ottenere la posizione', 'error');
+            }
+        );
+    } else {
+        showNotification('Geolocalizzazione non supportata', 'error');
     }
 }
 
 function exportData() {
     if (currentData.length === 0) {
-        showAlert('Nessun dato da esportare', 'warning');
+        showNotification('Nessun dato da esportare', 'warning');
         return;
     }
 
-    // Create CSV content
     let csvContent = 'Device ID,Device Name,Latitude,Longitude,Speed,Altitude,Date Time\n';
 
     currentData.forEach(pos => {
@@ -601,7 +1191,6 @@ function exportData() {
         csvContent += `${pos.deviceId},"${deviceName}",${pos.latitude},${pos.longitude},${pos.speed || 0},${pos.altitude || 0},"${formatDateTime(pos.serverTime)}"\n`;
     });
 
-    // Download file
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
@@ -612,7 +1201,51 @@ function exportData() {
     link.click();
     document.body.removeChild(link);
 
-    showAlert('Dati esportati con successo', 'success');
+    showNotification('Dati esportati con successo', 'success');
+}
+
+function showLoading(show) {
+    const overlay = document.getElementById('loadingOverlay');
+    overlay.style.display = show ? 'block' : 'none';
+}
+
+function showNotification(message, type = 'info') {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type === 'error' ? 'danger' : type} position-fixed fade-in`;
+    notification.style.cssText = `
+        top: 80px; right: 20px; z-index: 2000; min-width: 300px;
+        background: rgba(255,255,255,0.95); backdrop-filter: blur(10px);
+        border: 1px solid rgba(255,255,255,0.2); border-radius: 12px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+    `;
+
+    const iconMap = {
+        success: 'check-circle',
+        error: 'exclamation-triangle',
+        warning: 'exclamation-circle',
+        info: 'info-circle'
+    };
+
+    notification.innerHTML = `
+        <i class="fas fa-${iconMap[type] || 'info-circle'}"></i> ${message}
+        <button type="button" class="btn-close ms-2" onclick="this.parentElement.remove()"></button>
+    `;
+
+    document.body.appendChild(notification);
+
+    // Auto-remove after 4 seconds
+    setTimeout(() => {
+        if (notification.parentElement) {
+            notification.remove();
+        }
+    }, 4000);
+}
+
+// Utility functions
+function getDeviceName(deviceId) {
+    const device = allDevices.find(d => d.id == deviceId);
+    return device ? device.name : `Dispositivo ${deviceId}`;
 }
 
 function formatDateTime(dateTimeString) {
@@ -625,28 +1258,17 @@ function formatDateTimeLocal(date) {
     const day = String(date.getDate()).padStart(2, '0');
     const hours = String(date.getHours()).padStart(2, '0');
     const minutes = String(date.getMinutes()).padStart(2, '0');
-
     return `${year}-${month}-${day}T${hours}:${minutes}`;
 }
 
-function showAlert(message, type = 'info') {
-    const alertHtml = `
-        <div class="alert alert-${type} alert-dismissible fade show position-fixed"
-             style="top: 80px; right: 20px; z-index: 2000; min-width: 300px;" role="alert">
-            ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    `;
+// Handle window resize
+window.addEventListener('resize', function() {
+    setTimeout(() => map.invalidateSize(), 100);
+});
 
-    document.body.insertAdjacentHTML('beforeend', alertHtml);
-
-    // Auto-dismiss after 5 seconds
-    setTimeout(() => {
-        const alert = document.querySelector('.alert');
-        if (alert) {
-            alert.remove();
-        }
-    }, 5000);
-}
+// Handle fullscreen changes
+document.addEventListener('fullscreenchange', function() {
+    setTimeout(() => map.invalidateSize(), 100);
+});
 </script>
 {% endblock %}
