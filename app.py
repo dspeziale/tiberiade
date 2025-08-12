@@ -581,6 +581,12 @@ def logout():
     return redirect(url_for('login'))
 
 
+@app.route('/settings')
+def settings():
+    """Logout da Traccar e dalla sessione Flask"""
+    return render_template('settings.html')
+
+
 @app.route('/api/devices/force-reload')
 @login_required
 def api_force_reload_devices():

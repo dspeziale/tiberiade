@@ -31,104 +31,139 @@
     z-index: 1;
 }
 
-/* LEAFLET CONTAINER */
 .leaflet-container {
     width: 100vw !important;
     height: 100vh !important;
 }
 
-/* PANNELLO CONTROLLI */
+/* PANNELLO CONTROLLI RESPONSIVE */
 .controls-panel {
     position: absolute;
-    top: 20px;
-    left: 20px;
-    width: 320px;
-    max-width: calc(100vw - 40px);
-    max-height: calc(100vh - 40px);
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(10px);
-    border-radius: 12px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    top: 15px;
+    left: 15px;
+    width: 100%;
+    max-width: 320px;
+    max-height: calc(100vh - 30px);
+    background: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(8px);
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
     z-index: 1000;
-    transition: all 0.3s ease;
-    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 .controls-panel.collapsed {
-    width: 60px;
-    height: 60px;
+    width: 50px;
+    height: 50px;
+    max-width: 50px;
 }
 
 .controls-panel.collapsed .panel-content {
     display: none;
 }
 
-.controls-panel.collapsed .panel-header h6 {
+.controls-panel.collapsed .panel-header .panel-title {
     display: none;
 }
 
+/* HEADER DEL PANNELLO */
 .panel-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #0d6efd 0%, #0056b3 100%);
     color: white;
-    padding: 15px 20px;
-    border-radius: 12px 12px 0 0;
+    padding: 12px 16px;
+    border-radius: 7px 7px 0 0;
     display: flex;
     justify-content: space-between;
     align-items: center;
     cursor: pointer;
+    transition: background 0.2s;
+}
+
+.panel-header:hover {
+    background: linear-gradient(135deg, #0056b3 0%, #004085 100%);
 }
 
 .controls-panel.collapsed .panel-header {
-    border-radius: 12px;
+    border-radius: 7px;
     justify-content: center;
-    padding: 18px;
+    padding: 12px;
 }
 
-.panel-header h6 {
+.panel-title {
     margin: 0;
     font-weight: 600;
+    font-size: 0.95rem;
 }
 
 .toggle-btn {
     background: none;
     border: none;
     color: white;
-    font-size: 18px;
+    font-size: 16px;
     cursor: pointer;
     transition: transform 0.3s ease;
+    padding: 4px;
+    border-radius: 4px;
+}
+
+.toggle-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
 }
 
 .controls-panel.collapsed .toggle-btn {
     transform: rotate(180deg);
 }
 
+/* CONTENUTO PANNELLO */
 .panel-content {
-    padding: 20px;
-    max-height: calc(100vh - 120px);
+    padding: 16px;
+    max-height: calc(100vh - 100px);
     overflow-y: auto;
+}
+
+/* SCROLLBAR PERSONALIZZATA */
+.panel-content::-webkit-scrollbar {
+    width: 6px;
+}
+
+.panel-content::-webkit-scrollbar-track {
+    background: rgba(0,0,0,0.03);
+    border-radius: 3px;
+}
+
+.panel-content::-webkit-scrollbar-thumb {
+    background: rgba(0,0,0,0.2);
+    border-radius: 3px;
+}
+
+.panel-content::-webkit-scrollbar-thumb:hover {
+    background: rgba(0,0,0,0.3);
 }
 
 /* BARRA NAVIGAZIONE SUPERIORE */
 .top-nav {
     position: absolute;
-    top: 20px;
-    right: 20px;
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(10px);
-    border-radius: 10px;
-    padding: 12px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    top: 15px;
+    right: 15px;
+    background: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(8px);
+    border-radius: 8px;
+    padding: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
     z-index: 1000;
     display: flex;
-    gap: 10px;
+    gap: 4px;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    flex-wrap: wrap;
 }
 
 .nav-btn {
     background: none;
     border: none;
-    color: #4a5568;
+    color: #495057;
     padding: 8px 12px;
-    border-radius: 8px;
+    border-radius: 6px;
     cursor: pointer;
     transition: all 0.2s ease;
     text-decoration: none;
@@ -136,53 +171,56 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
+    white-space: nowrap;
+    font-weight: 500;
 }
 
 .nav-btn:hover {
-    background: #667eea;
+    background: #0d6efd;
     color: white;
     text-decoration: none;
+    transform: translateY(-1px);
 }
 
 /* CONTROLLI FLOTTANTI */
 .floating-controls {
     position: absolute;
-    bottom: 20px;
-    right: 20px;
+    bottom: 15px;
+    right: 15px;
     z-index: 1000;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
 }
 
 .floating-btn {
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(10px);
-    border: none;
-    color: #4a5568;
+    width: 44px;
+    height: 44px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    color: #495057;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     transition: all 0.2s ease;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
     font-size: 16px;
 }
 
 .floating-btn:hover {
-    background: #667eea;
+    background: #0d6efd;
     color: white;
     transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(102, 126, 234, 0.3);
+    box-shadow: 0 4px 16px rgba(13, 110, 253, 0.25);
 }
 
 .floating-separator {
-    height: 2px;
+    height: 1px;
     background: rgba(0,0,0,0.1);
-    margin: 5px 20px;
+    margin: 4px 0;
     border-radius: 1px;
 }
 
@@ -193,69 +231,141 @@
     left: 50%;
     transform: translate(-50%, -50%);
     z-index: 2000;
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(10px);
+    background: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(8px);
     border-radius: 12px;
-    padding: 30px;
+    padding: 30px 40px;
     text-align: center;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+    border: 1px solid rgba(0, 0, 0, 0.05);
 }
 
-/* STATISTICHE */
+/* STATISTICHE PANEL */
 .stats-panel {
-    background: rgba(255,255,255,0.9);
-    border-radius: 10px;
-    padding: 15px;
-    margin-top: 15px;
+    background: rgba(248, 249, 250, 0.8);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    border-radius: 8px;
+    padding: 16px;
+    margin-top: 16px;
 }
 
-.stat-item {
-    text-align: center;
-    padding: 8px;
-}
-
-.stat-value {
-    font-size: 1.25rem;
-    font-weight: bold;
-    margin: 0;
-}
-
-.stat-label {
-    font-size: 0.85rem;
-    color: #6c757d;
-    margin: 0;
-}
-
-/* FORM ELEMENTS */
-.form-label {
+.stats-title {
+    font-size: 0.9rem;
     font-weight: 600;
-    color: #4a5568;
-    margin-bottom: 8px;
+    color: #495057;
+    margin-bottom: 12px;
     display: flex;
     align-items: center;
     gap: 8px;
 }
 
+.stat-item {
+    text-align: center;
+    padding: 8px 4px;
+}
+
+.stat-value {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin: 0;
+    line-height: 1.2;
+}
+
+.stat-label {
+    font-size: 0.75rem;
+    color: #6c757d;
+    margin: 2px 0 0 0;
+    font-weight: 500;
+}
+
+/* FORM ELEMENTS */
+.form-label {
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+}
+
 .form-select, .form-control {
-    border: 1px solid rgba(0,0,0,0.1);
-    border-radius: 8px;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
     transition: all 0.2s ease;
-    background: rgba(255,255,255,0.8);
+    background: white;
+    font-size: 0.9rem;
+    padding: 8px 12px;
 }
 
 .form-select:focus, .form-control:focus {
-    border-color: #667eea;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.1);
     background: white;
 }
 
-/* RESPONSIVE */
+.form-control-sm {
+    padding: 6px 10px;
+    font-size: 0.85rem;
+}
+
+/* BUTTONS */
+.btn {
+    border-radius: 6px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+}
+
+.btn-primary {
+    background: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.btn-primary:hover {
+    background: #0056b3;
+    border-color: #0056b3;
+}
+
+.btn-outline-primary:hover {
+    background: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.btn-outline-success:hover {
+    background: #198754;
+    border-color: #198754;
+}
+
+/* FORM CHECK */
+.form-check {
+    margin-bottom: 8px;
+}
+
+.form-check-label {
+    font-size: 0.9rem;
+    color: #495057;
+    font-weight: 500;
+}
+
+/* AUTO-TRACKING ATTIVO */
+.tracking-active #trackingToggleBtn {
+    background: #198754 !important;
+    color: white !important;
+    box-shadow: 0 0 20px rgba(25, 135, 84, 0.4) !important;
+}
+
+/* RESPONSIVE DESIGN */
 @media (max-width: 768px) {
     .controls-panel {
         left: 10px;
         right: 10px;
         width: calc(100vw - 20px);
         max-width: calc(100vw - 20px);
+        top: 10px;
     }
 
     .controls-panel.collapsed {
@@ -266,45 +376,131 @@
 
     .top-nav {
         right: 10px;
-        flex-wrap: wrap;
+        top: 10px;
+        flex-direction: column;
+        align-items: stretch;
+        min-width: 120px;
+    }
+
+    .nav-btn {
+        justify-content: center;
+        padding: 10px 8px;
     }
 
     .floating-controls {
         bottom: 10px;
         right: 10px;
     }
+
+    .floating-btn {
+        width: 40px;
+        height: 40px;
+        font-size: 14px;
+    }
+
+    .panel-content {
+        padding: 12px;
+        max-height: calc(100vh - 80px);
+    }
+
+    .stats-panel {
+        padding: 12px;
+    }
+
+    .stat-item {
+        padding: 6px 2px;
+    }
+
+    .stat-value {
+        font-size: 1rem;
+    }
+
+    .stat-label {
+        font-size: 0.7rem;
+    }
 }
 
-/* SCROLLBAR CUSTOMIZZATA */
-.panel-content::-webkit-scrollbar {
-    width: 6px;
-}
+@media (max-width: 480px) {
+    .controls-panel {
+        max-width: calc(100vw - 15px);
+        left: 8px;
+        right: 8px;
+        top: 8px;
+    }
 
-.panel-content::-webkit-scrollbar-track {
-    background: rgba(0,0,0,0.05);
-    border-radius: 3px;
-}
+    .top-nav {
+        right: 8px;
+        top: 8px;
+        padding: 6px;
+    }
 
-.panel-content::-webkit-scrollbar-thumb {
-    background: rgba(0,0,0,0.2);
-    border-radius: 3px;
-}
+    .floating-controls {
+        bottom: 8px;
+        right: 8px;
+    }
 
-/* AUTO-TRACKING */
-.tracking-active #trackingToggleBtn {
-    background: #28a745 !important;
-    color: white !important;
-    box-shadow: 0 0 20px rgba(40, 167, 69, 0.5);
+    .floating-btn {
+        width: 38px;
+        height: 38px;
+        font-size: 13px;
+    }
+
+    .panel-content {
+        padding: 10px;
+    }
+
+    .form-label {
+        font-size: 0.85rem;
+    }
+
+    .btn-sm {
+        padding: 6px 10px;
+        font-size: 0.8rem;
+    }
 }
 
 /* ANIMAZIONI */
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .fade-in {
     animation: fadeIn 0.3s ease;
+}
+
+/* DARK MODE SUPPORT */
+@media (prefers-color-scheme: dark) {
+    .controls-panel,
+    .top-nav,
+    .floating-btn,
+    .loading-overlay {
+        background: rgba(33, 37, 41, 0.95);
+        color: #f8f9fa;
+        border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .stats-panel {
+        background: rgba(52, 58, 64, 0.8);
+    }
+
+    .form-control,
+    .form-select {
+        background: rgba(52, 58, 64, 0.8);
+        border-color: rgba(255, 255, 255, 0.2);
+        color: #f8f9fa;
+    }
+
+    .nav-btn,
+    .floating-btn {
+        color: #f8f9fa;
+    }
 }
 </style>
 {% endblock %}
@@ -316,28 +512,33 @@
 
     <!-- Loading Overlay -->
     <div id="loadingOverlay" class="loading-overlay" style="display: none;">
-        <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;"></div>
-        <h6>Caricamento dati...</h6>
-        <p class="text-muted mb-0">Elaborazione tracce GPS</p>
+        <div class="spinner-border text-primary mb-3" style="width: 2.5rem; height: 2.5rem;"></div>
+        <h6 class="mb-2">Caricamento dati...</h6>
+        <p class="text-muted mb-0 small">Elaborazione tracce GPS</p>
     </div>
 
     <!-- Barra navigazione superiore -->
     <div class="top-nav">
         <a href="{{ url_for('dashboard') }}" class="nav-btn">
-            <i class="fas fa-tachometer-alt"></i> Dashboard
+            <i class="fas fa-tachometer-alt"></i>
+            <span class="d-none d-sm-inline">Dashboard</span>
         </a>
         <a href="{{ url_for('reports') }}" class="nav-btn">
-            <i class="fas fa-chart-line"></i> Reports
+            <i class="fas fa-chart-line"></i>
+            <span class="d-none d-sm-inline">Reports</span>
         </a>
         <button class="nav-btn" onclick="toggleFullscreen()">
-            <i class="fas fa-expand"></i> Fullscreen
+            <i class="fas fa-expand"></i>
+            <span class="d-none d-sm-inline">Fullscreen</span>
         </button>
     </div>
 
     <!-- Pannello controlli -->
     <div class="controls-panel" id="controlsPanel">
         <div class="panel-header" onclick="toggleControlsPanel()">
-            <h6><i class="fas fa-sliders-h"></i> Controlli Mappa</h6>
+            <h6 class="panel-title">
+                <i class="fas fa-sliders-h"></i> Controlli
+            </h6>
             <button class="toggle-btn" type="button">
                 <i class="fas fa-chevron-left"></i>
             </button>
@@ -349,7 +550,7 @@
                 <label class="form-label">
                     <i class="fas fa-mobile-alt"></i> Dispositivo
                 </label>
-                <select class="form-select" id="deviceSelect">
+                <select class="form-select form-select-sm" id="deviceSelect">
                     <option value="">Caricamento dispositivi...</option>
                 </select>
             </div>
@@ -361,11 +562,11 @@
                 </label>
                 <div class="row g-2">
                     <div class="col-6">
-                        <label class="form-label">Da</label>
+                        <label class="form-label small">Da</label>
                         <input type="datetime-local" class="form-control form-control-sm" id="fromDate">
                     </div>
                     <div class="col-6">
-                        <label class="form-label">A</label>
+                        <label class="form-label small">A</label>
                         <input type="datetime-local" class="form-control form-control-sm" id="toDate">
                     </div>
                 </div>
@@ -376,10 +577,16 @@
                 <label class="form-label">
                     <i class="fas fa-clock"></i> Periodo Rapido
                 </label>
-                <div class="d-grid gap-2">
-                    <button class="btn btn-outline-primary btn-sm" onclick="setTimeRange(1)">Ultima ora</button>
-                    <button class="btn btn-outline-primary btn-sm" onclick="setTimeRange(24)">Ultime 24 ore</button>
-                    <button class="btn btn-outline-primary btn-sm" onclick="setTimeRange(168)">Ultima settimana</button>
+                <div class="d-grid gap-1">
+                    <button class="btn btn-outline-primary btn-sm" onclick="setTimeRange(1)">
+                        Ultima ora
+                    </button>
+                    <button class="btn btn-outline-primary btn-sm" onclick="setTimeRange(24)">
+                        Ultime 24 ore
+                    </button>
+                    <button class="btn btn-outline-primary btn-sm" onclick="setTimeRange(168)">
+                        Ultima settimana
+                    </button>
                 </div>
             </div>
 
@@ -388,15 +595,15 @@
                 <label class="form-label">
                     <i class="fas fa-cog"></i> Opzioni
                 </label>
-                <div class="form-check mb-2">
+                <div class="form-check">
                     <input class="form-check-input" type="checkbox" id="showPath" checked>
                     <label class="form-check-label" for="showPath">Mostra percorso</label>
                 </div>
-                <div class="form-check mb-2">
+                <div class="form-check">
                     <input class="form-check-input" type="checkbox" id="showMarkers" checked>
                     <label class="form-check-label" for="showMarkers">Mostra markers</label>
                 </div>
-                <div class="form-check mb-2">
+                <div class="form-check">
                     <input class="form-check-input" type="checkbox" id="autoRefresh">
                     <label class="form-check-label" for="autoRefresh">Auto-aggiornamento</label>
                 </div>
@@ -404,18 +611,20 @@
 
             <!-- Pulsanti azione -->
             <div class="d-grid gap-2">
-                <button class="btn btn-primary" onclick="updateMap()">
+                <button class="btn btn-primary btn-sm" onclick="updateMap()">
                     <i class="fas fa-sync"></i> Aggiorna Mappa
                 </button>
-                <button class="btn btn-outline-success" onclick="exportData()">
+                <button class="btn btn-outline-success btn-sm" onclick="exportData()">
                     <i class="fas fa-download"></i> Esporta Dati
                 </button>
             </div>
 
             <!-- Pannello statistiche -->
             <div class="stats-panel">
-                <h6><i class="fas fa-chart-bar"></i> Statistiche</h6>
-                <div class="row">
+                <h6 class="stats-title">
+                    <i class="fas fa-chart-bar"></i> Statistiche
+                </h6>
+                <div class="row g-2">
                     <div class="col-6">
                         <div class="stat-item">
                             <div class="stat-value text-primary" id="totalDistance">0 km</div>
@@ -479,6 +688,11 @@
         </div>
     </div>
 </div>
+
+<!-- Toast container per notifiche -->
+<div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 2100;">
+    <!-- I toast verranno inseriti qui dinamicamente -->
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -498,7 +712,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Verifica che Leaflet sia caricato
     if (typeof L === 'undefined') {
         console.error('Leaflet not loaded!');
-        alert('Errore: Leaflet non caricato. Controlla la connessione internet.');
+        showToast('Errore: Leaflet non caricato. Controlla la connessione internet.', 'error');
         return;
     }
 
@@ -558,7 +772,7 @@ function initializeMap() {
 
     } catch (error) {
         console.error('Error initializing map:', error);
-        alert('Errore nell\'inizializzazione della mappa: ' + error.message);
+        showToast('Errore nell\'inizializzazione della mappa: ' + error.message, 'error');
     }
 }
 
@@ -579,11 +793,16 @@ function loadDevices() {
                 option.textContent = `${device.name} (${device.uniqueId})`;
                 deviceSelect.appendChild(option);
             });
+
+            if (devices.length === 0) {
+                showToast('Nessun dispositivo trovato', 'warning');
+            }
         })
         .catch(error => {
             console.error('Error loading devices:', error);
             const deviceSelect = document.getElementById('deviceSelect');
             deviceSelect.innerHTML = '<option value="">Errore caricamento dispositivi</option>';
+            showToast('Errore nel caricamento dei dispositivi', 'error');
         });
 }
 
@@ -601,6 +820,8 @@ function setTimeRange(hours) {
 
     document.getElementById('fromDate').value = from.toISOString().slice(0, 16);
     document.getElementById('toDate').value = now.toISOString().slice(0, 16);
+
+    showToast(`Periodo impostato: ultime ${hours} ore`, 'info');
 }
 
 function toggleControlsPanel() {
@@ -614,7 +835,7 @@ function updateMap() {
     const toDate = document.getElementById('toDate').value;
 
     if (!deviceId || !fromDate || !toDate) {
-        alert('Seleziona dispositivo e periodo');
+        showToast('Seleziona dispositivo e periodo', 'warning');
         return;
     }
 
@@ -632,11 +853,12 @@ function updateMap() {
             displayPositionsOnMap(positions);
             calculateStatistics(positions);
             showLoading(false);
+            showToast(`Caricati ${positions.length} punti GPS`, 'success');
         })
         .catch(error => {
             console.error('Error loading positions:', error);
             showLoading(false);
-            alert('Errore nel caricamento delle posizioni: ' + error.message);
+            showToast('Errore nel caricamento delle posizioni', 'error');
         });
 }
 
@@ -648,7 +870,7 @@ function displayPositionsOnMap(positions) {
     pathLayer.clearLayers();
 
     if (positions.length === 0) {
-        alert('Nessuna posizione trovata per il periodo selezionato');
+        showToast('Nessuna posizione trovata per il periodo selezionato', 'warning');
         return;
     }
 
@@ -659,7 +881,7 @@ function displayPositionsOnMap(positions) {
     if (showPath && positions.length > 1) {
         const latlngs = positions.map(pos => [pos.latitude, pos.longitude]);
         const polyline = L.polyline(latlngs, {
-            color: '#007bff',
+            color: '#0d6efd',
             weight: 3,
             opacity: 0.8
         }).addTo(pathLayer);
@@ -671,11 +893,11 @@ function displayPositionsOnMap(positions) {
             const isFirst = index === 0;
             const isLast = index === positions.length - 1;
 
-            let markerColor = '#007bff';
+            let markerColor = '#0d6efd';
             let markerIcon = 'circle';
 
             if (isFirst) {
-                markerColor = '#28a745';
+                markerColor = '#198754';
                 markerIcon = 'play';
             } else if (isLast) {
                 markerColor = '#dc3545';
@@ -684,8 +906,8 @@ function displayPositionsOnMap(positions) {
 
             const marker = L.marker([position.latitude, position.longitude], {
                 icon: L.divIcon({
-                    html: `<div style="background: ${markerColor}; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center;"><i class="fas fa-${markerIcon}" style="color: white; font-size: 8px;"></i></div>`,
-                    iconSize: [20, 20],
+                    html: `<div style="background: ${markerColor}; width: 18px; height: 18px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center;"><i class="fas fa-${markerIcon}" style="color: white; font-size: 7px;"></i></div>`,
+                    iconSize: [18, 18],
                     className: 'custom-div-icon'
                 })
             });
@@ -790,8 +1012,10 @@ function fitMapToBounds() {
 function toggleFullscreen() {
     if (!document.fullscreenElement) {
         document.documentElement.requestFullscreen();
+        showToast('Modalità fullscreen attivata', 'info');
     } else {
         document.exitFullscreen();
+        showToast('Modalità fullscreen disattivata', 'info');
     }
 }
 
@@ -814,20 +1038,22 @@ function locateUser() {
 
                 L.marker([lat, lng], {
                     icon: L.divIcon({
-                        html: `<div style="background: #007bff; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 8px rgba(0,123,255,0.5);"></div>`,
-                        iconSize: [20, 20],
+                        html: `<div style="background: #0d6efd; width: 18px; height: 18px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 8px rgba(13,110,253,0.5);"></div>`,
+                        iconSize: [18, 18],
                         className: 'custom-div-icon'
                     })
                 }).addTo(markersLayer)
                   .bindPopup('La tua posizione')
                   .openPopup();
+
+                showToast('Posizione rilevata', 'success');
             },
             function(error) {
-                alert('Errore nella geolocalizzazione: ' + error.message);
+                showToast('Errore nella geolocalizzazione: ' + error.message, 'error');
             }
         );
     } else {
-        alert('Geolocalizzazione non supportata da questo browser');
+        showToast('Geolocalizzazione non supportata', 'error');
     }
 }
 
@@ -839,10 +1065,12 @@ function toggleAutoTracking() {
         document.body.classList.add('tracking-active');
         autoRefreshCheckbox.checked = true;
         startAutoRefresh();
+        showToast('Auto-tracking attivato', 'success');
     } else {
         document.body.classList.remove('tracking-active');
         autoRefreshCheckbox.checked = false;
         stopAutoRefresh();
+        showToast('Auto-tracking disattivato', 'info');
     }
 }
 
@@ -869,7 +1097,7 @@ function stopAutoRefresh() {
 
 function exportData() {
     if (currentData.length === 0) {
-        alert('Nessun dato da esportare. Carica prima i dati della mappa.');
+        showToast('Nessun dato da esportare. Carica prima i dati della mappa.', 'warning');
         return;
     }
 
@@ -877,6 +1105,8 @@ function exportData() {
     const deviceName = document.getElementById('deviceSelect').selectedOptions[0].textContent;
     const csvContent = generateCSV(currentData, deviceName);
     downloadCSV(csvContent, `traccar_export_${deviceId}_${new Date().toISOString().slice(0,10)}.csv`);
+
+    showToast('Dati esportati con successo', 'success');
 }
 
 function generateCSV(positions, deviceName) {
@@ -919,6 +1149,48 @@ function showLoading(show) {
     overlay.style.display = show ? 'block' : 'none';
 }
 
+// Sistema di toast notification
+function showToast(message, type = 'info', duration = 4000) {
+    const toastContainer = document.querySelector('.toast-container');
+
+    const toastEl = document.createElement('div');
+    toastEl.className = `toast align-items-center text-bg-${type} border-0`;
+    toastEl.setAttribute('role', 'alert');
+    toastEl.setAttribute('aria-live', 'assertive');
+    toastEl.setAttribute('aria-atomic', 'true');
+
+    const iconClass = {
+        'success': 'fa-check-circle',
+        'error': 'fa-exclamation-circle',
+        'warning': 'fa-exclamation-triangle',
+        'info': 'fa-info-circle'
+    }[type] || 'fa-info-circle';
+
+    toastEl.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">
+                <i class="fas ${iconClass} me-2"></i>
+                ${message}
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    `;
+
+    toastContainer.appendChild(toastEl);
+
+    const toast = new bootstrap.Toast(toastEl, {
+        delay: duration,
+        autohide: true
+    });
+
+    toast.show();
+
+    // Rimuovi l'elemento dal DOM quando il toast viene nascosto
+    toastEl.addEventListener('hidden.bs.toast', () => {
+        toastEl.remove();
+    });
+}
+
 // Event listener per checkbox auto-refresh
 document.addEventListener('DOMContentLoaded', function() {
     const autoRefreshCheckbox = document.getElementById('autoRefresh');
@@ -926,460 +1198,15 @@ document.addEventListener('DOMContentLoaded', function() {
         autoRefreshCheckbox.addEventListener('change', function() {
             if (this.checked) {
                 startAutoRefresh();
+                showToast('Auto-aggiornamento attivato', 'info');
             } else {
                 stopAutoRefresh();
+                showToast('Auto-aggiornamento disattivato', 'info');
             }
         });
     }
 });
 
-// AGGIUNGI QUESTE FUNZIONI al JavaScript esistente in devices_management.html
-// (aggiungi alla fine del blocco <script>, prima della chiusura)
-
-// === GESTIONE MODALS E FORM ===
-
-function showAddDeviceModal() {
-    console.log('Opening add device modal');
-    resetDeviceForm();
-    isEditing = false;
-
-    const modalTitle = document.getElementById('deviceModalTitle');
-    const saveButtonText = document.getElementById('saveButtonText');
-
-    if (modalTitle) {
-        modalTitle.innerHTML = '<i class="fas fa-plus"></i> Nuovo Dispositivo';
-    }
-    if (saveButtonText) {
-        saveButtonText.textContent = 'Salva Dispositivo';
-    }
-
-    const modal = new bootstrap.Modal(document.getElementById('deviceModal'));
-    modal.show();
-}
-
-function editDevice(deviceId) {
-    console.log('Edit device:', deviceId);
-    const device = allDevices.find(d => d.id === deviceId);
-    if (!device) {
-        showAlert('Dispositivo non trovato', 'danger');
-        return;
-    }
-
-    isEditing = true;
-    const modalTitle = document.getElementById('deviceModalTitle');
-    const saveButtonText = document.getElementById('saveButtonText');
-
-    if (modalTitle) {
-        modalTitle.innerHTML = '<i class="fas fa-edit"></i> Modifica Dispositivo';
-    }
-    if (saveButtonText) {
-        saveButtonText.textContent = 'Aggiorna Dispositivo';
-    }
-
-    // Popola il form con i dati del dispositivo
-    populateDeviceForm(device);
-
-    const modal = new bootstrap.Modal(document.getElementById('deviceModal'));
-    modal.show();
-}
-
-function populateDeviceForm(device) {
-    const fields = {
-        'deviceId': device.id,
-        'deviceName': device.name || '',
-        'deviceUniqueId': device.uniqueId || '',
-        'devicePhone': device.phone || '',
-        'deviceModel': device.model || '',
-        'deviceCategory': device.category || '',
-        'deviceContact': device.contact || '',
-        'deviceDisabled': device.disabled || false,
-        'deviceGroupId': device.groupId || ''
-    };
-
-    Object.entries(fields).forEach(([fieldId, value]) => {
-        const element = document.getElementById(fieldId);
-        if (element) {
-            if (element.type === 'checkbox') {
-                element.checked = value;
-            } else {
-                element.value = value;
-            }
-        }
-    });
-
-    // Popola attributi personalizzati se presenti
-    if (device.attributes) {
-        populateCustomAttributes(device.attributes);
-    }
-}
-
-function populateCustomAttributes(attributes) {
-    const container = document.getElementById('customAttributes');
-    if (!container) return;
-
-    container.innerHTML = '';
-
-    if (!attributes || typeof attributes !== 'object') {
-        addAttributeRow();
-        return;
-    }
-
-    Object.entries(attributes).forEach(([key, value], index, array) => {
-        const isLast = index === array.length - 1;
-
-        const row = document.createElement('div');
-        row.className = 'row mb-2';
-        row.innerHTML = `
-            <div class="col-md-5">
-                <input type="text" class="form-control form-control-sm"
-                       placeholder="Nome attributo" name="attrName[]" value="${key}">
-            </div>
-            <div class="col-md-5">
-                <input type="text" class="form-control form-control-sm"
-                       placeholder="Valore" name="attrValue[]" value="${value}">
-            </div>
-            <div class="col-md-2">
-                <button type="button" class="btn btn-sm ${isLast ? 'btn-outline-success' : 'btn-outline-danger'}"
-                        onclick="${isLast ? 'addAttributeRow()' : 'removeAttributeRow(this)'}">
-                    <i class="fas fa-${isLast ? 'plus' : 'trash'}"></i>
-                </button>
-            </div>
-        `;
-        container.appendChild(row);
-    });
-
-    // Aggiungi una riga vuota alla fine
-    addAttributeRow();
-}
-
-function addAttributeRow() {
-    const container = document.getElementById('customAttributes');
-    if (!container) return;
-
-    // Converti il pulsante + dell'ultima riga in pulsante -
-    const lastPlusBtn = container.querySelector('.btn-outline-success:last-of-type');
-    if (lastPlusBtn) {
-        lastPlusBtn.className = 'btn btn-sm btn-outline-danger';
-        lastPlusBtn.innerHTML = '<i class="fas fa-trash"></i>';
-        lastPlusBtn.setAttribute('onclick', 'removeAttributeRow(this)');
-    }
-
-    // Aggiungi nuova riga
-    const newRow = document.createElement('div');
-    newRow.className = 'row mb-2';
-    newRow.innerHTML = `
-        <div class="col-md-5">
-            <input type="text" class="form-control form-control-sm"
-                   placeholder="Nome attributo" name="attrName[]">
-        </div>
-        <div class="col-md-5">
-            <input type="text" class="form-control form-control-sm"
-                   placeholder="Valore" name="attrValue[]">
-        </div>
-        <div class="col-md-2">
-            <button type="button" class="btn btn-sm btn-outline-success"
-                    onclick="addAttributeRow()">
-                <i class="fas fa-plus"></i>
-            </button>
-        </div>
-    `;
-
-    container.appendChild(newRow);
-}
-
-function removeAttributeRow(button) {
-    button.closest('.row').remove();
-}
-
-function resetDeviceForm() {
-    console.log('Reset device form');
-
-    const form = document.getElementById('deviceForm');
-    if (form) {
-        form.reset();
-    }
-
-    // Reset degli ID nascosti
-    const deviceId = document.getElementById('deviceId');
-    if (deviceId) {
-        deviceId.value = '';
-    }
-
-    // Reset attributi personalizzati
-    const customAttributes = document.getElementById('customAttributes');
-    if (customAttributes) {
-        customAttributes.innerHTML = '';
-        addAttributeRow(); // Aggiungi una riga vuota
-    }
-}
-
-function saveDevice() {
-    console.log('Saving device...');
-
-    const form = document.getElementById('deviceForm');
-    if (!form) {
-        showAlert('Form non trovato', 'danger');
-        return;
-    }
-
-    const formData = new FormData(form);
-
-    // Validazione dati richiesti
-    const name = formData.get('name');
-    const uniqueId = formData.get('uniqueId');
-
-    if (!name || !uniqueId) {
-        showAlert('Nome e IMEI sono campi obbligatori', 'warning');
-        return;
-    }
-
-    // Costruisci oggetto dispositivo
-    const deviceData = {
-        name: name,
-        uniqueId: uniqueId,
-        phone: formData.get('phone') || null,
-        model: formData.get('model') || null,
-        category: formData.get('category') || null,
-        contact: formData.get('contact') || null,
-        disabled: formData.get('disabled') === 'on',
-        groupId: parseInt(formData.get('groupId')) || null,
-        attributes: {}
-    };
-
-    // Aggiungi attributi personalizzati
-    const attrNames = formData.getAll('attrName[]');
-    const attrValues = formData.getAll('attrValue[]');
-
-    for (let i = 0; i < attrNames.length; i++) {
-        if (attrNames[i] && attrValues[i]) {
-            deviceData.attributes[attrNames[i]] = attrValues[i];
-        }
-    }
-
-    // Determina se stiamo creando o aggiornando
-    const method = isEditing ? 'PUT' : 'POST';
-    const url = isEditing ? `/api/devices/${formData.get('id')}` : '/api/devices';
-
-    if (isEditing) {
-        deviceData.id = parseInt(formData.get('id'));
-    }
-
-    // Mostra loading
-    const saveButton = document.querySelector('#deviceModal .btn-primary');
-    const originalText = saveButton.innerHTML;
-    saveButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvataggio...';
-    saveButton.disabled = true;
-
-    fetch(url, {
-        method: method,
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(deviceData)
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            const action = isEditing ? 'aggiornato' : 'creato';
-            showAlert(`Dispositivo ${action} con successo`, 'success');
-
-            const modal = bootstrap.Modal.getInstance(document.getElementById('deviceModal'));
-            modal.hide();
-            loadDevices(); // Ricarica la lista
-        } else {
-            showAlert(data.error || 'Errore nel salvataggio del dispositivo', 'danger');
-        }
-    })
-    .catch(error => {
-        console.error('Errore:', error);
-        showAlert('Errore nel salvataggio del dispositivo', 'danger');
-    })
-    .finally(() => {
-        // Ripristina il pulsante
-        saveButton.innerHTML = originalText;
-        saveButton.disabled = false;
-    });
-}
-
-function showDeleteModal(deviceId) {
-    console.log('Show delete modal for device:', deviceId);
-    const device = allDevices.find(d => d.id === deviceId);
-    if (!device) {
-        showAlert('Dispositivo non trovato', 'danger');
-        return;
-    }
-
-    deviceToDeleteId = deviceId;
-
-    const deviceToDelete = document.getElementById('deviceToDelete');
-    if (deviceToDelete) {
-        deviceToDelete.innerHTML = `
-            <div class="row">
-                <div class="col-sm-4"><strong>Nome:</strong></div>
-                <div class="col-sm-8">${device.name}</div>
-            </div>
-            <div class="row">
-                <div class="col-sm-4"><strong>IMEI:</strong></div>
-                <div class="col-sm-8"><code>${device.uniqueId}</code></div>
-            </div>
-            ${device.phone ? `
-            <div class="row">
-                <div class="col-sm-4"><strong>Telefono:</strong></div>
-                <div class="col-sm-8">${device.phone}</div>
-            </div>
-            ` : ''}
-        `;
-    }
-
-    const modal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
-    modal.show();
-}
-
-function confirmDelete() {
-    if (!deviceToDeleteId) return;
-
-    console.log('Confirming delete for device:', deviceToDeleteId);
-
-    // Mostra loading
-    const deleteButton = document.querySelector('#deleteConfirmModal .btn-danger');
-    const originalText = deleteButton.innerHTML;
-    deleteButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Eliminazione...';
-    deleteButton.disabled = true;
-
-    fetch(`/api/devices/${deviceToDeleteId}`, {
-        method: 'DELETE',
-        headers: {
-            'Content-Type': 'application/json'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showAlert('Dispositivo eliminato con successo', 'success');
-            const modal = bootstrap.Modal.getInstance(document.getElementById('deleteConfirmModal'));
-            modal.hide();
-            loadDevices(); // Ricarica la lista
-        } else {
-            showAlert(data.error || 'Errore nell\'eliminazione del dispositivo', 'danger');
-        }
-    })
-    .catch(error => {
-        console.error('Errore:', error);
-        showAlert('Errore nell\'eliminazione del dispositivo', 'danger');
-    })
-    .finally(() => {
-        // Ripristina il pulsante
-        deleteButton.innerHTML = originalText;
-        deleteButton.disabled = false;
-        deviceToDeleteId = null;
-    });
-}
-
-// === AZIONI BULK ===
-
-function selectAll() {
-    const checkboxes = document.querySelectorAll('.device-checkbox');
-    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
-
-    checkboxes.forEach(cb => {
-        cb.checked = !selectAllCheckbox.checked;
-    });
-
-    selectAllCheckbox.checked = !selectAllCheckbox.checked;
-    updateBulkActions();
-}
-
-function toggleSelectAll() {
-    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
-    const checkboxes = document.querySelectorAll('.device-checkbox');
-
-    checkboxes.forEach(cb => {
-        cb.checked = selectAllCheckbox.checked;
-    });
-
-    updateBulkActions();
-}
-
-function updateBulkActions() {
-    const checkboxes = document.querySelectorAll('.device-checkbox:checked');
-    const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
-
-    if (bulkDeleteBtn) {
-        bulkDeleteBtn.disabled = checkboxes.length === 0;
-    }
-
-    // Aggiorna stato checkbox "seleziona tutti"
-    const allCheckboxes = document.querySelectorAll('.device-checkbox');
-    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
-
-    if (selectAllCheckbox) {
-        if (checkboxes.length === 0) {
-            selectAllCheckbox.indeterminate = false;
-            selectAllCheckbox.checked = false;
-        } else if (checkboxes.length === allCheckboxes.length) {
-            selectAllCheckbox.indeterminate = false;
-            selectAllCheckbox.checked = true;
-        } else {
-            selectAllCheckbox.indeterminate = true;
-        }
-    }
-}
-
-function bulkDelete() {
-    const checkboxes = document.querySelectorAll('.device-checkbox:checked');
-    const selectedIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
-
-    if (selectedIds.length === 0) return;
-
-    const confirmMsg = `Sei sicuro di voler eliminare ${selectedIds.length} dispositivi selezionati? Questa azione non può essere annullata.`;
-
-    if (confirm(confirmMsg)) {
-        showAlert(`Eliminazione di ${selectedIds.length} dispositivi in corso...`, 'info');
-
-        const promises = selectedIds.map(id =>
-            fetch(`/api/devices/${id}`, { method: 'DELETE' })
-                .then(response => response.json())
-        );
-
-        Promise.all(promises)
-            .then(results => {
-                const successful = results.filter(r => r.success).length;
-                const failed = results.length - successful;
-
-                if (failed === 0) {
-                    showAlert(`${successful} dispositivi eliminati con successo`, 'success');
-                } else {
-                    showAlert(`${successful} eliminati, ${failed} errori`, 'warning');
-                }
-
-                loadDevices(); // Ricarica la lista
-            })
-            .catch(error => {
-                console.error('Errore nell\'eliminazione multipla:', error);
-                showAlert('Errore nell\'eliminazione dei dispositivi', 'danger');
-            });
-    }
-}
-
-// === INIZIALIZZAZIONE EVENTI ===
-
-// Aggiungi event listener per il modal
-document.addEventListener('DOMContentLoaded', function() {
-    // Event listener per il modal di device
-    const deviceModal = document.getElementById('deviceModal');
-    if (deviceModal) {
-        deviceModal.addEventListener('hidden.bs.modal', function() {
-            resetDeviceForm();
-        });
-    }
-
-    // Event listener per checkbox "seleziona tutti"
-    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
-    if (selectAllCheckbox) {
-        selectAllCheckbox.addEventListener('change', toggleSelectAll);
-    }
-});
-
-console.log('✅ Device management functions loaded successfully');
+console.log('✅ Map page script loaded successfully');
 </script>
 {% endblock %}
