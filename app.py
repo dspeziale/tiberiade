@@ -1,8 +1,11 @@
+import datetime
+import traceback
+
 import requests
 import json
 import re
 from flask import Flask, render_template, jsonify, request, session, redirect, url_for, flash
-from datetime import datetime, timedelta
+from datetime import timedelta
 import os
 from functools import wraps
 
@@ -938,7 +941,7 @@ def api_positions():
     device_id = request.args.get('deviceId')
     hours = int(request.args.get('hours', 24))
 
-    to_time = datetime.utcnow()
+    to_time = datetime.datetime.now(datetime.UTC)
     from_time = to_time - timedelta(hours=hours)
 
     positions = traccar_api.get_positions(device_id, from_time, to_time)
@@ -1244,13 +1247,13 @@ def api_server_status():
         return jsonify({
             'status': 'offline',
             'message': 'Server Traccar non raggiungibile',
-            'timestamp': datetime.utcnow().isoformat()
+            'timestamp': datetime.datetime.now(datetime.UTC).isoformat()
         })
     except Exception as e:
         return jsonify({
             'status': 'error',
             'message': str(e),
-            'timestamp': datetime.utcnow().isoformat()
+            'timestamp': datetime.datetime.now(datetime.UTC).isoformat()
         })
 
 
