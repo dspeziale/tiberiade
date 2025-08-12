@@ -1,0 +1,652 @@
+{% extends "base.html" %}
+
+{% block title %}Mappa - Traccar{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <!-- Sidebar Controls -->
+        <div class="col-md-3">
+            <div class="card sticky-top" style="top: 20px;">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-sliders-h"></i> Controlli Mappa</h6>
+                </div>
+                <div class="card-body">
+                    <!-- Device Selection -->
+                    <div class="mb-3">
+                        <label class="form-label">
+                            <i class="fas fa-mobile-alt"></i> Dispositivo
+                        </label>
+                        <select class="form-select" id="deviceSelect">
+                            <option value="">Caricamento...</option>
+                        </select>
+                        <div class="form-check mt-2">
+                            <input class="form-check-input" type="checkbox" id="showAllDevices">
+                            <label class="form-check-label" for="showAllDevices">
+                                Mostra tutti i dispositivi
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Time Range -->
+                    <div class="mb-3">
+                        <label class="form-label">
+                            <i class="fas fa-clock"></i> Periodo
+                        </label>
+                        <select class="form-select" id="timeRange">
+                            <option value="1">Ultima ora</option>
+                            <option value="6">Ultime 6 ore</option>
+                            <option value="24" selected>Ultime 24 ore</option>
+                            <option value="72">Ultimi 3 giorni</option>
+                            <option value="168">Ultima settimana</option>
+                            <option value="custom">Periodo personalizzato</option>
+                        </select>
+                    </div>
+
+                    <!-- Custom Time Range -->
+                    <div id="customTimeRange" style="display: none;">
+                        <div class="mb-2">
+                            <label class="form-label">Da</label>
+                            <input type="datetime-local" class="form-control form-control-sm" id="fromTime">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">A</label>
+                            <input type="datetime-local" class="form-control form-control-sm" id="toTime">
+                        </div>
+                    </div>
+
+                    <!-- Map Options -->
+                    <div class="mb-3">
+                        <label class="form-label">
+                            <i class="fas fa-layer-group"></i> Opzioni Visualizzazione
+                        </label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="showPath" checked>
+                            <label class="form-check-label" for="showPath">
+                                Mostra percorso
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="showMarkers" checked>
+                            <label class="form-check-label" for="showMarkers">
+                                Mostra punti posizione
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="showSpeed">
+                            <label class="form-check-label" for="showSpeed">
+                                Colora per velocità
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="animatePath">
+                            <label class="form-check-label" for="animatePath">
+                                Anima percorso
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Update Button -->
+                    <button class="btn btn-primary w-100 mb-2" onclick="updateMap()">
+                        <i class="fas fa-sync-alt"></i> Aggiorna Mappa
+                    </button>
+
+                    <!-- Export Button -->
+                    <button class="btn btn-outline-secondary w-100 mb-2" onclick="exportData()">
+                        <i class="fas fa-download"></i> Esporta Dati
+                    </button>
+
+                    <!-- Statistics -->
+                    <div id="mapStats" class="mt-3" style="display: none;">
+                        <hr>
+                        <h6><i class="fas fa-chart-bar"></i> Statistiche</h6>
+                        <div class="row text-center">
+                            <div class="col-6">
+                                <div class="border-end">
+                                    <div class="text-primary h6" id="totalDistance">0 km</div>
+                                    <small class="text-muted">Distanza</small>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="text-success h6" id="avgSpeed">0 km/h</div>
+                                <small class="text-muted">Vel. Media</small>
+                            </div>
+                        </div>
+                        <div class="row text-center mt-2">
+                            <div class="col-6">
+                                <div class="border-end">
+                                    <div class="text-warning h6" id="maxSpeed">0 km/h</div>
+                                    <small class="text-muted">Vel. Max</small>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="text-info h6" id="totalTime">0h 0m</div>
+                                <small class="text-muted">Tempo</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Map Container -->
+        <div class="col-md-9">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0"><i class="fas fa-map"></i> Mappa Tracciamento</h6>
+                    <div>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="fitMapToBounds()">
+                            <i class="fas fa-expand-arrows-alt"></i> Adatta vista
+                        </button>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="toggleFullscreen()">
+                            <i class="fas fa-expand"></i> Schermo intero
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body p-0 position-relative">
+                    <div id="map"></div>
+
+                    <!-- Loading overlay -->
+                    <div id="mapLoading" class="position-absolute top-50 start-50 translate-middle" style="display: none; z-index: 1000;">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Caricamento...</span>
+                        </div>
+                    </div>
+
+                    <!-- Map controls -->
+                    <div class="position-absolute top-0 end-0 m-2" style="z-index: 1000;">
+                        <div class="btn-group-vertical">
+                            <button class="btn btn-sm btn-light" onclick="map.zoomIn()" title="Zoom In">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                            <button class="btn btn-sm btn-light" onclick="map.zoomOut()" title="Zoom Out">
+                                <i class="fas fa-minus"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let map;
+let markersLayer;
+let pathLayer;
+let currentData = [];
+let allDevices = [];
+
+document.addEventListener('DOMContentLoaded', function() {
+    initMap();
+    loadDevicesForMap();
+    setupEventListeners();
+
+    // Check URL parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const deviceParam = urlParams.get('device');
+    const latParam = urlParams.get('lat');
+    const lngParam = urlParams.get('lng');
+
+    if (deviceParam) {
+        setTimeout(() => {
+            document.getElementById('deviceSelect').value = deviceParam;
+            updateMap();
+        }, 1000);
+    }
+
+    if (latParam && lngParam) {
+        map.setView([parseFloat(latParam), parseFloat(lngParam)], 16);
+    }
+});
+
+function setupEventListeners() {
+    document.getElementById('timeRange').addEventListener('change', function() {
+        const customRange = document.getElementById('customTimeRange');
+        if (this.value === 'custom') {
+            customRange.style.display = 'block';
+            // Set default values
+            const now = new Date();
+            const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+            document.getElementById('toTime').value = formatDateTimeLocal(now);
+            document.getElementById('fromTime').value = formatDateTimeLocal(yesterday);
+        } else {
+            customRange.style.display = 'none';
+        }
+    });
+
+    document.getElementById('showAllDevices').addEventListener('change', function() {
+        const deviceSelect = document.getElementById('deviceSelect');
+        if (this.checked) {
+            deviceSelect.disabled = true;
+            deviceSelect.value = '';
+        } else {
+            deviceSelect.disabled = false;
+        }
+    });
+}
+
+function initMap() {
+    map = L.map('map').setView([41.9028, 12.4964], 6); // Centro Italia
+
+    // Add tile layers
+    const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    });
+
+    const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        attribution: '© Esri'
+    });
+
+    const baseLayers = {
+        "OpenStreetMap": osmLayer,
+        "Satellite": satelliteLayer
+    };
+
+    osmLayer.addTo(map);
+    L.control.layers(baseLayers).addTo(map);
+
+    // Initialize layer groups
+    markersLayer = L.layerGroup().addTo(map);
+    pathLayer = L.layerGroup().addTo(map);
+
+    // Add scale control
+    L.control.scale().addTo(map);
+}
+
+function loadDevicesForMap() {
+    fetch('/api/devices')
+        .then(response => response.json())
+        .then(devices => {
+            allDevices = devices;
+            const select = document.getElementById('deviceSelect');
+            select.innerHTML = '<option value="">Tutti i dispositivi</option>';
+
+            devices.forEach(device => {
+                const option = document.createElement('option');
+                option.value = device.id;
+                option.textContent = device.name;
+                select.appendChild(option);
+            });
+        })
+        .catch(error => {
+            console.error('Errore nel caricamento dispositivi:', error);
+            showAlert('Errore nel caricamento dei dispositivi', 'danger');
+        });
+}
+
+function updateMap() {
+    const showAllDevices = document.getElementById('showAllDevices').checked;
+    const deviceId = document.getElementById('deviceSelect').value;
+    const timeRange = document.getElementById('timeRange').value;
+
+    if (!showAllDevices && !deviceId) {
+        showAlert('Seleziona un dispositivo o abilita "Mostra tutti i dispositivi"', 'warning');
+        return;
+    }
+
+    // Show loading
+    document.getElementById('mapLoading').style.display = 'block';
+
+    // Clear existing layers
+    markersLayer.clearLayers();
+    pathLayer.clearLayers();
+
+    let url = '/api/positions?';
+
+    if (timeRange === 'custom') {
+        const fromTime = document.getElementById('fromTime').value;
+        const toTime = document.getElementById('toTime').value;
+
+        if (!fromTime || !toTime) {
+            showAlert('Inserisci entrambe le date per il periodo personalizzato', 'warning');
+            document.getElementById('mapLoading').style.display = 'none';
+            return;
+        }
+
+        // Convert to hours for API
+        const from = new Date(fromTime);
+        const to = new Date(toTime);
+        const hours = Math.ceil((to - from) / (1000 * 60 * 60));
+        url += `hours=${hours}`;
+    } else {
+        url += `hours=${timeRange}`;
+    }
+
+    if (!showAllDevices && deviceId) {
+        url += `&deviceId=${deviceId}`;
+    }
+
+    fetch(url)
+        .then(response => response.json())
+        .then(positions => {
+            currentData = positions;
+            if (positions.length === 0) {
+                showAlert('Nessuna posizione trovata per i parametri selezionati', 'info');
+                document.getElementById('mapLoading').style.display = 'none';
+                return;
+            }
+
+            renderPositionsOnMap(positions);
+            calculateStatistics(positions);
+            fitMapToBounds();
+        })
+        .catch(error => {
+            console.error('Errore nel caricamento posizioni:', error);
+            showAlert('Errore nel caricamento delle posizioni', 'danger');
+        })
+        .finally(() => {
+            document.getElementById('mapLoading').style.display = 'none';
+        });
+}
+
+function renderPositionsOnMap(positions) {
+    const deviceGroups = {};
+    const showPath = document.getElementById('showPath').checked;
+    const showMarkers = document.getElementById('showMarkers').checked;
+    const showSpeed = document.getElementById('showSpeed').checked;
+
+    // Group positions by device
+    positions.forEach(pos => {
+        if (!deviceGroups[pos.deviceId]) {
+            deviceGroups[pos.deviceId] = [];
+        }
+        deviceGroups[pos.deviceId].push(pos);
+    });
+
+    const colors = ['#e74c3c', '#3498db', '#2ecc71', '#9b59b6', '#f39c12', '#1abc9c', '#34495e', '#e67e22'];
+    let colorIndex = 0;
+
+    Object.keys(deviceGroups).forEach(deviceId => {
+        const devicePositions = deviceGroups[deviceId].sort((a, b) =>
+            new Date(a.serverTime) - new Date(b.serverTime)
+        );
+        const color = colors[colorIndex % colors.length];
+        const deviceName = getDeviceName(deviceId);
+        colorIndex++;
+
+        // Create path
+        if (showPath && devicePositions.length > 1) {
+            if (showSpeed) {
+                renderSpeedColoredPath(devicePositions, deviceName);
+            } else {
+                const latlngs = devicePositions.map(pos => [pos.latitude, pos.longitude]);
+                const polyline = L.polyline(latlngs, {
+                    color: color,
+                    weight: 3,
+                    opacity: 0.8
+                }).addTo(pathLayer);
+
+                polyline.bindPopup(`<b>${deviceName}</b><br>Percorso completo`);
+            }
+        }
+
+        // Add markers
+        if (showMarkers) {
+            devicePositions.forEach((pos, index) => {
+                const isLast = index === devicePositions.length - 1;
+                const isFirst = index === 0;
+
+                let iconHtml = '';
+                let iconColor = color;
+
+                if (isFirst) {
+                    iconHtml = `<i class="fas fa-play" style="color: green; font-size: 14px;"></i>`;
+                } else if (isLast) {
+                    iconHtml = `<i class="fas fa-stop" style="color: red; font-size: 14px;"></i>`;
+                } else {
+                    iconHtml = `<i class="fas fa-circle" style="color: ${iconColor}; font-size: 8px;"></i>`;
+                }
+
+                const marker = L.marker([pos.latitude, pos.longitude], {
+                    icon: L.divIcon({
+                        html: iconHtml,
+                        iconSize: [16, 16],
+                        className: 'custom-div-icon'
+                    })
+                }).addTo(markersLayer);
+
+                const popupContent = `
+                    <b>${deviceName}</b><br>
+                    <strong>Posizione:</strong> ${pos.latitude.toFixed(6)}, ${pos.longitude.toFixed(6)}<br>
+                    <strong>Velocità:</strong> ${Math.round(pos.speed || 0)} km/h<br>
+                    <strong>Data:</strong> ${formatDateTime(pos.serverTime)}<br>
+                    ${pos.altitude ? `<strong>Altitudine:</strong> ${Math.round(pos.altitude)} m<br>` : ''}
+                `;
+
+                marker.bindPopup(popupContent);
+            });
+        } else {
+            // Show only start and end markers
+            const firstPos = devicePositions[0];
+            const lastPos = devicePositions[devicePositions.length - 1];
+
+            // Start marker
+            const startMarker = L.marker([firstPos.latitude, firstPos.longitude], {
+                icon: L.divIcon({
+                    html: `<i class="fas fa-play" style="color: green; font-size: 20px;"></i>`,
+                    iconSize: [20, 20],
+                    className: 'custom-div-icon'
+                })
+            }).addTo(markersLayer);
+
+            startMarker.bindPopup(`<b>${deviceName}</b><br>Inizio percorso<br>${formatDateTime(firstPos.serverTime)}`);
+
+            // End marker (if different from start)
+            if (devicePositions.length > 1) {
+                const endMarker = L.marker([lastPos.latitude, lastPos.longitude], {
+                    icon: L.divIcon({
+                        html: `<i class="fas fa-stop" style="color: red; font-size: 20px;"></i>`,
+                        iconSize: [20, 20],
+                        className: 'custom-div-icon'
+                    })
+                }).addTo(markersLayer);
+
+                endMarker.bindPopup(`<b>${deviceName}</b><br>Fine percorso<br>${formatDateTime(lastPos.serverTime)}`);
+            }
+        }
+    });
+}
+
+function renderSpeedColoredPath(positions, deviceName) {
+    for (let i = 0; i < positions.length - 1; i++) {
+        const pos1 = positions[i];
+        const pos2 = positions[i + 1];
+        const speed = pos1.speed || 0;
+
+        let color = '#2ecc71'; // Green for low speed
+        if (speed > 50) color = '#f39c12'; // Orange for medium speed
+        if (speed > 80) color = '#e74c3c'; // Red for high speed
+        if (speed < 5) color = '#95a5a6';  // Gray for stopped
+
+        const segment = L.polyline([
+            [pos1.latitude, pos1.longitude],
+            [pos2.latitude, pos2.longitude]
+        ], {
+            color: color,
+            weight: 4,
+            opacity: 0.8
+        }).addTo(pathLayer);
+
+        segment.bindPopup(`
+            <b>${deviceName}</b><br>
+            Velocità: ${Math.round(speed)} km/h<br>
+            ${formatDateTime(pos1.serverTime)}
+        `);
+    }
+}
+
+function calculateStatistics(positions) {
+    if (positions.length === 0) return;
+
+    let totalDistance = 0;
+    let totalTime = 0;
+    let maxSpeed = 0;
+    let speedSum = 0;
+    let speedCount = 0;
+
+    // Group by device to calculate statistics properly
+    const deviceGroups = {};
+    positions.forEach(pos => {
+        if (!deviceGroups[pos.deviceId]) {
+            deviceGroups[pos.deviceId] = [];
+        }
+        deviceGroups[pos.deviceId].push(pos);
+    });
+
+    Object.values(deviceGroups).forEach(devicePositions => {
+        devicePositions.sort((a, b) => new Date(a.serverTime) - new Date(b.serverTime));
+
+        for (let i = 0; i < devicePositions.length - 1; i++) {
+            const pos1 = devicePositions[i];
+            const pos2 = devicePositions[i + 1];
+
+            // Calculate distance using Haversine formula
+            const distance = calculateDistance(
+                pos1.latitude, pos1.longitude,
+                pos2.latitude, pos2.longitude
+            );
+            totalDistance += distance;
+
+            // Calculate time difference
+            const timeDiff = new Date(pos2.serverTime) - new Date(pos1.serverTime);
+            totalTime += timeDiff;
+
+            // Track speeds
+            if (pos1.speed) {
+                maxSpeed = Math.max(maxSpeed, pos1.speed);
+                speedSum += pos1.speed;
+                speedCount++;
+            }
+        }
+    });
+
+    const avgSpeed = speedCount > 0 ? speedSum / speedCount : 0;
+
+    // Update statistics display
+    document.getElementById('totalDistance').textContent = (totalDistance / 1000).toFixed(1) + ' km';
+    document.getElementById('avgSpeed').textContent = Math.round(avgSpeed) + ' km/h';
+    document.getElementById('maxSpeed').textContent = Math.round(maxSpeed) + ' km/h';
+
+    const hours = Math.floor(totalTime / (1000 * 60 * 60));
+    const minutes = Math.floor((totalTime % (1000 * 60 * 60)) / (1000 * 60));
+    document.getElementById('totalTime').textContent = `${hours}h ${minutes}m`;
+
+    document.getElementById('mapStats').style.display = 'block';
+}
+
+function calculateDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371000; // Earth's radius in meters
+    const φ1 = lat1 * Math.PI / 180;
+    const φ2 = lat2 * Math.PI / 180;
+    const Δφ = (lat2 - lat1) * Math.PI / 180;
+    const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+              Math.cos(φ1) * Math.cos(φ2) *
+              Math.sin(Δλ/2) * Math.sin(Δλ/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+    return R * c; // Distance in meters
+}
+
+function getDeviceName(deviceId) {
+    const device = allDevices.find(d => d.id == deviceId);
+    return device ? device.name : `Dispositivo ${deviceId}`;
+}
+
+function fitMapToBounds() {
+    if (markersLayer.getLayers().length === 0 && pathLayer.getLayers().length === 0) {
+        return;
+    }
+
+    const group = new L.featureGroup([markersLayer, pathLayer]);
+    const bounds = group.getBounds();
+
+    if (bounds.isValid()) {
+        map.fitBounds(bounds.pad(0.1));
+    }
+}
+
+function toggleFullscreen() {
+    const mapContainer = document.getElementById('map');
+
+    if (!document.fullscreenElement) {
+        mapContainer.requestFullscreen().then(() => {
+            mapContainer.style.height = '100vh';
+            setTimeout(() => map.invalidateSize(), 100);
+        });
+    } else {
+        document.exitFullscreen().then(() => {
+            mapContainer.style.height = '500px';
+            setTimeout(() => map.invalidateSize(), 100);
+        });
+    }
+}
+
+function exportData() {
+    if (currentData.length === 0) {
+        showAlert('Nessun dato da esportare', 'warning');
+        return;
+    }
+
+    // Create CSV content
+    let csvContent = 'Device ID,Device Name,Latitude,Longitude,Speed,Altitude,Date Time\n';
+
+    currentData.forEach(pos => {
+        const deviceName = getDeviceName(pos.deviceId);
+        csvContent += `${pos.deviceId},"${deviceName}",${pos.latitude},${pos.longitude},${pos.speed || 0},${pos.altitude || 0},"${formatDateTime(pos.serverTime)}"\n`;
+    });
+
+    // Download file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `traccar_export_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    showAlert('Dati esportati con successo', 'success');
+}
+
+function formatDateTime(dateTimeString) {
+    return new Date(dateTimeString).toLocaleString('it-IT');
+}
+
+function formatDateTimeLocal(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
+function showAlert(message, type = 'info') {
+    const alertHtml = `
+        <div class="alert alert-${type} alert-dismissible fade show position-fixed"
+             style="top: 80px; right: 20px; z-index: 2000; min-width: 300px;" role="alert">
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', alertHtml);
+
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => {
+        const alert = document.querySelector('.alert');
+        if (alert) {
+            alert.remove();
+        }
+    }, 5000);
+}
+</script>
+{% endblock %}

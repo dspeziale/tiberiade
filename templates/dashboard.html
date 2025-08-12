@@ -1,0 +1,480 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Traccar{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2><i class="fas fa-tachometer-alt"></i> Dashboard Dispositivi</h2>
+                <div>
+                    <button class="btn btn-outline-primary" onclick="loadDevices()">
+                        <i class="fas fa-sync-alt"></i> Aggiorna
+                    </button>
+                    <span class="badge bg-secondary ms-2" id="lastUpdate"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4" id="stats-row">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-title">Totale Dispositivi</h6>
+                            <h3 id="totalDevices">-</h3>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-mobile-alt fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-title">Online</h6>
+                            <h3 id="onlineDevices">-</h3>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-wifi fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card bg-danger text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-title">Offline</h6>
+                            <h3 id="offlineDevices">-</h3>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-wifi-slash fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-title">In Movimento</h6>
+                            <h3 id="movingDevices">-</h3>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-car fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body py-2">
+                    <div class="row align-items-center">
+                        <div class="col-md-3">
+                            <input type="text" class="form-control form-control-sm" id="searchFilter"
+                                   placeholder="Cerca dispositivo...">
+                        </div>
+                        <div class="col-md-2">
+                            <select class="form-select form-select-sm" id="statusFilter">
+                                <option value="">Tutti gli stati</option>
+                                <option value="online">Solo online</option>
+                                <option value="offline">Solo offline</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <select class="form-select form-select-sm" id="viewMode">
+                                <option value="cards">Vista a carte</option>
+                                <option value="table">Vista tabella</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="autoRefresh" checked>
+                                <label class="form-check-label" for="autoRefresh">
+                                    Aggiornamento automatico
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading -->
+    <div id="loading" class="loading" style="display: none;">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Caricamento...</span>
+        </div>
+    </div>
+
+    <!-- Devices Cards View -->
+    <div class="row" id="devices-container">
+        <!-- I dispositivi verranno caricati qui via JavaScript -->
+    </div>
+
+    <!-- Devices Table View -->
+    <div id="devices-table" style="display: none;">
+        <div class="card">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Nome</th>
+                                <th>IMEI</th>
+                                <th>Stato</th>
+                                <th>Posizione</th>
+                                <th>Velocità</th>
+                                <th>Ultimo Aggiornamento</th>
+                                <th>Azioni</th>
+                            </tr>
+                        </thead>
+                        <tbody id="devices-table-body">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let devices = [];
+let devicesStatus = {};
+let autoRefreshInterval;
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadDevices();
+    setupEventListeners();
+    startAutoRefresh();
+});
+
+function setupEventListeners() {
+    // Search filter
+    document.getElementById('searchFilter').addEventListener('input', filterDevices);
+
+    // Status filter
+    document.getElementById('statusFilter').addEventListener('change', filterDevices);
+
+    // View mode
+    document.getElementById('viewMode').addEventListener('change', function() {
+        const viewMode = this.value;
+        toggleViewMode(viewMode);
+    });
+
+    // Auto refresh toggle
+    document.getElementById('autoRefresh').addEventListener('change', function() {
+        if (this.checked) {
+            startAutoRefresh();
+        } else {
+            stopAutoRefresh();
+        }
+    });
+}
+
+function startAutoRefresh() {
+    if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+    autoRefreshInterval = setInterval(() => {
+        if (document.getElementById('autoRefresh').checked) {
+            loadDevices(true);
+        }
+    }, 30000);
+}
+
+function stopAutoRefresh() {
+    if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+        autoRefreshInterval = null;
+    }
+}
+
+function loadDevices(silent = false) {
+    if (!silent) {
+        document.getElementById('loading').style.display = 'flex';
+    }
+
+    fetch('/api/devices')
+        .then(response => response.json())
+        .then(devicesData => {
+            devices = devicesData;
+            loadAllDevicesStatus();
+            updateLastUpdate();
+        })
+        .catch(error => {
+            console.error('Errore nel caricamento dispositivi:', error);
+            showAlert('Errore nel caricamento dei dispositivi', 'danger');
+        })
+        .finally(() => {
+            document.getElementById('loading').style.display = 'none';
+        });
+}
+
+function loadAllDevicesStatus() {
+    const promises = devices.map(device =>
+        fetch(`/api/device/${device.id}/status`)
+            .then(response => response.json())
+            .then(status => {
+                devicesStatus[device.id] = status;
+                return { device, status };
+            })
+            .catch(error => {
+                console.error(`Errore nel caricamento status dispositivo ${device.id}:`, error);
+                devicesStatus[device.id] = null;
+                return { device, status: null };
+            })
+    );
+
+    Promise.all(promises).then(() => {
+        updateStatistics();
+        renderDevices();
+        filterDevices();
+    });
+}
+
+function updateStatistics() {
+    const total = devices.length;
+    let online = 0;
+    let moving = 0;
+
+    devices.forEach(device => {
+        const status = devicesStatus[device.id];
+        if (status && isDeviceOnline(status)) {
+            online++;
+            if (status.speed && status.speed > 5) {
+                moving++;
+            }
+        }
+    });
+
+    const offline = total - online;
+
+    document.getElementById('totalDevices').textContent = total;
+    document.getElementById('onlineDevices').textContent = online;
+    document.getElementById('offlineDevices').textContent = offline;
+    document.getElementById('movingDevices').textContent = moving;
+}
+
+function isDeviceOnline(status) {
+    if (!status) return false;
+    const lastUpdate = new Date(status.serverTime);
+    const now = new Date();
+    const diffMinutes = (now - lastUpdate) / (1000 * 60);
+    return diffMinutes < 5; // Considera online se ultimo aggiornamento < 5 minuti
+}
+
+function renderDevices() {
+    renderCardsView();
+    renderTableView();
+}
+
+function renderCardsView() {
+    const container = document.getElementById('devices-container');
+    container.innerHTML = '';
+
+    devices.forEach(device => {
+        const status = devicesStatus[device.id];
+        const isOnline = isDeviceOnline(status);
+        const isMoving = status && status.speed && status.speed > 5;
+
+        const deviceCard = `
+            <div class="col-md-6 col-lg-4 mb-3 device-item"
+                 data-device-name="${device.name.toLowerCase()}"
+                 data-device-status="${isOnline ? 'online' : 'offline'}">
+                <div class="card device-card h-100">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0 text-truncate" title="${device.name}">${device.name}</h6>
+                        <div>
+                            <span class="badge ${isOnline ? 'bg-success' : 'bg-danger'} me-1">
+                                <i class="fas fa-circle"></i> ${isOnline ? 'Online' : 'Offline'}
+                            </span>
+                            ${isMoving ? '<span class="badge bg-warning"><i class="fas fa-car"></i></span>' : ''}
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <p class="mb-2"><strong>IMEI:</strong> ${device.uniqueId}</p>
+                        ${status ? `
+                            <p class="mb-2"><strong>Posizione:</strong><br>
+                            <small>Lat: ${status.latitude.toFixed(6)}<br>
+                            Lng: ${status.longitude.toFixed(6)}</small></p>
+                            <p class="mb-2"><strong>Velocità:</strong>
+                                <span class="badge ${isMoving ? 'bg-warning' : 'bg-secondary'}">
+                                    ${Math.round(status.speed || 0)} km/h
+                                </span>
+                            </p>
+                            <p class="mb-0"><strong>Ultimo aggiornamento:</strong><br>
+                            <small class="text-muted">${formatDateTime(status.serverTime)}</small></p>
+                        ` : '<p class="text-muted mb-0">Nessuna posizione disponibile</p>'}
+                    </div>
+                    <div class="card-footer">
+                        <div class="btn-group btn-group-sm w-100">
+                            <a href="/device/${device.id}" class="btn btn-primary">
+                                <i class="fas fa-info-circle"></i> Dettagli
+                            </a>
+                            <button class="btn btn-secondary" onclick="showOnMap(${device.id})">
+                                <i class="fas fa-map-marker-alt"></i> Mappa
+                            </button>
+                            ${status ? `
+                                <button class="btn btn-success" onclick="centerOnDevice(${status.latitude}, ${status.longitude})">
+                                    <i class="fas fa-crosshairs"></i>
+                                </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        container.innerHTML += deviceCard;
+    });
+}
+
+function renderTableView() {
+    const tbody = document.getElementById('devices-table-body');
+    tbody.innerHTML = '';
+
+    devices.forEach(device => {
+        const status = devicesStatus[device.id];
+        const isOnline = isDeviceOnline(status);
+        const isMoving = status && status.speed && status.speed > 5;
+
+        const row = `
+            <tr class="device-item"
+                data-device-name="${device.name.toLowerCase()}"
+                data-device-status="${isOnline ? 'online' : 'offline'}">
+                <td>${device.name}</td>
+                <td><code>${device.uniqueId}</code></td>
+                <td>
+                    <span class="badge ${isOnline ? 'bg-success' : 'bg-danger'}">
+                        <i class="fas fa-circle"></i> ${isOnline ? 'Online' : 'Offline'}
+                    </span>
+                    ${isMoving ? '<span class="badge bg-warning ms-1"><i class="fas fa-car"></i></span>' : ''}
+                </td>
+                <td>
+                    ${status ? `
+                        <small>
+                            ${status.latitude.toFixed(6)}, ${status.longitude.toFixed(6)}
+                        </small>
+                    ` : '-'}
+                </td>
+                <td>
+                    ${status ? `
+                        <span class="badge ${isMoving ? 'bg-warning' : 'bg-secondary'}">
+                            ${Math.round(status.speed || 0)} km/h
+                        </span>
+                    ` : '-'}
+                </td>
+                <td>
+                    ${status ? `<small>${formatDateTime(status.serverTime)}</small>` : '-'}
+                </td>
+                <td>
+                    <div class="btn-group btn-group-sm">
+                        <a href="/device/${device.id}" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-info-circle"></i>
+                        </a>
+                        <button class="btn btn-outline-secondary btn-sm" onclick="showOnMap(${device.id})">
+                            <i class="fas fa-map-marker-alt"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+        tbody.innerHTML += row;
+    });
+}
+
+function toggleViewMode(mode) {
+    const cardsView = document.getElementById('devices-container');
+    const tableView = document.getElementById('devices-table');
+
+    if (mode === 'table') {
+        cardsView.style.display = 'none';
+        tableView.style.display = 'block';
+    } else {
+        cardsView.style.display = 'flex';
+        tableView.style.display = 'none';
+    }
+}
+
+function filterDevices() {
+    const searchTerm = document.getElementById('searchFilter').value.toLowerCase();
+    const statusFilter = document.getElementById('statusFilter').value;
+    const deviceItems = document.querySelectorAll('.device-item');
+
+    deviceItems.forEach(item => {
+        const deviceName = item.getAttribute('data-device-name');
+        const deviceStatus = item.getAttribute('data-device-status');
+
+        const matchesSearch = deviceName.includes(searchTerm);
+        const matchesStatus = !statusFilter || deviceStatus === statusFilter;
+
+        if (matchesSearch && matchesStatus) {
+            item.style.display = '';
+        } else {
+            item.style.display = 'none';
+        }
+    });
+}
+
+function formatDateTime(dateTimeString) {
+    return new Date(dateTimeString).toLocaleString('it-IT');
+}
+
+function updateLastUpdate() {
+    const now = new Date();
+    document.getElementById('lastUpdate').textContent =
+        `Ultimo aggiornamento: ${now.toLocaleTimeString('it-IT')}`;
+}
+
+function showOnMap(deviceId) {
+    window.location.href = `/map?device=${deviceId}`;
+}
+
+function centerOnDevice(lat, lng) {
+    window.open(`/map?lat=${lat}&lng=${lng}&zoom=16`, '_blank');
+}
+
+function showAlert(message, type = 'info') {
+    const alertHtml = `
+        <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+
+    const container = document.querySelector('.container-fluid');
+    container.insertAdjacentHTML('afterbegin', alertHtml);
+
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => {
+        const alert = container.querySelector('.alert');
+        if (alert) {
+            alert.remove();
+        }
+    }, 5000);
+}
+</script>
+{% endblock %}

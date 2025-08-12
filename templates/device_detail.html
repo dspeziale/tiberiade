@@ -1,0 +1,693 @@
+{% extends "base.html" %}
+
+{% block title %}{{ device.name }} - Dettagli Dispositivo{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+            <li class="breadcrumb-item active">{{ device.name }}</li>
+        </ol>
+    </nav>
+
+    <!-- Device Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h3 class="mb-1">
+                                <i class="fas fa-mobile-alt"></i> {{ device.name }}
+                                <span id="deviceStatus" class="badge ms-2">Caricamento...</span>
+                            </h3>
+                            <p class="text-muted mb-0">
+                                <strong>IMEI:</strong> {{ device.uniqueId }} |
+                                <strong>ID:</strong> {{ device.id }}
+                                {% if device.phone %}
+                                | <strong>Telefono:</strong> {{ device.phone }}
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <div class="btn-group">
+                                <button class="btn btn-primary" onclick="showOnMap()">
+                                    <i class="fas fa-map-marker-alt"></i> Mostra su Mappa
+                                </button>
+                                <button class="btn btn-secondary" onclick="refreshData()">
+                                    <i class="fas fa-sync-alt" id="refreshIcon"></i> Aggiorna
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Status Cards -->
+    <div class="row mb-4" id="statusCards">
+        <!-- Cards will be populated by JavaScript -->
+    </div>
+
+    <!-- Main Content Tabs -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <ul class="nav nav-tabs card-header-tabs" role="tablist">
+                        <li class="nav-item">
+                            <a class="nav-link active" data-bs-toggle="tab" href="#overview">
+                                <i class="fas fa-info-circle"></i> Panoramica
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" data-bs-toggle="tab" href="#positions">
+                                <i class="fas fa-map-marked-alt"></i> Posizioni
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" data-bs-toggle="tab" href="#minimap">
+                                <i class="fas fa-map"></i> Mappa
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" data-bs-toggle="tab" href="#reports">
+                                <i class="fas fa-chart-line"></i> Reports
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+                <div class="card-body">
+                    <div class="tab-content">
+                        <!-- Overview Tab -->
+                        <div class="tab-pane fade show active" id="overview">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h5><i class="fas fa-info"></i> Informazioni Dispositivo</h5>
+                                    <table class="table table-sm">
+                                        <tr>
+                                            <td><strong>Nome:</strong></td>
+                                            <td>{{ device.name }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>IMEI:</strong></td>
+                                            <td><code>{{ device.uniqueId }}</code></td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>ID Dispositivo:</strong></td>
+                                            <td>{{ device.id }}</td>
+                                        </tr>
+                                        {% if device.phone %}
+                                        <tr>
+                                            <td><strong>Telefono:</strong></td>
+                                            <td>{{ device.phone }}</td>
+                                        </tr>
+                                        {% endif %}
+                                        {% if device.model %}
+                                        <tr>
+                                            <td><strong>Modello:</strong></td>
+                                            <td>{{ device.model }}</td>
+                                        </tr>
+                                        {% endif %}
+                                        {% if device.category %}
+                                        <tr>
+                                            <td><strong>Categoria:</strong></td>
+                                            <td>{{ device.category }}</td>
+                                        </tr>
+                                        {% endif %}
+                                        <tr>
+                                            <td><strong>Stato:</strong></td>
+                                            <td id="deviceStatusDetail">Caricamento...</td>
+                                        </tr>
+                                    </table>
+                                </div>
+                                <div class="col-md-6">
+                                    <h5><i class="fas fa-map-marker-alt"></i> Ultima Posizione</h5>
+                                    <div id="lastPositionInfo">
+                                        <div class="text-center p-4">
+                                            <div class="spinner-border text-primary" role="status">
+                                                <span class="visually-hidden">Caricamento...</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Positions Tab -->
+                        <div class="tab-pane fade" id="positions">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5><i class="fas fa-list"></i> Storico Posizioni</h5>
+                                <div>
+                                    <select class="form-select form-select-sm" id="positionsTimeRange" style="width: auto; display: inline-block;">
+                                        <option value="6">Ultime 6 ore</option>
+                                        <option value="24" selected>Ultime 24 ore</option>
+                                        <option value="72">Ultimi 3 giorni</option>
+                                        <option value="168">Ultima settimana</option>
+                                    </select>
+                                    <button class="btn btn-sm btn-outline-primary ms-2" onclick="loadPositions()">
+                                        <i class="fas fa-sync-alt"></i> Aggiorna
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="positionsTable">
+                                <div class="text-center p-4">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Caricamento posizioni...</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Mini Map Tab -->
+                        <div class="tab-pane fade" id="minimap">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5><i class="fas fa-map"></i> Visualizzazione Mappa</h5>
+                                <div>
+                                    <select class="form-select form-select-sm" id="mapTimeRange" style="width: auto; display: inline-block;">
+                                        <option value="6">Ultime 6 ore</option>
+                                        <option value="24" selected>Ultime 24 ore</option>
+                                        <option value="72">Ultimi 3 giorni</option>
+                                    </select>
+                                    <button class="btn btn-sm btn-outline-primary ms-2" onclick="updateMiniMap()">
+                                        <i class="fas fa-sync-alt"></i> Aggiorna
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-secondary ms-1" onclick="openFullMap()">
+                                        <i class="fas fa-external-link-alt"></i> Mappa Completa
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="deviceMiniMap" style="height: 400px;"></div>
+                        </div>
+
+                        <!-- Reports Tab -->
+                        <div class="tab-pane fade" id="reports">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h5><i class="fas fa-chart-bar"></i> Statistiche Giornaliere</h5>
+                                    <div id="dailyStats">
+                                        <div class="text-center p-4">
+                                            <div class="spinner-border text-primary" role="status">
+                                                <span class="visually-hidden">Caricamento statistiche...</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <h5><i class="fas fa-clock"></i> Attività Recente</h5>
+                                    <div id="recentActivity">
+                                        <div class="text-center p-4">
+                                            <div class="spinner-border text-primary" role="status">
+                                                <span class="visually-hidden">Caricamento attività...</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let deviceData = {{ device | tojson }};
+let miniMap;
+let miniMarkersLayer;
+let miniPathLayer;
+let autoRefreshInterval;
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadDeviceStatus();
+    loadPositions();
+
+    // Initialize mini map when tab is shown
+    document.querySelector('a[href="#minimap"]').addEventListener('shown.bs.tab', function() {
+        if (!miniMap) {
+            initMiniMap();
+            setTimeout(updateMiniMap, 500);
+        }
+    });
+
+    // Start auto refresh
+    startAutoRefresh();
+});
+
+function startAutoRefresh() {
+    autoRefreshInterval = setInterval(() => {
+        loadDeviceStatus();
+        // Reload current tab content
+        const activeTab = document.querySelector('.tab-pane.active');
+        if (activeTab.id === 'positions') {
+            loadPositions();
+        } else if (activeTab.id === 'minimap' && miniMap) {
+            updateMiniMap();
+        }
+    }, 30000); // Refresh every 30 seconds
+}
+
+function loadDeviceStatus() {
+    fetch(`/api/device/{{ device.id }}/status`)
+        .then(response => response.json())
+        .then(status => {
+            updateStatusDisplay(status);
+            updateStatusCards(status);
+            updateLastPositionInfo(status);
+        })
+        .catch(error => {
+            console.error('Errore nel caricamento status:', error);
+            document.getElementById('deviceStatus').innerHTML =
+                '<span class="badge bg-secondary">Errore</span>';
+        });
+}
+
+function updateStatusDisplay(status) {
+    const statusElement = document.getElementById('deviceStatus');
+    const statusDetailElement = document.getElementById('deviceStatusDetail');
+
+    if (!status) {
+        statusElement.innerHTML = '<span class="badge bg-secondary">Nessun dato</span>';
+        statusDetailElement.innerHTML = 'Nessuna posizione disponibile';
+        return;
+    }
+
+    const isOnline = isDeviceOnline(status);
+    const isMoving = status.speed && status.speed > 5;
+
+    let statusHtml = `<span class="badge ${isOnline ? 'bg-success' : 'bg-danger'}">
+        <i class="fas fa-circle"></i> ${isOnline ? 'Online' : 'Offline'}
+    </span>`;
+
+    if (isMoving) {
+        statusHtml += ' <span class="badge bg-warning"><i class="fas fa-car"></i> In movimento</span>';
+    }
+
+    statusElement.innerHTML = statusHtml;
+
+    // Detailed status
+    const lastUpdate = new Date(status.serverTime);
+    const timeDiff = Math.round((new Date() - lastUpdate) / (1000 * 60));
+
+    statusDetailElement.innerHTML = `
+        <span class="badge ${isOnline ? 'bg-success' : 'bg-danger'}">${isOnline ? 'Online' : 'Offline'}</span>
+        <small class="text-muted ms-2">Ultimo aggiornamento: ${timeDiff} minuti fa</small>
+    `;
+}
+
+function updateStatusCards(status) {
+    const cardsContainer = document.getElementById('statusCards');
+
+    if (!status) {
+        cardsContainer.innerHTML = `
+            <div class="col-12">
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i> Nessuna informazione di stato disponibile
+                </div>
+            </div>
+        `;
+        return;
+    }
+
+    const isOnline = isDeviceOnline(status);
+    const speed = Math.round(status.speed || 0);
+    const isMoving = speed > 5;
+
+    cardsContainer.innerHTML = `
+        <div class="col-md-3">
+            <div class="card ${isOnline ? 'border-success' : 'border-danger'}">
+                <div class="card-body text-center">
+                    <i class="fas fa-wifi fa-2x ${isOnline ? 'text-success' : 'text-danger'} mb-2"></i>
+                    <h6>Connessione</h6>
+                    <span class="badge ${isOnline ? 'bg-success' : 'bg-danger'}">
+                        ${isOnline ? 'Online' : 'Offline'}
+                    </span>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card ${isMoving ? 'border-warning' : 'border-secondary'}">
+                <div class="card-body text-center">
+                    <i class="fas fa-tachometer-alt fa-2x ${isMoving ? 'text-warning' : 'text-secondary'} mb-2"></i>
+                    <h6>Velocità</h6>
+                    <h4 class="${isMoving ? 'text-warning' : 'text-secondary'}">${speed} km/h</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-info">
+                <div class="card-body text-center">
+                    <i class="fas fa-mountain fa-2x text-info mb-2"></i>
+                    <h6>Altitudine</h6>
+                    <h4 class="text-info">${status.altitude ? Math.round(status.altitude) + ' m' : 'N/A'}</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-primary">
+                <div class="card-body text-center">
+                    <i class="fas fa-satellite fa-2x text-primary mb-2"></i>
+                    <h6>Satelliti</h6>
+                    <h4 class="text-primary">${status.attributes && status.attributes.sat ? status.attributes.sat : 'N/A'}</h4>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function updateLastPositionInfo(status) {
+    const container = document.getElementById('lastPositionInfo');
+
+    if (!status) {
+        container.innerHTML = `
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle"></i> Nessuna posizione disponibile
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = `
+        <table class="table table-sm">
+            <tr>
+                <td><strong>Latitudine:</strong></td>
+                <td>${status.latitude.toFixed(6)}</td>
+            </tr>
+            <tr>
+                <td><strong>Longitudine:</strong></td>
+                <td>${status.longitude.toFixed(6)}</td>
+            </tr>
+            <tr>
+                <td><strong>Velocità:</strong></td>
+                <td>${Math.round(status.speed || 0)} km/h</td>
+            </tr>
+            <tr>
+                <td><strong>Altitudine:</strong></td>
+                <td>${status.altitude ? Math.round(status.altitude) + ' m' : 'N/A'}</td>
+            </tr>
+            <tr>
+                <td><strong>Data/Ora:</strong></td>
+                <td>${formatDateTime(status.serverTime)}</td>
+            </tr>
+            <tr>
+                <td><strong>Precisione:</strong></td>
+                <td>${status.accuracy ? Math.round(status.accuracy) + ' m' : 'N/A'}</td>
+            </tr>
+        </table>
+        <div class="mt-3">
+            <button class="btn btn-sm btn-primary" onclick="showPositionOnMap(${status.latitude}, ${status.longitude})">
+                <i class="fas fa-map-marker-alt"></i> Mostra su Mappa
+            </button>
+            <button class="btn btn-sm btn-outline-secondary" onclick="copyCoordinates(${status.latitude}, ${status.longitude})">
+                <i class="fas fa-copy"></i> Copia Coordinate
+            </button>
+        </div>
+    `;
+}
+
+function loadPositions() {
+    const hours = document.getElementById('positionsTimeRange').value;
+    const container = document.getElementById('positionsTable');
+
+    container.innerHTML = `
+        <div class="text-center p-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Caricamento posizioni...</span>
+            </div>
+        </div>
+    `;
+
+    fetch(`/api/positions?deviceId={{ device.id }}&hours=${hours}`)
+        .then(response => response.json())
+        .then(positions => {
+            renderPositionsTable(positions);
+        })
+        .catch(error => {
+            console.error('Errore nel caricamento posizioni:', error);
+            container.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle"></i> Errore nel caricamento delle posizioni
+                </div>
+            `;
+        });
+}
+
+function renderPositionsTable(positions) {
+    const container = document.getElementById('positionsTable');
+
+    if (positions.length === 0) {
+        container.innerHTML = `
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i> Nessuna posizione trovata per il periodo selezionato
+            </div>
+        `;
+        return;
+    }
+
+    let tableHtml = `
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Data/Ora</th>
+                        <th>Posizione</th>
+                        <th>Velocità</th>
+                        <th>Altitudine</th>
+                        <th>Precisione</th>
+                        <th>Azioni</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+
+    positions.reverse().forEach((pos, index) => {
+        const isMoving = pos.speed && pos.speed > 5;
+        tableHtml += `
+            <tr ${index === 0 ? 'class="table-success"' : ''}>
+                <td>
+                    ${formatDateTime(pos.serverTime)}
+                    ${index === 0 ? '<span class="badge bg-success ms-1">Ultima</span>' : ''}
+                </td>
+                <td>
+                    <small>
+                        ${pos.latitude.toFixed(6)}, ${pos.longitude.toFixed(6)}
+                    </small>
+                </td>
+                <td>
+                    <span class="badge ${isMoving ? 'bg-warning' : 'bg-secondary'}">
+                        ${Math.round(pos.speed || 0)} km/h
+                    </span>
+                </td>
+                <td>${pos.altitude ? Math.round(pos.altitude) + ' m' : '-'}</td>
+                <td>${pos.accuracy ? Math.round(pos.accuracy) + ' m' : '-'}</td>
+                <td>
+                    <button class="btn btn-sm btn-outline-primary" onclick="showPositionOnMap(${pos.latitude}, ${pos.longitude})">
+                        <i class="fas fa-map-marker-alt"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+
+    tableHtml += `
+                </tbody>
+            </table>
+        </div>
+        <div class="d-flex justify-content-between align-items-center mt-3">
+            <small class="text-muted">Totale: ${positions.length} posizioni</small>
+            <button class="btn btn-sm btn-outline-secondary" onclick="exportPositions()">
+                <i class="fas fa-download"></i> Esporta CSV
+            </button>
+        </div>
+    `;
+
+    container.innerHTML = tableHtml;
+}
+
+function initMiniMap() {
+    miniMap = L.map('deviceMiniMap').setView([41.9028, 12.4964], 6);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(miniMap);
+
+    miniMarkersLayer = L.layerGroup().addTo(miniMap);
+    miniPathLayer = L.layerGroup().addTo(miniMap);
+}
+
+function updateMiniMap() {
+    if (!miniMap) return;
+
+    const hours = document.getElementById('mapTimeRange').value;
+
+    miniMarkersLayer.clearLayers();
+    miniPathLayer.clearLayers();
+
+    fetch(`/api/positions?deviceId={{ device.id }}&hours=${hours}`)
+        .then(response => response.json())
+        .then(positions => {
+            if (positions.length === 0) return;
+
+            positions.sort((a, b) => new Date(a.serverTime) - new Date(b.serverTime));
+
+            // Create path
+            const latlngs = positions.map(pos => [pos.latitude, pos.longitude]);
+            const polyline = L.polyline(latlngs, {
+                color: '#007bff',
+                weight: 3,
+                opacity: 0.8
+            }).addTo(miniPathLayer);
+
+            // Add start marker
+            const startPos = positions[0];
+            L.marker([startPos.latitude, startPos.longitude], {
+                icon: L.divIcon({
+                    html: '<i class="fas fa-play" style="color: green; font-size: 16px;"></i>',
+                    iconSize: [20, 20],
+                    className: 'custom-div-icon'
+                })
+            }).addTo(miniMarkersLayer).bindPopup(`Inizio: ${formatDateTime(startPos.serverTime)}`);
+
+            // Add end marker
+            if (positions.length > 1) {
+                const endPos = positions[positions.length - 1];
+                L.marker([endPos.latitude, endPos.longitude], {
+                    icon: L.divIcon({
+                        html: '<i class="fas fa-stop" style="color: red; font-size: 16px;"></i>',
+                        iconSize: [20, 20],
+                        className: 'custom-div-icon'
+                    })
+                }).addTo(miniMarkersLayer).bindPopup(`Fine: ${formatDateTime(endPos.serverTime)}`);
+            }
+
+            // Fit bounds
+            miniMap.fitBounds(polyline.getBounds().pad(0.1));
+        })
+        .catch(error => {
+            console.error('Errore nel caricamento posizioni per mappa:', error);
+        });
+}
+
+function refreshData() {
+    const refreshIcon = document.getElementById('refreshIcon');
+    refreshIcon.classList.add('fa-spin');
+
+    Promise.all([
+        loadDeviceStatus(),
+        loadPositions()
+    ]).finally(() => {
+        refreshIcon.classList.remove('fa-spin');
+
+        if (miniMap && document.querySelector('#minimap').classList.contains('active')) {
+            updateMiniMap();
+        }
+    });
+}
+
+function showOnMap() {
+    window.open(`/map?device={{ device.id }}`, '_blank');
+}
+
+function showPositionOnMap(lat, lng) {
+    window.open(`/map?lat=${lat}&lng=${lng}&zoom=16`, '_blank');
+}
+
+function openFullMap() {
+    window.open(`/map?device={{ device.id }}`, '_blank');
+}
+
+function copyCoordinates(lat, lng) {
+    const coordinates = `${lat}, ${lng}`;
+    navigator.clipboard.writeText(coordinates).then(() => {
+        showAlert('Coordinate copiate negli appunti', 'success');
+    }).catch(() => {
+        // Fallback for older browsers
+        const textArea = document.createElement('textarea');
+        textArea.value = coordinates;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        showAlert('Coordinate copiate negli appunti', 'success');
+    });
+}
+
+function exportPositions() {
+    const hours = document.getElementById('positionsTimeRange').value;
+
+    fetch(`/api/positions?deviceId={{ device.id }}&hours=${hours}`)
+        .then(response => response.json())
+        .then(positions => {
+            if (positions.length === 0) {
+                showAlert('Nessun dato da esportare', 'warning');
+                return;
+            }
+
+            let csvContent = 'DateTime,Latitude,Longitude,Speed,Altitude,Accuracy\n';
+            positions.forEach(pos => {
+                csvContent += `"${formatDateTime(pos.serverTime)}",${pos.latitude},${pos.longitude},${pos.speed || 0},${pos.altitude || ''},${pos.accuracy || ''}\n`;
+            });
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `{{ device.name }}_positions_${new Date().toISOString().split('T')[0]}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            showAlert('Dati esportati con successo', 'success');
+        })
+        .catch(error => {
+            console.error('Errore nell\'esportazione:', error);
+            showAlert('Errore nell\'esportazione dei dati', 'danger');
+        });
+}
+
+function isDeviceOnline(status) {
+    if (!status) return false;
+    const lastUpdate = new Date(status.serverTime);
+    const now = new Date();
+    const diffMinutes = (now - lastUpdate) / (1000 * 60);
+    return diffMinutes < 5;
+}
+
+function formatDateTime(dateTimeString) {
+    return new Date(dateTimeString).toLocaleString('it-IT');
+}
+
+function showAlert(message, type = 'info') {
+    const alertHtml = `
+        <div class="alert alert-${type} alert-dismissible fade show position-fixed"
+             style="top: 80px; right: 20px; z-index: 2000; min-width: 300px;" role="alert">
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', alertHtml);
+
+    setTimeout(() => {
+        const alert = document.querySelector('.alert');
+        if (alert) {
+            alert.remove();
+        }
+    }, 5000);
+}
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', function() {
+    if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+    }
+});
+</script>
+{% endblock %}
