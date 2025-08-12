@@ -69,7 +69,7 @@
         padding: 15px 20px;
         border-radius: 15px 15px 0 0;
         display: flex;
-        justify-content: between;
+        justify-content: space-between;
         align-items: center;
         cursor: pointer;
         position: relative;
@@ -107,12 +107,10 @@
         cursor: pointer;
         padding: 0;
         transition: transform 0.3s ease;
-        margin-left: auto;
     }
 
     .controls-panel.collapsed .toggle-btn {
         transform: rotate(180deg);
-        margin: 0;
     }
 
     .panel-content {
@@ -135,10 +133,6 @@
     .panel-content::-webkit-scrollbar-thumb {
         background: rgba(0,0,0,0.2);
         border-radius: 3px;
-    }
-
-    .panel-content::-webkit-scrollbar-thumb:hover {
-        background: rgba(0,0,0,0.3);
     }
 
     /* Form controls styling */
@@ -167,83 +161,6 @@
     .form-check-input:checked {
         background-color: #667eea;
         border-color: #667eea;
-    }
-
-    /* Buttons */
-    .btn-gradient {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border: none;
-        color: white;
-        border-radius: 8px;
-        font-weight: 500;
-        transition: all 0.2s ease;
-    }
-
-    .btn-gradient:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-        color: white;
-    }
-
-    /* Statistics panel */
-    .stats-panel {
-        background: rgba(255,255,255,0.9);
-        backdrop-filter: blur(10px);
-        border-radius: 12px;
-        padding: 15px;
-        margin-top: 15px;
-        border: 1px solid rgba(255,255,255,0.2);
-    }
-
-    .stat-item {
-        text-align: center;
-        padding: 8px;
-    }
-
-    .stat-value {
-        font-size: 1.25rem;
-        font-weight: bold;
-        margin: 0;
-    }
-
-    .stat-label {
-        font-size: 0.85rem;
-        color: #6c757d;
-        margin: 0;
-    }
-
-    /* Floating action buttons */
-    .floating-controls {
-        position: absolute;
-        bottom: 20px;
-        right: 20px;
-        z-index: 1000;
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-    }
-
-    .floating-btn {
-        width: 50px;
-        height: 50px;
-        border-radius: 50%;
-        background: rgba(255, 255, 255, 0.95);
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        color: #4a5568;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    }
-
-    .floating-btn:hover {
-        background: #667eea;
-        color: white;
-        transform: translateY(-2px);
-        box-shadow: 0 6px 16px rgba(102, 126, 234, 0.3);
     }
 
     /* Top navigation bar */
@@ -279,6 +196,124 @@
         color: white;
     }
 
+    /* Floating action buttons */
+    .floating-controls {
+        position: absolute;
+        bottom: 20px;
+        right: 20px;
+        z-index: 1000;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .floating-btn {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        color: #4a5568;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        font-size: 16px;
+    }
+
+    .floating-btn:hover {
+        background: #667eea;
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(102, 126, 234, 0.3);
+    }
+
+    .floating-separator {
+        height: 2px;
+        background: rgba(0,0,0,0.1);
+        margin: 5px 20px;
+        border-radius: 1px;
+    }
+
+    /* Statistics panel */
+    .stats-panel {
+        background: rgba(255,255,255,0.9);
+        backdrop-filter: blur(10px);
+        border-radius: 12px;
+        padding: 15px;
+        margin-top: 15px;
+        border: 1px solid rgba(255,255,255,0.2);
+    }
+
+    .stat-item {
+        text-align: center;
+        padding: 8px;
+    }
+
+    .stat-value {
+        font-size: 1.25rem;
+        font-weight: bold;
+        margin: 0;
+    }
+
+    .stat-label {
+        font-size: 0.85rem;
+        color: #6c757d;
+        margin: 0;
+    }
+
+    /* Auto-tracking styles */
+    .tracking-active #trackingToggleBtn {
+        background: #28a745 !important;
+        color: white !important;
+        box-shadow: 0 0 20px rgba(40, 167, 69, 0.5);
+        animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+        0% { box-shadow: 0 0 20px rgba(40, 167, 69, 0.5); }
+        50% { box-shadow: 0 0 30px rgba(40, 167, 69, 0.8); }
+        100% { box-shadow: 0 0 20px rgba(40, 167, 69, 0.5); }
+    }
+
+    .tracking-marker {
+        background: #28a745;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        border: 3px solid white;
+        box-shadow: 0 2px 12px rgba(40, 167, 69, 0.4);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        animation: trackingPulse 1.5s infinite;
+    }
+
+    @keyframes trackingPulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.1); }
+        100% { transform: scale(1); }
+    }
+
+    /* Loading overlay */
+    .loading-overlay {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 2000;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-radius: 12px;
+        padding: 30px;
+        text-align: center;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+    }
+
     /* Mobile responsiveness */
     @media (max-width: 768px) {
         .controls-panel {
@@ -310,32 +345,6 @@
         }
     }
 
-    /* Loading overlay */
-    .loading-overlay {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        z-index: 2000;
-        background: rgba(255, 255, 255, 0.95);
-        backdrop-filter: blur(10px);
-        border-radius: 12px;
-        padding: 30px;
-        text-align: center;
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
-    }
-
-    /* Animations */
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-
-    .fade-in {
-        animation: fadeIn 0.3s ease;
-    }
-
     /* Custom date inputs */
     input[type="datetime-local"] {
         border: 1px solid rgba(0,0,0,0.1);
@@ -349,6 +358,16 @@
         border-color: #667eea;
         box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
         background: white;
+    }
+
+    /* Animations */
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .fade-in {
+        animation: fadeIn 0.3s ease;
     }
 </style>
 {% endblock %}
@@ -468,21 +487,47 @@
                 </div>
             </div>
 
-            <!-- Action Buttons -->
-            <div class="d-grid gap-2 mb-4">
-                <button class="btn btn-gradient" onclick="updateMap()">
-                    <i class="fas fa-sync-alt"></i> Aggiorna Mappa
-                </button>
-                <div class="row g-2">
-                    <div class="col-6">
-                        <button class="btn btn-outline-secondary btn-sm w-100" onclick="fitMapToBounds()">
-                            <i class="fas fa-expand-arrows-alt"></i> Adatta
-                        </button>
+            <!-- Auto-tracking Options -->
+            <div class="mb-4">
+                <label class="form-label">
+                    <i class="fas fa-crosshairs"></i> Tracking Automatico
+                </label>
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" id="autoTrackingEnabled">
+                    <label class="form-check-label" for="autoTrackingEnabled">
+                        <strong>Abilita Tracking</strong>
+                    </label>
+                </div>
+
+                <div id="trackingOptions" style="display: none;">
+                    <div class="mb-3">
+                        <label class="form-label">Modalità Tracking</label>
+                        <select class="form-select form-select-sm" id="trackingMode">
+                            <option value="follow">Segui Dispositivo</option>
+                            <option value="center">Mantieni al Centro</option>
+                            <option value="bounds">Vista Completa</option>
+                        </select>
                     </div>
-                    <div class="col-6">
-                        <button class="btn btn-outline-secondary btn-sm w-100" onclick="exportData()">
-                            <i class="fas fa-download"></i> Esporta
-                        </button>
+
+                    <div class="mb-3">
+                        <label class="form-label">Intervallo Aggiornamento</label>
+                        <select class="form-select form-select-sm" id="refreshInterval">
+                            <option value="5">5 secondi</option>
+                            <option value="10" selected>10 secondi</option>
+                            <option value="30">30 secondi</option>
+                            <option value="60">1 minuto</option>
+                        </select>
+                    </div>
+
+                    <div class="tracking-status p-2 rounded" style="background: rgba(40, 167, 69, 0.1); border: 1px solid rgba(40, 167, 69, 0.2); display: none;" id="trackingStatus">
+                        <small class="text-success">
+                            <i class="fas fa-satellite-dish fa-spin"></i>
+                            Tracking attivo per: <span id="trackedDeviceName">-</span>
+                        </small>
+                        <br>
+                        <small class="text-muted">
+                            Ultimo aggiornamento: <span id="lastTrackingUpdate">-</span>
+                        </small>
                     </div>
                 </div>
             </div>
@@ -522,6 +567,20 @@
 
     <!-- Floating Action Buttons -->
     <div class="floating-controls">
+        <!-- Main Actions -->
+        <div class="floating-btn" onclick="updateMap()" title="Aggiorna Mappa">
+            <i class="fas fa-sync-alt"></i>
+        </div>
+        <div class="floating-btn" onclick="fitMapToBounds()" title="Adatta Vista">
+            <i class="fas fa-expand-arrows-alt"></i>
+        </div>
+        <div class="floating-btn" onclick="exportData()" title="Esporta Dati">
+            <i class="fas fa-download"></i>
+        </div>
+
+        <div class="floating-separator"></div>
+
+        <!-- Map Controls -->
         <div class="floating-btn" onclick="map.zoomIn()" title="Zoom In">
             <i class="fas fa-plus"></i>
         </div>
@@ -531,7 +590,14 @@
         <div class="floating-btn" onclick="locateUser()" title="Mia Posizione">
             <i class="fas fa-crosshairs"></i>
         </div>
-        <div class="floating-btn" onclick="toggleLayerControl()" title="Livelli">
+
+        <div class="floating-separator"></div>
+
+        <!-- Advanced Features -->
+        <div class="floating-btn" onclick="toggleAutoTracking()" title="Toggle Auto-Tracking" id="trackingToggleBtn">
+            <i class="fas fa-satellite-dish"></i>
+        </div>
+        <div class="floating-btn" onclick="toggleLayerControl()" title="Livelli Mappa">
             <i class="fas fa-layers"></i>
         </div>
     </div>
@@ -547,6 +613,15 @@ let currentData = [];
 let allDevices = [];
 let isControlsPanelCollapsed = false;
 let autoHideTimeout;
+
+// Auto-tracking variables
+let isAutoTracking = false;
+let trackingDeviceId = null;
+let trackingMode = 'follow';
+let autoRefreshInterval = null;
+let trackingMarker = null;
+let trackingPath = null;
+let lastKnownPosition = null;
 
 document.addEventListener('DOMContentLoaded', function() {
     initMap();
@@ -592,6 +667,43 @@ function setupEventListeners() {
         const deviceSelect = document.getElementById('deviceSelect');
         deviceSelect.disabled = this.checked;
         if (!this.checked) deviceSelect.value = '';
+
+        // If auto-tracking is enabled and we switch to "all devices", disable tracking
+        if (this.checked && isAutoTracking) {
+            stopAutoTracking();
+        }
+    });
+
+    // Auto-tracking toggle
+    document.getElementById('autoTrackingEnabled').addEventListener('change', function() {
+        if (this.checked) {
+            startAutoTracking();
+        } else {
+            stopAutoTracking();
+        }
+    });
+
+    // Tracking mode change
+    document.getElementById('trackingMode').addEventListener('change', function() {
+        trackingMode = this.value;
+        if (isAutoTracking) {
+            updateTrackingView();
+        }
+    });
+
+    // Refresh interval change
+    document.getElementById('refreshInterval').addEventListener('change', function() {
+        if (isAutoTracking) {
+            startAutoRefresh();
+        }
+    });
+
+    // Device selection change
+    document.getElementById('deviceSelect').addEventListener('change', function() {
+        if (isAutoTracking && this.value) {
+            trackingDeviceId = this.value;
+            document.getElementById('trackedDeviceName').textContent = getDeviceName(this.value);
+        }
     });
 
     // Keyboard shortcuts
@@ -606,6 +718,22 @@ function setupEventListeners() {
         } else if (e.ctrlKey && e.key === 'u') {
             e.preventDefault();
             updateMap();
+        } else if (e.ctrlKey && e.key === 't') {
+            e.preventDefault();
+            toggleAutoTracking();
+        }
+    });
+
+    // Map interaction detection for auto-pause
+    map.on('dragstart', function() {
+        if (isAutoTracking) {
+            pauseAutoTracking();
+        }
+    });
+
+    map.on('zoomstart', function() {
+        if (isAutoTracking && trackingMode !== 'bounds') {
+            pauseAutoTracking();
         }
     });
 }
@@ -1209,6 +1337,258 @@ function showLoading(show) {
     overlay.style.display = show ? 'block' : 'none';
 }
 
+// Auto-tracking functions
+function toggleAutoTracking() {
+    const checkbox = document.getElementById('autoTrackingEnabled');
+    checkbox.checked = !checkbox.checked;
+    checkbox.dispatchEvent(new Event('change'));
+}
+
+function startAutoTracking() {
+    const deviceSelect = document.getElementById('deviceSelect');
+    const showAllDevices = document.getElementById('showAllDevices').checked;
+
+    if (showAllDevices) {
+        showNotification('Seleziona un dispositivo specifico per il tracking automatico', 'warning');
+        document.getElementById('autoTrackingEnabled').checked = false;
+        return;
+    }
+
+    if (!deviceSelect.value) {
+        showNotification('Seleziona un dispositivo per iniziare il tracking', 'warning');
+        document.getElementById('autoTrackingEnabled').checked = false;
+        return;
+    }
+
+    isAutoTracking = true;
+    trackingDeviceId = deviceSelect.value;
+    trackingMode = document.getElementById('trackingMode').value;
+
+    // Show tracking options and status
+    document.getElementById('trackingOptions').style.display = 'block';
+    document.getElementById('trackingStatus').style.display = 'block';
+    document.getElementById('trackedDeviceName').textContent = getDeviceName(trackingDeviceId);
+
+    // Add tracking class to body
+    document.body.classList.add('tracking-active');
+
+    // Start auto refresh
+    startAutoRefresh();
+
+    // Initial tracking update
+    updateTrackingData();
+
+    showNotification(`Tracking attivato per ${getDeviceName(trackingDeviceId)}`, 'success');
+}
+
+function stopAutoTracking() {
+    isAutoTracking = false;
+    trackingDeviceId = null;
+
+    // Hide tracking options and status
+    document.getElementById('trackingOptions').style.display = 'none';
+    document.getElementById('trackingStatus').style.display = 'none';
+
+    // Remove tracking class
+    document.body.classList.remove('tracking-active');
+
+    // Stop auto refresh
+    if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+        autoRefreshInterval = null;
+    }
+
+    // Remove tracking markers
+    if (trackingMarker) {
+        markersLayer.removeLayer(trackingMarker);
+        trackingMarker = null;
+    }
+
+    if (trackingPath) {
+        pathLayer.removeLayer(trackingPath);
+        trackingPath = null;
+    }
+
+    showNotification('Tracking automatico disattivato', 'info');
+}
+
+function pauseAutoTracking() {
+    if (!isAutoTracking) return;
+
+    // Show pause notification
+    showNotification('Tracking in pausa - clicca per riattivare', 'warning');
+
+    // Add click handler to resume
+    const resumeHandler = function() {
+        updateTrackingView();
+        showNotification('Tracking riattivato', 'success');
+        map.off('click', resumeHandler);
+    };
+
+    setTimeout(() => {
+        map.on('click', resumeHandler);
+    }, 1000);
+}
+
+function startAutoRefresh() {
+    if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+    }
+
+    const interval = parseInt(document.getElementById('refreshInterval').value) * 1000;
+
+    autoRefreshInterval = setInterval(() => {
+        if (isAutoTracking) {
+            updateTrackingData();
+        }
+    }, interval);
+}
+
+function updateTrackingData() {
+    if (!isAutoTracking || !trackingDeviceId) return;
+
+    // Get latest position for tracked device
+    fetch(`/api/device/${trackingDeviceId}/status`)
+        .then(response => response.json())
+        .then(position => {
+            if (position && position.latitude && position.longitude) {
+                updateTrackingMarker(position);
+                updateTrackingView();
+                updateTrackingStatus(position);
+
+                // Update path if enabled
+                if (document.getElementById('showPath').checked) {
+                    updateTrackingPath(position);
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Errore nel tracking:', error);
+        });
+}
+
+function updateTrackingMarker(position) {
+    // Remove existing tracking marker
+    if (trackingMarker) {
+        markersLayer.removeLayer(trackingMarker);
+    }
+
+    // Create new tracking marker
+    const speed = position.speed || 0;
+    const isMoving = speed > 5;
+
+    trackingMarker = L.marker([position.latitude, position.longitude], {
+        icon: L.divIcon({
+            html: `
+                <div class="tracking-marker">
+                    <i class="fas fa-${isMoving ? 'car' : 'stop'}" style="color: white; font-size: 10px;"></i>
+                </div>
+            `,
+            iconSize: [24, 24],
+            className: 'custom-div-icon'
+        }),
+        zIndexOffset: 1000
+    }).addTo(markersLayer);
+
+    // Add detailed popup
+    const popupContent = `
+        <div style="min-width: 250px;">
+            <h6><i class="fas fa-crosshairs"></i> ${getDeviceName(trackingDeviceId)} (TRACKING)</h6>
+            <hr style="margin: 8px 0;">
+            <p style="margin: 4px 0;"><strong>Posizione:</strong><br><small>${position.latitude.toFixed(6)}, ${position.longitude.toFixed(6)}</small></p>
+            <p style="margin: 4px 0;"><strong>Velocità:</strong>
+                <span class="badge ${isMoving ? 'bg-success' : 'bg-secondary'}">${Math.round(speed)} km/h</span>
+                ${isMoving ? '<i class="fas fa-car ms-1"></i>' : '<i class="fas fa-stop ms-1"></i>'}
+            </p>
+            <p style="margin: 4px 0;"><strong>Ultimo aggiornamento:</strong><br><small>${formatDateTime(position.serverTime)}</small></p>
+            ${position.altitude ? `<p style="margin: 4px 0;"><strong>Altitudine:</strong> ${Math.round(position.altitude)} m</p>` : ''}
+        </div>
+    `;
+
+    trackingMarker.bindPopup(popupContent);
+    lastKnownPosition = position;
+}
+
+function updateTrackingView() {
+    if (!lastKnownPosition) return;
+
+    const lat = lastKnownPosition.latitude;
+    const lng = lastKnownPosition.longitude;
+
+    switch (trackingMode) {
+        case 'follow':
+            // Smooth pan to position
+            map.panTo([lat, lng], {
+                animate: true,
+                duration: 1
+            });
+            break;
+
+        case 'center':
+            // Center and maintain zoom
+            map.setView([lat, lng], map.getZoom(), {
+                animate: true
+            });
+            break;
+
+        case 'bounds':
+            // Fit all tracking data to view
+            if (currentData.length > 0) {
+                setTimeout(() => {
+                    fitMapToBounds();
+                }, 100);
+            }
+            break;
+    }
+}
+
+function updateTrackingPath(newPosition) {
+    // Update the regular path display with latest data
+    const timeRange = document.getElementById('timeRange').value;
+
+    fetch(`/api/positions?deviceId=${trackingDeviceId}&hours=${timeRange}`)
+        .then(response => response.json())
+        .then(positions => {
+            if (positions.length > 1) {
+                // Remove old path
+                if (trackingPath) {
+                    pathLayer.removeLayer(trackingPath);
+                }
+
+                // Create new path with special tracking style
+                const latlngs = positions.map(pos => [pos.latitude, pos.longitude]);
+                trackingPath = L.polyline(latlngs, {
+                    color: '#28a745',
+                    weight: 4,
+                    opacity: 0.8,
+                    dashArray: '10, 5'
+                }).addTo(pathLayer);
+
+                trackingPath.bindPopup(`
+                    <h6><i class="fas fa-route"></i> Percorso Tracking</h6>
+                    <p>Dispositivo: ${getDeviceName(trackingDeviceId)}<br>
+                    Punti: ${positions.length}</p>
+                `);
+            }
+        });
+}
+
+function updateTrackingStatus(position) {
+    document.getElementById('lastTrackingUpdate').textContent = new Date().toLocaleTimeString('it-IT');
+
+    // Update tracking info in status panel
+    const statusPanel = document.getElementById('trackingStatus');
+    const speed = Math.round(position.speed || 0);
+    const isMoving = speed > 5;
+
+    statusPanel.style.background = isMoving ?
+        'rgba(40, 167, 69, 0.1)' :
+        'rgba(108, 117, 125, 0.1)';
+    statusPanel.style.borderColor = isMoving ?
+        'rgba(40, 167, 69, 0.2)' :
+        'rgba(108, 117, 125, 0.2)';
+}
+
 function showNotification(message, type = 'info') {
     // Create notification element
     const notification = document.createElement('div');
@@ -1269,6 +1649,16 @@ window.addEventListener('resize', function() {
 // Handle fullscreen changes
 document.addEventListener('fullscreenchange', function() {
     setTimeout(() => map.invalidateSize(), 100);
+});
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', function() {
+    if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+    }
+    if (isAutoTracking) {
+        stopAutoTracking();
+    }
 });
 </script>
 {% endblock %}
