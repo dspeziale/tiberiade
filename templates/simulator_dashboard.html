@@ -34,35 +34,20 @@
         margin: 0.5rem 0;
     }
     
-    .map-preview {
-        height: 200px;
-        background: #e9ecef;
-        border-radius: 6px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: #6c757d;
-    }
-    
     .template-card {
         border: 2px solid transparent;
         cursor: pointer;
         transition: all 0.3s ease;
     }
-    
+
     .template-card:hover {
         border-color: #0d6efd;
         transform: scale(1.02);
     }
-    
+
     .template-card.selected {
         border-color: #0d6efd;
         background: #f0f8ff;
-    }
-    
-    .loading-spinner {
-        width: 1.5rem;
-        height: 1.5rem;
     }
 </style>
 {% endblock %}
@@ -76,13 +61,13 @@
             <p class="text-muted mb-0">Gestisci le simulazioni di percorso per i dispositivi GPS</p>
         </div>
         <div class="btn-group">
-            <button class="btn btn-primary" onclick="showNewSimulationModal()">
+            <button class="btn btn-primary" id="newSimulationBtn">
                 <i class="fas fa-plus"></i> Nuova Simulazione
             </button>
-            <button class="btn btn-outline-secondary" onclick="refreshStatus()">
+            <button class="btn btn-outline-secondary" id="refreshBtn">
                 <i class="fas fa-sync"></i> Aggiorna
             </button>
-            <button class="btn btn-outline-danger" onclick="stopAllSimulations()">
+            <button class="btn btn-outline-danger" id="stopAllBtn">
                 <i class="fas fa-stop"></i> Ferma Tutte
             </button>
         </div>
@@ -183,109 +168,96 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <form id="simulationForm">
-                    <!-- Step 1: Selezione Dispositivo -->
-                    <div class="step" id="step1">
-                        <h6 class="border-bottom pb-2 mb-3">
-                            <i class="fas fa-mobile-alt"></i> Seleziona Dispositivo
-                        </h6>
-                        <div class="row">
-                            <div class="col-md-6">
-                                <label class="form-label">Dispositivo *</label>
-                                <select class="form-select" id="deviceSelect" required>
-                                    <option value="">Caricamento dispositivi...</option>
-                                </select>
-                                <div class="form-text">Seleziona il dispositivo da simulare</div>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">IMEI</label>
-                                <input type="text" class="form-control" id="deviceImei" readonly>
-                                <div class="form-text">IMEI del dispositivo selezionato</div>
-                            </div>
+                <!-- Step 1: Selezione Dispositivo -->
+                <div class="step" id="step1">
+                    <h6 class="border-bottom pb-2 mb-3">
+                        <i class="fas fa-mobile-alt"></i> Seleziona Dispositivo
+                    </h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label class="form-label">Dispositivo *</label>
+                            <select class="form-select" id="deviceSelect" required>
+                                <option value="">Caricamento dispositivi...</option>
+                            </select>
+                            <div class="form-text">Seleziona il dispositivo da simulare</div>
                         </div>
-                        
-                        <div class="mt-4" id="deviceInfo" style="display: none;">
-                            <div class="alert alert-info">
-                                <h6><i class="fas fa-info-circle"></i> Informazioni Dispositivo</h6>
-                                <div class="row">
-                                    <div class="col-md-4">
-                                        <strong>Nome:</strong> <span id="deviceName"></span>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <strong>Stato:</strong> <span id="deviceStatus"></span>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <strong>Ultima Posizione:</strong> <span id="deviceLastSeen"></span>
-                                    </div>
+                        <div class="col-md-6">
+                            <label class="form-label">IMEI</label>
+                            <input type="text" class="form-control" id="deviceImei" readonly>
+                            <div class="form-text">IMEI del dispositivo selezionato</div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4" id="deviceInfo" style="display: none;">
+                        <div class="alert alert-info">
+                            <h6><i class="fas fa-info-circle"></i> Informazioni Dispositivo</h6>
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <strong>Nome:</strong> <span id="deviceName"></span>
+                                </div>
+                                <div class="col-md-4">
+                                    <strong>Stato:</strong> <span id="deviceStatus"></span>
+                                </div>
+                                <div class="col-md-4">
+                                    <strong>Ultima Posizione:</strong> <span id="deviceLastSeen"></span>
                                 </div>
                             </div>
                         </div>
                     </div>
+                </div>
 
-                    <!-- Step 2: Template Simulazione -->
-                    <div class="step" id="step2" style="display: none;">
-                        <h6 class="border-bottom pb-2 mb-3">
-                            <i class="fas fa-route"></i> Tipo di Simulazione
-                        </h6>
-                        <div class="row" id="templateCards">
-                            <!-- I template vengono caricati dinamicamente -->
+                <!-- Step 2: Template Simulazione -->
+                <div class="step" id="step2" style="display: none;">
+                    <h6 class="border-bottom pb-2 mb-3">
+                        <i class="fas fa-route"></i> Tipo di Simulazione
+                    </h6>
+                    <div class="row" id="templateCards">
+                        <!-- Template caricati dinamicamente -->
+                    </div>
+                </div>
+
+                <!-- Step 3: Configurazione -->
+                <div class="step" id="step3" style="display: none;">
+                    <h6 class="border-bottom pb-2 mb-3">
+                        <i class="fas fa-cogs"></i> Configurazione
+                    </h6>
+
+                    <!-- Configurazione comune -->
+                    <div class="row">
+                        <div class="col-md-4">
+                            <label class="form-label">Velocità Media (km/h)</label>
+                            <input type="number" class="form-control" id="speedKmh" value="50" min="1" max="200">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Intervallo Aggiornamento (sec)</label>
+                            <input type="number" class="form-control" id="updateInterval" value="30" min="5" max="300">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Durata Simulazione</label>
+                            <select class="form-select" id="duration">
+                                <option value="indefinite">Indefinita</option>
+                                <option value="1">1 ora</option>
+                                <option value="2">2 ore</option>
+                                <option value="6">6 ore</option>
+                                <option value="24">24 ore</option>
+                            </select>
                         </div>
                     </div>
 
-                    <!-- Step 3: Configurazione -->
-                    <div class="step" id="step3" style="display: none;">
-                        <h6 class="border-bottom pb-2 mb-3">
-                            <i class="fas fa-cogs"></i> Configurazione
-                        </h6>
-                        
-                        <!-- Configurazione comune -->
-                        <div class="row">
-                            <div class="col-md-4">
-                                <label class="form-label">Velocità Media (km/h)</label>
-                                <input type="number" class="form-control" id="speedKmh" value="50" min="1" max="200">
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label">Intervallo Aggiornamento (sec)</label>
-                                <input type="number" class="form-control" id="updateInterval" value="30" min="5" max="300">
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label">Durata Simulazione</label>
-                                <select class="form-select" id="duration">
-                                    <option value="indefinite">Indefinita</option>
-                                    <option value="1">1 ora</option>
-                                    <option value="2">2 ore</option>
-                                    <option value="6">6 ore</option>
-                                    <option value="24">24 ore</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <!-- Configurazione specifica per tipo -->
-                        <div id="specificConfig" class="mt-4">
-                            <!-- Caricato dinamicamente -->
-                        </div>
-
-                        <!-- Anteprima mappa -->
-                        <div class="mt-4">
-                            <h6><i class="fas fa-map"></i> Anteprima Percorso</h6>
-                            <div id="mapPreview" class="map-preview">
-                                <div class="text-center">
-                                    <i class="fas fa-map fa-2x mb-2"></i>
-                                    <p>Anteprima percorso</p>
-                                </div>
-                            </div>
-                        </div>
+                    <!-- Configurazione specifica per tipo -->
+                    <div id="specificConfig" class="mt-4">
+                        <!-- Caricata dinamicamente -->
                     </div>
-                </form>
+                </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" id="prevBtn" onclick="previousStep()" style="display: none;">
+                <button type="button" class="btn btn-secondary" id="prevBtn" style="display: none;">
                     <i class="fas fa-arrow-left"></i> Indietro
                 </button>
-                <button type="button" class="btn btn-primary" id="nextBtn" onclick="nextStep()">
+                <button type="button" class="btn btn-primary" id="nextBtn">
                     Avanti <i class="fas fa-arrow-right"></i>
                 </button>
-                <button type="button" class="btn btn-success" id="startBtn" onclick="startSimulation()" style="display: none;">
+                <button type="button" class="btn btn-success" id="startBtn" style="display: none;">
                     <i class="fas fa-play"></i> Avvia Simulazione
                 </button>
                 <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button>
@@ -293,581 +265,585 @@
         </div>
     </div>
 </div>
-
-<!-- Modal Dettagli Simulazione -->
-<div class="modal fade" id="simulationDetailsModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">
-                    <i class="fas fa-info-circle"></i> Dettagli Simulazione
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body" id="simulationDetailsContent">
-                <!-- Contenuto caricato dinamicamente -->
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-danger" id="stopSimulationBtn">
-                    <i class="fas fa-stop"></i> Ferma Simulazione
-                </button>
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
-            </div>
-        </div>
-    </div>
-</div>
 {% endblock %}
 
 {% block extra_js %}
-<!-- Leaflet per la mappa -->
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
 <script>
-    // Variabili globali
-    let devices = [];
-    let templates = {};
-    let currentStep = 1;
-    let selectedTemplate = null;
-    let previewMap = null;
-    let refreshInterval = null;
+// ============================================================================
+// VARIABILI GLOBALI
+// ============================================================================
+let devices = [];
+let templates = {};
+let currentStep = 1;
+let selectedTemplate = null;
+let refreshInterval = null;
 
-    // Inizializzazione
-    document.addEventListener('DOMContentLoaded', function() {
-        loadDevices();
-        loadTemplates();
-        refreshStatus();
-        
-        // Auto-refresh ogni 30 secondi
-        refreshInterval = setInterval(refreshStatus, 30000);
+// ============================================================================
+// INIZIALIZZAZIONE
+// ============================================================================
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Simulatore GPS - Inizializzazione...');
+
+    // Inizializza componenti
+    initializeEventListeners();
+    loadDevices();
+    loadTemplates();
+    refreshStatus();
+
+    // Auto-refresh ogni 30 secondi
+    refreshInterval = setInterval(refreshStatus, 30000);
+});
+
+function initializeEventListeners() {
+    // Pulsanti principali
+    document.getElementById('newSimulationBtn').addEventListener('click', showNewSimulationModal);
+    document.getElementById('refreshBtn').addEventListener('click', refreshStatus);
+    document.getElementById('stopAllBtn').addEventListener('click', stopAllSimulations);
+
+    // Pulsanti modal
+    document.getElementById('prevBtn').addEventListener('click', previousStep);
+    document.getElementById('nextBtn').addEventListener('click', nextStep);
+    document.getElementById('startBtn').addEventListener('click', startSimulation);
+
+    // Device select change
+    document.getElementById('deviceSelect').addEventListener('change', function() {
+        if (this.value) {
+            updateDeviceInfo(this.value);
+        }
     });
+}
 
-    // ============================================================================
-    // GESTIONE DISPOSITIVI
-    // ============================================================================
-    async function loadDevices() {
-        try {
-            const response = await fetch('/api/devices');
-            const data = await response.json();
-            
-            devices = data;
-            updateDevicesCount(devices.length);
-            
-            const deviceSelect = document.getElementById('deviceSelect');
-            deviceSelect.innerHTML = '<option value="">Seleziona un dispositivo</option>';
-            
-            devices.forEach(device => {
-                const option = document.createElement('option');
-                option.value = device.id;
-                option.textContent = `${device.name} (${device.uniqueId})`;
-                option.dataset.imei = device.uniqueId;
-                option.dataset.name = device.name;
-                deviceSelect.appendChild(option);
-            });
-            
-        } catch (error) {
-            console.error('Errore caricamento dispositivi:', error);
-            showToast('Errore nel caricamento dei dispositivi', 'error');
-        }
-    }
+// ============================================================================
+// CARICAMENTO DATI
+// ============================================================================
+async function loadDevices() {
+    try {
+        console.log('Caricamento dispositivi...');
+        const response = await fetch('/api/devices');
+        const data = await response.json();
 
-    async function loadTemplates() {
-        try {
-            const response = await fetch('/api/simulator/templates');
-            const data = await response.json();
-            
-            templates = data;
-            renderTemplateCards();
-            
-        } catch (error) {
-            console.error('Errore caricamento template:', error);
-            showToast('Errore nel caricamento dei template', 'error');
-        }
-    }
+        devices = data;
+        updateDevicesCount(devices.length);
 
-    function renderTemplateCards() {
-        const container = document.getElementById('templateCards');
-        container.innerHTML = '';
-        
-        Object.keys(templates).forEach(key => {
-            const template = templates[key];
-            const card = document.createElement('div');
-            card.className = 'col-md-6 mb-3';
-            card.innerHTML = `
-                <div class="card template-card h-100" onclick="selectTemplate('${key}')">
-                    <div class="card-body">
-                        <h5 class="card-title">
-                            <i class="fas fa-${getTemplateIcon(template.simulation_type)}"></i> 
-                            ${template.name}
-                        </h5>
-                        <p class="card-text">${template.description}</p>
-                        <div class="row text-sm">
-                            <div class="col-6">
-                                <small><strong>Velocità:</strong> ${template.speed_kmh} km/h</small>
-                            </div>
-                            <div class="col-6">
-                                <small><strong>Aggiornamento:</strong> ${template.update_interval}s</small>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
-            container.appendChild(card);
-        });
-    }
-
-    function getTemplateIcon(type) {
-        const icons = {
-            'circular': 'sync',
-            'route': 'route',
-            'custom': 'map-marked-alt'
-        };
-        return icons[type] || 'map';
-    }
-
-    function selectTemplate(templateKey) {
-        selectedTemplate = templateKey;
-        
-        // Rimuovi selezione precedente
-        document.querySelectorAll('.template-card').forEach(card => {
-            card.classList.remove('selected');
-        });
-        
-        // Aggiungi selezione corrente
-        event.currentTarget.classList.add('selected');
-        
-        // Aggiorna configurazione
-        updateConfigurationForTemplate();
-    }
-
-    function updateConfigurationForTemplate() {
-        if (!selectedTemplate) return;
-        
-        const template = templates[selectedTemplate];
-        const specificConfig = document.getElementById('specificConfig');
-        
-        // Aggiorna valori comuni
-        document.getElementById('speedKmh').value = template.speed_kmh;
-        document.getElementById('updateInterval').value = template.update_interval;
-        
-        // Configurazione specifica
-        let configHtml = '';
-        
-        if (template.simulation_type === 'circular') {
-            configHtml = `
-                <div class="config-section">
-                    <h6><i class="fas fa-sync"></i> Configurazione Percorso Circolare</h6>
-                    <div class="row">
-                        <div class="col-md-4">
-                            <label class="form-label">Latitudine Centro</label>
-                            <input type="number" class="form-control" id="centerLat" value="45.4642" step="0.0001">
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label">Longitudine Centro</label>
-                            <input type="number" class="form-control" id="centerLng" value="9.1900" step="0.0001">
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label">Raggio (km)</label>
-                            <input type="number" class="form-control" id="radiusKm" value="${template.radius_km}" step="0.1" min="0.1">
-                        </div>
-                    </div>
-                    <div class="row mt-2">
-                        <div class="col-md-6">
-                            <label class="form-label">Numero Punti</label>
-                            <input type="number" class="form-control" id="points" value="${template.points}" min="8" max="100">
-                        </div>
-                    </div>
-                </div>
-            `;
-        } else if (template.simulation_type === 'route') {
-            configHtml = `
-                <div class="config-section">
-                    <h6><i class="fas fa-route"></i> Configurazione Percorso Lineare</h6>
-                    <div class="row">
-                        <div class="col-md-3">
-                            <label class="form-label">Lat Partenza</label>
-                            <input type="number" class="form-control" id="startLat" value="45.4642" step="0.0001">
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label">Lng Partenza</label>
-                            <input type="number" class="form-control" id="startLng" value="9.1900" step="0.0001">
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label">Lat Arrivo</label>
-                            <input type="number" class="form-control" id="endLat" value="45.4842" step="0.0001">
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label">Lng Arrivo</label>
-                            <input type="number" class="form-control" id="endLng" value="9.2100" step="0.0001">
-                        </div>
-                    </div>
-                    <div class="row mt-2">
-                        <div class="col-md-6">
-                            <label class="form-label">Punti Intermedi</label>
-                            <input type="number" class="form-control" id="points" value="50" min="10" max="200">
-                        </div>
-                    </div>
-                </div>
-            `;
-        } else if (template.simulation_type === 'custom') {
-            configHtml = `
-                <div class="config-section">
-                    <h6><i class="fas fa-map-marked-alt"></i> Percorso Personalizzato</h6>
-                    <div class="mb-3">
-                        <label class="form-label">Coordinate Percorso (JSON)</label>
-                        <textarea class="form-control" id="customPath" rows="6" placeholder='[[45.4642, 9.1900], [45.4652, 9.1920], ...]'>[[45.4642, 9.1900], [45.4652, 9.1920], [45.4672, 9.1950], [45.4642, 9.1900]]</textarea>
-                        <div class="form-text">Inserisci le coordinate come array JSON di [latitudine, longitudine]</div>
-                    </div>
-                </div>
-            `;
-        }
-        
-        specificConfig.innerHTML = configHtml;
-    }
-
-    // ============================================================================
-    // GESTIONE STEP MODAL
-    // ============================================================================
-    function nextStep() {
-        if (currentStep === 1) {
-            const deviceSelect = document.getElementById('deviceSelect');
-            if (!deviceSelect.value) {
-                showToast('Seleziona un dispositivo', 'warning');
-                return;
-            }
-            
-            // Aggiorna info dispositivo
-            updateDeviceInfo(deviceSelect.value);
-            showStep(2);
-            
-        } else if (currentStep === 2) {
-            if (!selectedTemplate) {
-                showToast('Seleziona un tipo di simulazione', 'warning');
-                return;
-            }
-            showStep(3);
-        }
-    }
-
-    function previousStep() {
-        if (currentStep > 1) {
-            showStep(currentStep - 1);
-        }
-    }
-
-    function showStep(step) {
-        // Nascondi tutti gli step
-        document.querySelectorAll('.step').forEach(s => s.style.display = 'none');
-        
-        // Mostra step corrente
-        document.getElementById(`step${step}`).style.display = 'block';
-        currentStep = step;
-        
-        // Aggiorna pulsanti
-        const prevBtn = document.getElementById('prevBtn');
-        const nextBtn = document.getElementById('nextBtn');
-        const startBtn = document.getElementById('startBtn');
-        
-        prevBtn.style.display = step > 1 ? 'inline-block' : 'none';
-        nextBtn.style.display = step < 3 ? 'inline-block' : 'none';
-        startBtn.style.display = step === 3 ? 'inline-block' : 'none';
-    }
-
-    function updateDeviceInfo(deviceId) {
-        const device = devices.find(d => d.id == deviceId);
-        if (!device) return;
-        
-        document.getElementById('deviceImei').value = device.uniqueId;
-        document.getElementById('deviceName').textContent = device.name;
-        document.getElementById('deviceStatus').textContent = device.status || 'Unknown';
-        document.getElementById('deviceLastSeen').textContent = device.lastUpdate || 'Mai';
-        document.getElementById('deviceInfo').style.display = 'block';
-    }
-
-    // ============================================================================
-    // GESTIONE SIMULAZIONI
-    // ============================================================================
-    async function startSimulation() {
         const deviceSelect = document.getElementById('deviceSelect');
-        const selectedOption = deviceSelect.options[deviceSelect.selectedIndex];
-        
-        if (!selectedOption || !selectedTemplate) {
-            showToast('Dati simulazione incompleti', 'error');
-            return;
-        }
-        
-        // Raccogli dati configurazione
-        const config = {
-            device_id: parseInt(deviceSelect.value),
-            imei: selectedOption.dataset.imei,
-            simulation_type: templates[selectedTemplate].simulation_type,
-            speed_kmh: parseInt(document.getElementById('speedKmh').value),
-            update_interval: parseInt(document.getElementById('updateInterval').value)
-        };
-        
-        // Aggiungi configurazione specifica per tipo
-        if (config.simulation_type === 'circular') {
-            config.center_lat = parseFloat(document.getElementById('centerLat').value);
-            config.center_lng = parseFloat(document.getElementById('centerLng').value);
-            config.radius_km = parseFloat(document.getElementById('radiusKm').value);
-            config.points = parseInt(document.getElementById('points').value);
-        } else if (config.simulation_type === 'route') {
-            config.start_lat = parseFloat(document.getElementById('startLat').value);
-            config.start_lng = parseFloat(document.getElementById('startLng').value);
-            config.end_lat = parseFloat(document.getElementById('endLat').value);
-            config.end_lng = parseFloat(document.getElementById('endLng').value);
-            config.points = parseInt(document.getElementById('points').value);
-        } else if (config.simulation_type === 'custom') {
-            try {
-                config.path = JSON.parse(document.getElementById('customPath').value);
-            } catch (e) {
-                showToast('Formato JSON non valido per il percorso personalizzato', 'error');
-                return;
-            }
-        }
-        
-        try {
-            const response = await fetch('/api/simulator/start', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(config)
-            });
-            
-            const result = await response.json();
-            
-            if (response.ok && result.success) {
-                showToast(`Simulazione avviata per ${selectedOption.dataset.name}`, 'success');
-                bootstrap.Modal.getInstance(document.getElementById('newSimulationModal')).hide();
-                resetSimulationForm();
-                setTimeout(refreshStatus, 1000);
-            } else {
-                showToast(result.error || 'Errore nell\'avvio della simulazione', 'error');
-            }
-            
-        } catch (error) {
-            console.error('Errore avvio simulazione:', error);
-            showToast('Errore di comunicazione con il server', 'error');
-        }
-    }
+        deviceSelect.innerHTML = '<option value="">Seleziona un dispositivo</option>';
 
-    async function stopSimulation(imei) {
-        try {
-            const response = await fetch('/api/simulator/stop', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ imei: imei })
-            });
-            
-            const result = await response.json();
-            
-            if (response.ok && result.success) {
-                showToast(result.message, 'success');
-                refreshStatus();
-            } else {
-                showToast(result.error || 'Errore nell\'arresto della simulazione', 'error');
-            }
-            
-        } catch (error) {
-            console.error('Errore arresto simulazione:', error);
-            showToast('Errore di comunicazione con il server', 'error');
-        }
-    }
+        devices.forEach(device => {
+            const option = document.createElement('option');
+            option.value = device.id;
+            option.textContent = `${device.name} (${device.uniqueId})`;
+            option.dataset.imei = device.uniqueId;
+            option.dataset.name = device.name;
+            deviceSelect.appendChild(option);
+        });
 
-    async function stopAllSimulations() {
-        if (!confirm('Sei sicuro di voler fermare tutte le simulazioni attive?')) {
-            return;
-        }
-        
-        try {
-            const response = await fetch('/api/simulator/stop-all', {
-                method: 'POST'
-            });
-            
-            const result = await response.json();
-            
-            if (response.ok && result.success) {
-                showToast(result.message, 'success');
-                refreshStatus();
-            } else {
-                showToast(result.error || 'Errore nell\'arresto delle simulazioni', 'error');
-            }
-            
-        } catch (error) {
-            console.error('Errore arresto simulazioni:', error);
-            showToast('Errore di comunicazione con il server', 'error');
-        }
-    }
+        console.log(`Caricati ${devices.length} dispositivi`);
 
-    async function refreshStatus() {
-        try {
-            const response = await fetch('/api/simulator/status');
-            const data = await response.json();
-            
-            if (response.ok) {
-                updateSimulationsList(data.active_simulators);
-                updateStatistics(data);
-            } else {
-                console.error('Errore refresh status:', data.error);
-            }
-            
-        } catch (error) {
-            console.error('Errore refresh status:', error);
-        }
+    } catch (error) {
+        console.error('Errore caricamento dispositivi:', error);
+        showToast('Errore nel caricamento dei dispositivi', 'error');
     }
+}
 
-    function updateSimulationsList(simulators) {
-        const container = document.getElementById('simulationsList');
-        const badge = document.getElementById('simulationsBadge');
-        
-        const count = Object.keys(simulators).length;
-        badge.textContent = count;
-        
-        if (count === 0) {
-            container.innerHTML = `
-                <div class="text-center py-5">
-                    <i class="fas fa-robot fa-3x text-muted mb-3"></i>
-                    <h5 class="text-muted">Nessuna simulazione attiva</h5>
-                    <p class="text-muted">Avvia una nuova simulazione per iniziare</p>
-                </div>
-            `;
-            return;
-        }
-        
-        let html = '';
-        Object.values(simulators).forEach(sim => {
-            const startTime = new Date(sim.start_time);
-            const duration = formatDuration(Date.now() - startTime.getTime());
-            
-            html += `
-                <div class="simulator-card p-3 mb-3">
-                    <div class="row align-items-center">
-                        <div class="col-md-6">
-                            <h6 class="mb-1">
-                                <i class="fas fa-mobile-alt text-primary"></i> 
-                                ${sim.device_name}
-                                <span class="badge status-badge status-running ms-2">
-                                    <i class="fas fa-play"></i> In corso
-                                </span>
-                            </h6>
-                            <p class="text-muted mb-1">IMEI: ${sim.imei}</p>
-                            <small class="text-muted">
-                                <i class="fas fa-clock"></i> Avviata ${duration} fa
-                            </small>
+async function loadTemplates() {
+    try {
+        console.log('Caricamento template...');
+        const response = await fetch('/api/simulator/templates');
+        const data = await response.json();
+
+        templates = data;
+        renderTemplateCards();
+
+        console.log('Template caricati:', Object.keys(templates));
+
+    } catch (error) {
+        console.error('Errore caricamento template:', error);
+        showToast('Errore nel caricamento dei template', 'error');
+    }
+}
+
+function renderTemplateCards() {
+    const container = document.getElementById('templateCards');
+    container.innerHTML = '';
+
+    Object.keys(templates).forEach(key => {
+        const template = templates[key];
+        const card = document.createElement('div');
+        card.className = 'col-md-6 mb-3';
+        card.innerHTML = `
+            <div class="card template-card h-100" data-template="${key}">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="fas fa-${getTemplateIcon(template.simulation_type)}"></i>
+                        ${template.name}
+                    </h5>
+                    <p class="card-text">${template.description}</p>
+                    <div class="row text-sm">
+                        <div class="col-6">
+                            <small><strong>Velocità:</strong> ${template.speed_kmh} km/h</small>
                         </div>
-                        <div class="col-md-4">
-                            <div class="row text-center">
-                                <div class="col-4">
-                                    <div class="fw-bold text-primary">${sim.packets_sent || 0}</div>
-                                    <small class="text-muted">Pacchetti</small>
-                                </div>
-                                <div class="col-4">
-                                    <div class="fw-bold text-success">${sim.total_distance_km || 0} km</div>
-                                    <small class="text-muted">Distanza</small>
-                                </div>
-                                <div class="col-4">
-                                    <div class="fw-bold text-info">${sim.path_progress || '0/0'}</div>
-                                    <small class="text-muted">Progresso</small>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-2 text-end">
-                            <div class="btn-group">
-                                <button class="btn btn-sm btn-outline-info" onclick="showSimulationDetails('${sim.imei}')" title="Dettagli">
-                                    <i class="fas fa-info-circle"></i>
-                                </button>
-                                <button class="btn btn-sm btn-outline-danger" onclick="stopSimulation('${sim.imei}')" title="Ferma">
-                                    <i class="fas fa-stop"></i>
-                                </button>
-                            </div>
+                        <div class="col-6">
+                            <small><strong>Aggiornamento:</strong> ${template.update_interval}s</small>
                         </div>
                     </div>
                 </div>
-            `;
+            </div>
+        `;
+
+        // Event listener per selezione template
+        const templateCard = card.querySelector('.template-card');
+        templateCard.addEventListener('click', function() {
+            selectTemplate(key);
         });
-        
-        container.innerHTML = html;
+
+        container.appendChild(card);
+    });
+}
+
+function getTemplateIcon(type) {
+    const icons = {
+        'circular': 'sync',
+        'route': 'route',
+        'custom': 'map-marked-alt'
+    };
+    return icons[type] || 'map';
+}
+
+// ============================================================================
+// GESTIONE MODAL E STEP
+// ============================================================================
+function showNewSimulationModal() {
+    console.log('Apertura modal nuova simulazione...');
+    resetSimulationForm();
+    const modal = new bootstrap.Modal(document.getElementById('newSimulationModal'));
+    modal.show();
+}
+
+function resetSimulationForm() {
+    currentStep = 1;
+    selectedTemplate = null;
+    showStep(1);
+
+    document.getElementById('deviceSelect').value = '';
+    document.getElementById('deviceInfo').style.display = 'none';
+    document.querySelectorAll('.template-card').forEach(card => {
+        card.classList.remove('selected');
+    });
+}
+
+function showStep(step) {
+    // Nascondi tutti gli step
+    document.querySelectorAll('.step').forEach(s => s.style.display = 'none');
+
+    // Mostra step corrente
+    document.getElementById(`step${step}`).style.display = 'block';
+    currentStep = step;
+
+    // Aggiorna pulsanti
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const startBtn = document.getElementById('startBtn');
+
+    prevBtn.style.display = step > 1 ? 'inline-block' : 'none';
+    nextBtn.style.display = step < 3 ? 'inline-block' : 'none';
+    startBtn.style.display = step === 3 ? 'inline-block' : 'none';
+}
+
+function nextStep() {
+    if (currentStep === 1) {
+        const deviceSelect = document.getElementById('deviceSelect');
+        if (!deviceSelect.value) {
+            showToast('Seleziona un dispositivo', 'warning');
+            return;
+        }
+        showStep(2);
+
+    } else if (currentStep === 2) {
+        if (!selectedTemplate) {
+            showToast('Seleziona un tipo di simulazione', 'warning');
+            return;
+        }
+        showStep(3);
+    }
+}
+
+function previousStep() {
+    if (currentStep > 1) {
+        showStep(currentStep - 1);
+    }
+}
+
+function selectTemplate(templateKey) {
+    selectedTemplate = templateKey;
+    console.log('Template selezionato:', templateKey);
+
+    // Rimuovi selezione precedente
+    document.querySelectorAll('.template-card').forEach(card => {
+        card.classList.remove('selected');
+    });
+
+    // Aggiungi selezione corrente
+    document.querySelector(`[data-template="${templateKey}"]`).classList.add('selected');
+
+    // Aggiorna configurazione
+    updateConfigurationForTemplate();
+}
+
+function updateDeviceInfo(deviceId) {
+    const device = devices.find(d => d.id == deviceId);
+    if (!device) return;
+
+    document.getElementById('deviceImei').value = device.uniqueId;
+    document.getElementById('deviceName').textContent = device.name;
+    document.getElementById('deviceStatus').textContent = device.status || 'Unknown';
+    document.getElementById('deviceLastSeen').textContent = device.lastUpdate || 'Mai';
+    document.getElementById('deviceInfo').style.display = 'block';
+}
+
+function updateConfigurationForTemplate() {
+    if (!selectedTemplate) return;
+
+    const template = templates[selectedTemplate];
+    const specificConfig = document.getElementById('specificConfig');
+
+    // Aggiorna valori comuni
+    document.getElementById('speedKmh').value = template.speed_kmh;
+    document.getElementById('updateInterval').value = template.update_interval;
+
+    // Configurazione specifica
+    let configHtml = '';
+
+    if (template.simulation_type === 'circular') {
+        configHtml = `
+            <div class="config-section">
+                <h6><i class="fas fa-sync"></i> Configurazione Percorso Circolare</h6>
+                <div class="row">
+                    <div class="col-md-4">
+                        <label class="form-label">Latitudine Centro</label>
+                        <input type="number" class="form-control" id="centerLat" value="45.4642" step="0.0001">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Longitudine Centro</label>
+                        <input type="number" class="form-control" id="centerLng" value="9.1900" step="0.0001">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Raggio (km)</label>
+                        <input type="number" class="form-control" id="radiusKm" value="${template.radius_km || 2.0}" step="0.1" min="0.1">
+                    </div>
+                </div>
+                <div class="row mt-2">
+                    <div class="col-md-6">
+                        <label class="form-label">Numero Punti</label>
+                        <input type="number" class="form-control" id="points" value="${template.points || 20}" min="8" max="100">
+                    </div>
+                </div>
+            </div>
+        `;
+    } else if (template.simulation_type === 'route') {
+        configHtml = `
+            <div class="config-section">
+                <h6><i class="fas fa-route"></i> Configurazione Percorso Lineare</h6>
+                <div class="row">
+                    <div class="col-md-3">
+                        <label class="form-label">Lat Partenza</label>
+                        <input type="number" class="form-control" id="startLat" value="45.4642" step="0.0001">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Lng Partenza</label>
+                        <input type="number" class="form-control" id="startLng" value="9.1900" step="0.0001">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Lat Arrivo</label>
+                        <input type="number" class="form-control" id="endLat" value="45.4842" step="0.0001">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Lng Arrivo</label>
+                        <input type="number" class="form-control" id="endLng" value="9.2100" step="0.0001">
+                    </div>
+                </div>
+                <div class="row mt-2">
+                    <div class="col-md-6">
+                        <label class="form-label">Punti Intermedi</label>
+                        <input type="number" class="form-control" id="points" value="50" min="10" max="200">
+                    </div>
+                </div>
+            </div>
+        `;
+    } else if (template.simulation_type === 'custom') {
+        configHtml = `
+            <div class="config-section">
+                <h6><i class="fas fa-map-marked-alt"></i> Percorso Personalizzato</h6>
+                <div class="mb-3">
+                    <label class="form-label">Coordinate Percorso (JSON)</label>
+                    <textarea class="form-control" id="customPath" rows="6" placeholder='[[45.4642, 9.1900], [45.4652, 9.1920], ...]'>[[45.4642, 9.1900], [45.4652, 9.1920], [45.4672, 9.1950], [45.4642, 9.1900]]</textarea>
+                    <div class="form-text">Inserisci le coordinate come array JSON di [latitudine, longitudine]</div>
+                </div>
+            </div>
+        `;
     }
 
-    function updateStatistics(data) {
-        const activeCount = Object.keys(data.active_simulators).length;
-        document.getElementById('activeCount').textContent = activeCount;
-        
-        // Calcola statistiche aggregate
-        let totalDistance = 0;
-        let oldestStartTime = null;
-        
-        Object.values(data.active_simulators).forEach(sim => {
-            totalDistance += sim.total_distance_km || 0;
-            
-            const startTime = new Date(sim.start_time);
-            if (!oldestStartTime || startTime < oldestStartTime) {
-                oldestStartTime = startTime;
-            }
-        });
-        
-        document.getElementById('totalDistance').textContent = `${totalDistance.toFixed(1)} km`;
-        
-        if (oldestStartTime) {
-            const uptime = formatDuration(Date.now() - oldestStartTime.getTime());
-            document.getElementById('uptime').textContent = uptime;
-        } else {
-            document.getElementById('uptime').textContent = '0h 0m';
+    specificConfig.innerHTML = configHtml;
+}
+
+// ============================================================================
+// GESTIONE SIMULAZIONI
+// ============================================================================
+async function startSimulation() {
+    const deviceSelect = document.getElementById('deviceSelect');
+    const selectedOption = deviceSelect.options[deviceSelect.selectedIndex];
+
+    if (!selectedOption || !selectedTemplate) {
+        showToast('Dati simulazione incompleti', 'error');
+        return;
+    }
+
+    // Raccogli dati configurazione
+    const config = {
+        device_id: parseInt(deviceSelect.value),
+        imei: selectedOption.dataset.imei,
+        simulation_type: templates[selectedTemplate].simulation_type,
+        speed_kmh: parseInt(document.getElementById('speedKmh').value),
+        update_interval: parseInt(document.getElementById('updateInterval').value)
+    };
+
+    // Aggiungi configurazione specifica per tipo
+    if (config.simulation_type === 'circular') {
+        config.center_lat = parseFloat(document.getElementById('centerLat').value);
+        config.center_lng = parseFloat(document.getElementById('centerLng').value);
+        config.radius_km = parseFloat(document.getElementById('radiusKm').value);
+        config.points = parseInt(document.getElementById('points').value);
+    } else if (config.simulation_type === 'route') {
+        config.start_lat = parseFloat(document.getElementById('startLat').value);
+        config.start_lng = parseFloat(document.getElementById('startLng').value);
+        config.end_lat = parseFloat(document.getElementById('endLat').value);
+        config.end_lng = parseFloat(document.getElementById('endLng').value);
+        config.points = parseInt(document.getElementById('points').value);
+    } else if (config.simulation_type === 'custom') {
+        try {
+            config.path = JSON.parse(document.getElementById('customPath').value);
+        } catch (e) {
+            showToast('Formato JSON non valido per il percorso personalizzato', 'error');
+            return;
         }
     }
 
-    function updateDevicesCount(count) {
-        document.getElementById('devicesCount').textContent = count;
-    }
-
-    // ============================================================================
-    // UTILITY FUNCTIONS
-    // ============================================================================
-    function formatDuration(ms) {
-        const hours = Math.floor(ms / (1000 * 60 * 60));
-        const minutes = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60));
-        return `${hours}h ${minutes}m`;
-    }
-
-    function showToast(message, type = 'info') {
-        // Usa la funzione toast dal base.html se disponibile
-        if (typeof showAlert === 'function') {
-            showAlert(message, type === 'error' ? 'danger' : type);
-        } else {
-            console.log(`${type.toUpperCase()}: ${message}`);
-        }
-    }
-
-    function showNewSimulationModal() {
-        resetSimulationForm();
-        const modal = new bootstrap.Modal(document.getElementById('newSimulationModal'));
-        modal.show();
-    }
-
-    function resetSimulationForm() {
-        currentStep = 1;
-        selectedTemplate = null;
-        showStep(1);
-        
-        document.getElementById('deviceSelect').value = '';
-        document.getElementById('deviceInfo').style.display = 'none';
-        document.querySelectorAll('.template-card').forEach(card => {
-            card.classList.remove('selected');
+    try {
+        const response = await fetch('/api/simulator/start', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(config)
         });
+
+        const result = await response.json();
+
+        if (response.ok && result.success) {
+            showToast(`Simulazione avviata per ${selectedOption.dataset.name}`, 'success');
+            bootstrap.Modal.getInstance(document.getElementById('newSimulationModal')).hide();
+            resetSimulationForm();
+            setTimeout(refreshStatus, 1000);
+        } else {
+            showToast(result.error || 'Errore nell\'avvio della simulazione', 'error');
+        }
+
+    } catch (error) {
+        console.error('Errore avvio simulazione:', error);
+        showToast('Errore di comunicazione con il server', 'error');
+    }
+}
+
+async function stopSimulation(imei) {
+    try {
+        const response = await fetch('/api/simulator/stop', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ imei: imei })
+        });
+
+        const result = await response.json();
+
+        if (response.ok && result.success) {
+            showToast(result.message, 'success');
+            refreshStatus();
+        } else {
+            showToast(result.error || 'Errore nell\'arresto della simulazione', 'error');
+        }
+
+    } catch (error) {
+        console.error('Errore arresto simulazione:', error);
+        showToast('Errore di comunicazione con il server', 'error');
+    }
+}
+
+async function stopAllSimulations() {
+    if (!confirm('Sei sicuro di voler fermare tutte le simulazioni attive?')) {
+        return;
     }
 
-    function showSimulationDetails(imei) {
-        // Implementazione per mostrare dettagli simulazione
-        showToast('Funzionalità dettagli in sviluppo', 'info');
+    try {
+        const response = await fetch('/api/simulator/stop-all', {
+            method: 'POST'
+        });
+
+        const result = await response.json();
+
+        if (response.ok && result.success) {
+            showToast(result.message, 'success');
+            refreshStatus();
+        } else {
+            showToast(result.error || 'Errore nell\'arresto delle simulazioni', 'error');
+        }
+
+    } catch (error) {
+        console.error('Errore arresto simulazioni:', error);
+        showToast('Errore di comunicazione con il server', 'error');
+    }
+}
+
+async function refreshStatus() {
+    try {
+        const response = await fetch('/api/simulator/status');
+        const data = await response.json();
+
+        if (response.ok) {
+            updateSimulationsList(data.active_simulators || {});
+            updateStatistics(data);
+        } else {
+            console.error('Errore refresh status:', data.error);
+        }
+
+    } catch (error) {
+        console.error('Errore refresh status:', error);
+    }
+}
+
+function updateSimulationsList(simulators) {
+    const container = document.getElementById('simulationsList');
+    const badge = document.getElementById('simulationsBadge');
+
+    const count = Object.keys(simulators).length;
+    badge.textContent = count;
+
+    if (count === 0) {
+        container.innerHTML = `
+            <div class="text-center py-5">
+                <i class="fas fa-robot fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">Nessuna simulazione attiva</h5>
+                <p class="text-muted">Avvia una nuova simulazione per iniziare</p>
+            </div>
+        `;
+        return;
     }
 
-    // Cleanup quando si esce dalla pagina
-    window.addEventListener('beforeunload', function() {
-        if (refreshInterval) {
-            clearInterval(refreshInterval);
+    let html = '';
+    Object.values(simulators).forEach(sim => {
+        const startTime = new Date(sim.start_time);
+        const duration = formatDuration(Date.now() - startTime.getTime());
+
+        html += `
+            <div class="simulator-card p-3 mb-3">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <h6 class="mb-1">
+                            <i class="fas fa-mobile-alt text-primary"></i>
+                            ${sim.device_name}
+                            <span class="badge status-badge status-running ms-2">
+                                <i class="fas fa-play"></i> In corso
+                            </span>
+                        </h6>
+                        <p class="text-muted mb-1">IMEI: ${sim.imei}</p>
+                        <small class="text-muted">
+                            <i class="fas fa-clock"></i> Avviata ${duration} fa
+                        </small>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="row text-center">
+                            <div class="col-4">
+                                <div class="fw-bold text-primary">${sim.packets_sent || 0}</div>
+                                <small class="text-muted">Pacchetti</small>
+                            </div>
+                            <div class="col-4">
+                                <div class="fw-bold text-success">${sim.total_distance_km || 0} km</div>
+                                <small class="text-muted">Distanza</small>
+                            </div>
+                            <div class="col-4">
+                                <div class="fw-bold text-info">${sim.path_progress || '0/0'}</div>
+                                <small class="text-muted">Progresso</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-2 text-end">
+                        <button class="btn btn-sm btn-outline-danger" onclick="stopSimulation('${sim.imei}')" title="Ferma">
+                            <i class="fas fa-stop"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+
+    container.innerHTML = html;
+}
+
+function updateStatistics(data) {
+    const activeCount = Object.keys(data.active_simulators || {}).length;
+    document.getElementById('activeCount').textContent = activeCount;
+
+    // Calcola statistiche aggregate
+    let totalDistance = 0;
+    let oldestStartTime = null;
+
+    Object.values(data.active_simulators || {}).forEach(sim => {
+        totalDistance += sim.total_distance_km || 0;
+
+        const startTime = new Date(sim.start_time);
+        if (!oldestStartTime || startTime < oldestStartTime) {
+            oldestStartTime = startTime;
         }
     });
+
+    document.getElementById('totalDistance').textContent = `${totalDistance.toFixed(1)} km`;
+
+    if (oldestStartTime) {
+        const uptime = formatDuration(Date.now() - oldestStartTime.getTime());
+        document.getElementById('uptime').textContent = uptime;
+    } else {
+        document.getElementById('uptime').textContent = '0h 0m';
+    }
+}
+
+function updateDevicesCount(count) {
+    document.getElementById('devicesCount').textContent = count;
+}
+
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
+function formatDuration(ms) {
+    const hours = Math.floor(ms / (1000 * 60 * 60));
+    const minutes = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60));
+    return `${hours}h ${minutes}m`;
+}
+
+function showToast(message, type = 'info') {
+    // Usa la funzione showAlert dal base.html se disponibile
+    if (typeof showAlert === 'function') {
+        const alertType = type === 'error' ? 'danger' : type;
+        showAlert(message, alertType);
+    } else {
+        // Fallback console log
+        console.log(`${type.toUpperCase()}: ${message}`);
+    }
+}
+
+// Cleanup quando si esce dalla pagina
+window.addEventListener('beforeunload', function() {
+    if (refreshInterval) {
+        clearInterval(refreshInterval);
+    }
+});
 </script>
 {% endblock %}
