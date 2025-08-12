@@ -72,63 +72,32 @@ class TraccarAPI:
             }
 
     def logout(self):
-        """Effettua il logout dal server Traccar"""
+        """Logout dal server Traccar"""
         try:
-            response = self.session.delete(f"{self.server_url}/api/session")
+            self.session.delete(f"{self.server_url}/api/session")
             self.current_user = None
-            return response.status_code == 204
         except Exception as e:
-            print(f"Errore durante il logout: {e}")
-            return False
-
-    def restore_session(self, cookies):
-        """Ripristina una sessione esistente usando i cookies"""
-        try:
-            # Imposta i cookies nella sessione
-            for name, value in cookies.items():
-                self.session.cookies.set(name, value)
-
-            # Verifica che la sessione sia ancora valida ottenendo i dati utente
-            response = self.session.get(f"{self.server_url}/api/session")
-            if response.status_code == 200:
-                self.current_user = response.json()
-                return True
-            return False
-        except Exception as e:
-            print(f"Errore nel ripristino della sessione: {e}")
-            return False
+            print(f"Errore nel logout: {e}")
 
     def get_current_user(self):
-        """Ottiene i dati dell'utente corrente"""
-        if self.current_user:
-            return self.current_user
-
-        try:
-            response = self.session.get(f"{self.server_url}/api/session")
-            if response.status_code == 200:
-                self.current_user = response.json()
-                return self.current_user
-            return None
-        except Exception as e:
-            print(f"Errore nel recuperare l'utente corrente: {e}")
-            return None
+        """Ottiene l'utente corrente"""
+        return self.current_user
 
     def get_user_permissions(self):
-        """Ottiene i permessi dell'utente corrente"""
+        """Analizza e restituisce i permessi dell'utente corrente"""
         user = self.get_current_user()
         if not user:
             return {}
 
-        permissions = {
+        return {
             'admin': user.get('administrator', False),
             'manager': user.get('manager', False),
             'readonly': user.get('readonly', False),
             'deviceReadonly': user.get('deviceReadonly', False),
             'limitCommands': user.get('limitCommands', False),
-            'disableReports': user.get('disableReports', False)
+            'disableReports': user.get('disableReports', False),
+            'disabled': user.get('disabled', False)
         }
-
-        return permissions
 
     def can_access_device(self, device_id):
         """Verifica se l'utente può accedere a un dispositivo specifico"""
@@ -432,12 +401,10 @@ class TraccarAPI:
 
         try:
             users = self.get_users()
-            if isinstance(users, dict) and not users.get('success', True):
-                return None
-
-            for user in users:
-                if user['id'] == int(user_id):
-                    return user
+            if isinstance(users, list):
+                for user in users:
+                    if user['id'] == int(user_id):
+                        return user
             return None
         except Exception as e:
             print(f"Errore nel recuperare l'utente {user_id}: {e}")
@@ -454,11 +421,11 @@ class TraccarAPI:
             response = self.session.get(f"{self.server_url}/api/permissions")
             if response.status_code == 200:
                 all_permissions = response.json()
-                user_permissions = [p for p in all_permissions if p.get('userId') == int(user_id)]
-                return user_permissions
+                user_device_ids = [p['deviceId'] for p in all_permissions if p.get('userId') == user_id]
+                return user_device_ids
             return []
         except Exception as e:
-            print(f"Errore nel recuperare i permessi dispositivi: {e}")
+            print(f"Errore nel recuperare i permessi utente: {e}")
             return []
 
     def update_user_device_permissions(self, user_id, device_ids):
@@ -469,65 +436,36 @@ class TraccarAPI:
             return {'success': False, 'error': 'Permessi insufficienti'}
 
         try:
-            # Prima rimuovi tutti i permessi esistenti per l'utente
-            current_permissions = self.get_user_permissions_for_devices(user_id)
+            # Prima rimuovi tutti i permessi esistenti per questo utente
+            response = self.session.get(f"{self.server_url}/api/permissions")
+            if response.status_code == 200:
+                existing_permissions = response.json()
+                user_permissions = [p for p in existing_permissions if p.get('userId') == user_id and 'deviceId' in p]
 
-            # Rimuovi permessi esistenti
-            for perm in current_permissions:
-                if perm.get('id'):
-                    try:
-                        self.session.delete(f"{self.server_url}/api/permissions/{perm['id']}")
-                    except:
-                        pass  # Ignora errori di eliminazione
+                # Rimuovi permessi esistenti
+                for perm in user_permissions:
+                    self.session.delete(f"{self.server_url}/api/permissions",
+                                        json={'userId': user_id, 'deviceId': perm['deviceId']})
 
-            # Aggiungi nuovi permessi
-            success_count = 0
-            for device_id in device_ids:
-                permission_data = {
-                    'userId': int(user_id),
-                    'deviceId': int(device_id)
-                }
+                # Aggiungi nuovi permessi
+                for device_id in device_ids:
+                    self.session.post(f"{self.server_url}/api/permissions",
+                                      json={'userId': user_id, 'deviceId': device_id})
 
-                response = self.session.post(
-                    f"{self.server_url}/api/permissions",
-                    headers={'Content-Type': 'application/json'},
-                    json=permission_data
-                )
-
-                if response.status_code == 200:
-                    success_count += 1
-
-            return {
-                'success': True,
-                'message': f'{success_count} permessi aggiornati con successo'
-            }
-
+                return {'success': True}
+            else:
+                return {'success': False, 'error': 'Errore nel recupero permessi esistenti'}
         except Exception as e:
             return {'success': False, 'error': str(e)}
 
 
-# Inizializza l'API Traccar globale
+# Inizializza TraccarAPI globale
 traccar_api = TraccarAPI(TRACCAR_SERVER)
-
-
-@app.before_request
-def check_session():
-    """Verifica e ripristina la sessione Traccar se necessario"""
-    if request.endpoint in ['login', 'static']:
-        return
-
-    if session.get('logged_in') and session.get('traccar_session'):
-        # Prova a ripristinare la sessione Traccar
-        if not traccar_api.restore_session(session['traccar_session']):
-            # Sessione scaduta, redirect al login
-            session.clear()
-            if request.endpoint not in ['login']:
-                return redirect(url_for('login'))
 
 
 @app.route('/')
 def index():
-    """Redirect alla dashboard o login"""
+    """Redirect alla dashboard se autenticato, altrimenti al login"""
     if session.get('logged_in'):
         return redirect(url_for('dashboard'))
     return redirect(url_for('login'))
@@ -535,33 +473,27 @@ def index():
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    """Pagina di login integrata con Traccar"""
+    """Pagina di login"""
     if request.method == 'POST':
-        username = request.form.get('username', '').strip()
-        password = request.form.get('password', '')
-        remember = request.form.get('remember') == 'on'
+        username = request.form['username']
+        password = request.form['password']
 
-        if not username or not password:
-            return render_template('login.html', error='Inserire username e password')
-
-        # Prova l'autenticazione con Traccar
+        # Login tramite API Traccar
+        global traccar_api
+        traccar_api = TraccarAPI(TRACCAR_SERVER)
         result = traccar_api.login(username, password)
 
         if result['success']:
-            # Login riuscito
             user_data = result['user']
-
-            session.permanent = remember
             session['logged_in'] = True
-            session['username'] = user_data.get('name', username)
-            session['user_email'] = user_data.get('email', username)
-            session['user_id'] = user_data.get('id')
+            session['traccar_session'] = result['session_cookies']
+            session['username'] = user_data.get('name')
+            session['user_email'] = user_data.get('email')
             session['user_admin'] = user_data.get('administrator', False)
             session['user_manager'] = user_data.get('manager', False)
             session['user_readonly'] = user_data.get('readonly', False)
-            session['traccar_session'] = result['session_cookies']
 
-            flash(f'Benvenuto, {session["username"]}!', 'success')
+            flash(f'Benvenuto {user_data.get("name", username)}!', 'success')
 
             # Redirect alla pagina richiesta o dashboard
             next_page = request.args.get('next')
@@ -992,58 +924,9 @@ def api_reports_route():
     to_time = datetime.utcnow()
     from_time = to_time - timedelta(days=days)
 
-    reports = []
-    for device_id in device_ids:
-        report = traccar_api.get_reports_route([device_id], from_time, to_time)
-        reports.extend(report)
-
+    reports = traccar_api.get_reports_route(device_ids, from_time, to_time)
     return jsonify(reports)
 
 
-@app.errorhandler(403)
-def forbidden(error):
-    if request.path.startswith('/api/'):
-        return jsonify({'error': 'Accesso negato'}), 403
-    return render_template('error.html',
-                           error_code=403,
-                           error_message='Accesso negato'), 403
-
-
-@app.errorhandler(404)
-def not_found(error):
-    if request.path.startswith('/api/'):
-        return jsonify({'error': 'Risorsa non trovata'}), 404
-    return render_template('error.html',
-                           error_code=404,
-                           error_message='Pagina non trovata'), 404
-
-
-@app.errorhandler(500)
-def internal_error(error):
-    if request.path.startswith('/api/'):
-        return jsonify({'error': 'Errore interno del server'}), 500
-    return render_template('error.html',
-                           error_code=500,
-                           error_message='Errore interno del server'), 500
-
-
 if __name__ == '__main__':
-    print("🚀 Avvio Traccar Dashboard...")
-    print(f"📡 Server Traccar: {TRACCAR_SERVER}")
-
-    # Test della connessione a Traccar
-    try:
-        test_api = TraccarAPI(TRACCAR_SERVER)
-        response = requests.get(f"{TRACCAR_SERVER}/api/server", timeout=5)
-        if response.status_code == 200:
-            server_info = response.json()
-            print(f"✅ Connessione a Traccar riuscita - Versione: {server_info.get('version', 'Unknown')}")
-        else:
-            print(f"⚠️  Server Traccar risponde ma con status: {response.status_code}")
-    except requests.exceptions.ConnectionError:
-        print("❌ Impossibile connettersi al server Traccar")
-        print("   Verificare che Traccar sia in esecuzione e raggiungibile")
-    except Exception as e:
-        print(f"❌ Errore di connessione: {e}")
-
     app.run(debug=True, host='0.0.0.0', port=5000)

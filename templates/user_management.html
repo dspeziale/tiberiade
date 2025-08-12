@@ -1,97 +1,94 @@
 {% extends "base.html" %}
 
-{% block title %}Gestione Utenti - Traccar{% endblock %}
-
-{% block page_title %}Gestione Utenti{% endblock %}
-
-{% block breadcrumb %}
-<nav aria-label="breadcrumb">
-    <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
-        <li class="breadcrumb-item active">Gestione Utenti</li>
-    </ol>
-</nav>
-{% endblock %}
+{% block title %}Gestione Utenti{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
-    <!-- Header con pulsanti azioni -->
+    <!-- Header -->
     <div class="row mb-4">
         <div class="col-12">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <h3><i class="fas fa-users"></i> Gestione Utenti Traccar</h3>
+                    <h2><i class="fas fa-users"></i> Gestione Utenti</h2>
                     <p class="text-muted mb-0">Gestisci gli utenti del sistema Traccar</p>
                 </div>
-                <div>
-                    <button class="btn btn-primary" onclick="showAddUserModal()">
-                        <i class="fas fa-user-plus"></i> Nuovo Utente
-                    </button>
-                    <button class="btn btn-outline-secondary" onclick="loadUsers()">
-                        <i class="fas fa-sync-alt"></i> Ricarica
-                    </button>
-                </div>
+                <button class="btn btn-primary" onclick="showAddUserModal()">
+                    <i class="fas fa-user-plus"></i> Aggiungi Utente
+                </button>
             </div>
         </div>
     </div>
 
-    <!-- Statistiche Utenti -->
+    <!-- Statistiche -->
     <div class="row mb-4">
         <div class="col-md-3">
             <div class="card bg-primary text-white">
-                <div class="card-body text-center">
-                    <i class="fas fa-users fa-2x mb-2"></i>
-                    <h4 id="totalUsers">0</h4>
-                    <p class="mb-0">Totale Utenti</p>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="mb-0" id="totalUsers">0</h4>
+                            <small>Utenti Totali</small>
+                        </div>
+                        <i class="fas fa-users fa-2x opacity-75"></i>
+                    </div>
                 </div>
             </div>
         </div>
         <div class="col-md-3">
             <div class="card bg-danger text-white">
-                <div class="card-body text-center">
-                    <i class="fas fa-crown fa-2x mb-2"></i>
-                    <h4 id="adminUsers">0</h4>
-                    <p class="mb-0">Amministratori</p>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="mb-0" id="adminUsers">0</h4>
+                            <small>Amministratori</small>
+                        </div>
+                        <i class="fas fa-user-shield fa-2x opacity-75"></i>
+                    </div>
                 </div>
             </div>
         </div>
         <div class="col-md-3">
             <div class="card bg-warning text-white">
-                <div class="card-body text-center">
-                    <i class="fas fa-user-tie fa-2x mb-2"></i>
-                    <h4 id="managerUsers">0</h4>
-                    <p class="mb-0">Manager</p>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="mb-0" id="managerUsers">0</h4>
+                            <small>Manager</small>
+                        </div>
+                        <i class="fas fa-user-tie fa-2x opacity-75"></i>
+                    </div>
                 </div>
             </div>
         </div>
         <div class="col-md-3">
             <div class="card bg-success text-white">
-                <div class="card-body text-center">
-                    <i class="fas fa-clock fa-2x mb-2"></i>
-                    <h4 id="activeUsers">0</h4>
-                    <p class="mb-0">Attivi (30gg)</p>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="mb-0" id="activeUsers">0</h4>
+                            <small>Utenti Attivi</small>
+                        </div>
+                        <i class="fas fa-user-check fa-2x opacity-75"></i>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Filtri di ricerca -->
-    <div class="row mb-4">
+    <!-- Filtri e controlli -->
+    <div class="row mb-3">
         <div class="col-12">
             <div class="card">
-                <div class="card-body py-2">
+                <div class="card-body">
                     <div class="row align-items-center">
                         <div class="col-md-3">
-                            <div class="input-group input-group-sm">
-                                <span class="input-group-text">
-                                    <i class="fas fa-search"></i>
-                                </span>
-                                <input type="text" class="form-control" id="searchInput"
-                                       placeholder="Cerca per nome o email...">
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                <input type="text" class="form-control" id="searchInput" placeholder="Cerca utenti...">
                             </div>
                         </div>
                         <div class="col-md-2">
-                            <select class="form-select form-select-sm" id="roleFilter">
+                            <select class="form-select" id="roleFilter">
                                 <option value="">Tutti i ruoli</option>
                                 <option value="administrator">Amministratori</option>
                                 <option value="manager">Manager</option>
@@ -100,17 +97,17 @@
                             </select>
                         </div>
                         <div class="col-md-2">
-                            <select class="form-select form-select-sm" id="statusFilter">
+                            <select class="form-select" id="statusFilter">
                                 <option value="">Tutti gli stati</option>
                                 <option value="enabled">Abilitati</option>
                                 <option value="disabled">Disabilitati</option>
                             </select>
                         </div>
                         <div class="col-md-2">
-                            <select class="form-select form-select-sm" id="sortBy">
+                            <select class="form-select" id="sortBy">
                                 <option value="name">Nome</option>
                                 <option value="email">Email</option>
-                                <option value="id">ID</option>
+                                <option value="created">Data creazione</option>
                             </select>
                         </div>
                         <div class="col-md-3 text-end">
@@ -228,33 +225,48 @@
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Password *</label>
-                            <div class="input-group">
-                                <input type="password" class="form-control" id="userPassword" name="password"
-                                       placeholder="Password sicura" required>
-                                <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('userPassword')">
-                                    <i class="fas fa-eye"></i>
-                                </button>
-                            </div>
-                            <div class="form-text">Minimo 6 caratteri</div>
+                            <input type="password" class="form-control" id="userPassword" name="password"
+                                   placeholder="Minimo 6 caratteri" required>
+                            <div class="form-text">Password per l'accesso al sistema</div>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Conferma Password *</label>
-                            <div class="input-group">
-                                <input type="password" class="form-control" id="confirmPassword" name="confirmPassword"
-                                       placeholder="Ripeti password" required>
-                                <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('confirmPassword')">
-                                    <i class="fas fa-eye"></i>
-                                </button>
+                            <input type="password" class="form-control" id="confirmPassword" required>
+                            <div class="invalid-feedback" id="passwordMismatch">
+                                Le password non coincidono
                             </div>
-                            <div class="form-text">Deve corrispondere alla password</div>
                         </div>
                     </div>
 
-                    <!-- Ruoli e Permessi -->
+                    <!-- Informazioni aggiuntive -->
                     <div class="row mb-4">
                         <div class="col-12">
                             <h6 class="border-bottom pb-2 mb-3">
-                                <i class="fas fa-shield-alt"></i> Ruoli e Permessi
+                                <i class="fas fa-info-circle"></i> Informazioni Aggiuntive
+                            </h6>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Telefono</label>
+                            <input type="tel" class="form-control" id="userPhone" name="phone"
+                                   placeholder="Es: +39 123 456 7890">
+                            <div class="form-text">Numero di telefono (opzionale)</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Formato Coordinate</label>
+                            <select class="form-select" id="userCoordinateFormat" name="coordinateFormat">
+                                <option value="">Predefinito</option>
+                                <option value="dd">Gradi Decimali (DD)</option>
+                                <option value="ddm">Gradi e Minuti Decimali (DDM)</option>
+                                <option value="dms">Gradi, Minuti e Secondi (DMS)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Permessi e Ruoli -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h6 class="border-bottom pb-2 mb-3">
+                                <i class="fas fa-user-shield"></i> Ruoli e Permessi
                             </h6>
                         </div>
                         <div class="col-md-6">
@@ -333,42 +345,10 @@
                                 <i class="fas fa-cogs"></i> Configurazioni Aggiuntive
                             </h6>
                         </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Telefono</label>
-                            <input type="tel" class="form-control" id="userPhone" name="phone"
-                                   placeholder="+39 123 456 7890">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Coordinate</label>
-                            <input type="text" class="form-control" id="userCoordinateFormat" name="coordinateFormat"
-                                   placeholder="Es: dd">
-                            <div class="form-text">Formato coordinate preferito</div>
-                        </div>
-                    </div>
-
-                    <!-- Attributi personalizzati -->
-                    <div class="row">
                         <div class="col-12">
-                            <h6 class="border-bottom pb-2 mb-3">
-                                <i class="fas fa-tags"></i> Attributi Personalizzati
-                            </h6>
+                            <label class="form-label">Attributi Personalizzati</label>
                             <div id="customAttributes">
-                                <div class="row mb-2">
-                                    <div class="col-md-5">
-                                        <input type="text" class="form-control form-control-sm"
-                                               placeholder="Nome attributo" name="attrName[]">
-                                    </div>
-                                    <div class="col-md-5">
-                                        <input type="text" class="form-control form-control-sm"
-                                               placeholder="Valore" name="attrValue[]">
-                                    </div>
-                                    <div class="col-md-2">
-                                        <button type="button" class="btn btn-sm btn-outline-success"
-                                                onclick="addAttributeRow()">
-                                            <i class="fas fa-plus"></i>
-                                        </button>
-                                    </div>
-                                </div>
+                                <!-- Gli attributi verranno aggiunti dinamicamente -->
                             </div>
                         </div>
                     </div>
@@ -386,52 +366,17 @@
     </div>
 </div>
 
-<!-- Modal Permessi Dispositivi -->
-<div class="modal fade" id="devicePermissionsModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">
-                    <i class="fas fa-mobile-alt"></i> Permessi Dispositivi - <span id="devicePermissionsUserName"></span>
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div class="alert alert-info">
-                    <i class="fas fa-info-circle"></i>
-                    Seleziona i dispositivi a cui l'utente può accedere
-                </div>
-                <div id="devicePermissionsList">
-                    <!-- Lista dispositivi verrà caricata qui -->
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                    <i class="fas fa-times"></i> Annulla
-                </button>
-                <button type="button" class="btn btn-primary" onclick="saveDevicePermissions()">
-                    <i class="fas fa-save"></i> Salva Permessi
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
 <!-- Modal Conferma Eliminazione -->
 <div class="modal fade" id="deleteConfirmModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
-            <div class="modal-header bg-danger text-white">
-                <h5 class="modal-title">
+            <div class="modal-header">
+                <h5 class="modal-title text-danger">
                     <i class="fas fa-exclamation-triangle"></i> Conferma Eliminazione
                 </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <div class="alert alert-warning">
-                    <i class="fas fa-exclamation-triangle"></i>
-                    <strong>Attenzione!</strong> Questa azione non può essere annullata.
-                </div>
                 <p id="deleteMessage">Sei sicuro di voler eliminare questo utente?</p>
                 <div class="bg-light p-3 rounded" id="userToDelete">
                     <!-- Informazioni utente da eliminare -->
@@ -448,6 +393,33 @@
         </div>
     </div>
 </div>
+
+<!-- Modal Permessi Dispositivi -->
+<div class="modal fade" id="devicePermissionsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-mobile-alt"></i> Permessi Dispositivi - <span id="devicePermissionsUserName"></span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="devicePermissionsList">
+                    <!-- Lista dispositivi con checkbox -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times"></i> Annulla
+                </button>
+                <button type="button" class="btn btn-primary" onclick="saveDevicePermissions()">
+                    <i class="fas fa-save"></i> Salva Permessi
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -458,8 +430,19 @@ let selectedUsers = [];
 let isEditing = false;
 let userToDeleteId = null;
 let currentUserForPermissions = null;
+let currentUserId = null;
 
 document.addEventListener('DOMContentLoaded', function() {
+    // Ottieni ID utente corrente dalla sessione
+    fetch('/api/user/info')
+        .then(response => response.json())
+        .then(data => {
+            if (data.user) {
+                currentUserId = data.user.id;
+            }
+        })
+        .catch(console.error);
+
     loadUsers();
     loadDevices();
     setupEventListeners();
@@ -541,13 +524,11 @@ function updateStatistics() {
     const managers = allUsers.filter(u => u.manager && !u.administrator).length;
 
     // Calcola utenti attivi negli ultimi 30 giorni
-    // Usa diversi campi per determinare l'attività
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
     let active = 0;
     allUsers.forEach(user => {
-        // Controlla vari campi per determinare se l'utente è attivo
         let isActive = false;
 
         if (user.lastUpdate && new Date(user.lastUpdate) > thirtyDaysAgo) {
@@ -557,7 +538,6 @@ function updateStatistics() {
         } else if (user.expirationTime && new Date(user.expirationTime) > new Date()) {
             isActive = true;
         } else if (!user.disabled) {
-            // Se l'utente non è disabilitato, consideralo potenzialmente attivo
             isActive = true;
         }
 
@@ -619,7 +599,7 @@ function renderUsersTable() {
 
     filteredUsers.forEach(user => {
         const row = document.createElement('tr');
-        const isCurrentUser = user.id === {{ session.user_id }};
+        const isCurrentUser = user.id === currentUserId;
 
         // Calcola numero dispositivi assegnati
         const deviceCount = getUserDeviceCount(user.id);
@@ -643,51 +623,39 @@ function renderUsersTable() {
             </td>
             <td>
                 <code>${user.email}</code>
-                ${user.phone ? `<br><small class="text-muted">${user.phone}</small>` : ''}
+                ${user.phone ? `<br><small class="text-muted"><i class="fas fa-phone"></i> ${user.phone}</small>` : ''}
             </td>
-            <td>
-                ${getUserRoleBadges(user)}
-            </td>
+            <td>${getUserRoleBadges(user)}</td>
             <td>
                 <span class="badge ${user.disabled ? 'bg-danger' : 'bg-success'}">
-                    <i class="fas fa-${user.disabled ? 'times' : 'check'}"></i>
                     ${user.disabled ? 'Disabilitato' : 'Abilitato'}
                 </span>
             </td>
             <td>
-                <span class="badge bg-info">${deviceCount} dispositivi</span>
-                <button class="btn btn-sm btn-outline-primary ms-1" onclick="showDevicePermissions(${user.id})"
-                        title="Gestisci permessi dispositivi">
-                    <i class="fas fa-mobile-alt"></i>
-                </button>
+                <span class="badge bg-info">${deviceCount}</span>
+                ${deviceCount > 0 ? `<button class="btn btn-sm btn-outline-primary ms-1" onclick="showDevicePermissions(${user.id})" title="Gestisci permessi"><i class="fas fa-cog"></i></button>` : ''}
             </td>
             <td>
-                ${user.lastUpdate ? `
-                    <small>${formatDateTime(user.lastUpdate)}</small>
-                ` : '<span class="text-muted">Mai</span>'}
+                <small>${user.lastUpdate ? formatDateTime(user.lastUpdate) : (user.login ? formatDateTime(user.login) : 'Mai')}</small>
             </td>
             <td>
-                ${user.fixedEmail ? `
-                    <small>${formatDateTime(user.fixedEmail)}</small>
-                ` : '<span class="text-muted">N/A</span>'}
+                <small>${user.created ? formatDateTime(user.created) : 'N/A'}</small>
             </td>
             <td>
-                <div class="btn-group btn-group-sm" role="group">
-                    <button class="btn btn-outline-primary btn-sm" onclick="editUser(${user.id})"
-                            title="Modifica" ${isCurrentUser && !{{ session.user_admin }} ? 'disabled' : ''}>
-                        <i class="fas fa-edit"></i>
-                    </button>
-                    <button class="btn btn-outline-info btn-sm" onclick="viewUserDetails(${user.id})"
-                            title="Dettagli">
+                <div class="btn-group" role="group">
+                    <button class="btn btn-sm btn-outline-info" onclick="viewUserDetails(${user.id})" title="Dettagli">
                         <i class="fas fa-eye"></i>
                     </button>
-                    <button class="btn btn-outline-danger btn-sm" onclick="showDeleteModal(${user.id})"
-                            title="Elimina" ${isCurrentUser ? 'disabled' : ''}>
+                    <button class="btn btn-sm btn-outline-warning" onclick="editUser(${user.id})" title="Modifica">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger" onclick="showDeleteModal(${user.id})" title="Elimina" ${isCurrentUser ? 'disabled' : ''}>
                         <i class="fas fa-trash"></i>
                     </button>
                 </div>
             </td>
         `;
+
         tbody.appendChild(row);
     });
 
@@ -695,6 +663,7 @@ function renderUsersTable() {
     document.getElementById('visibleUsers').textContent = filteredUsers.length;
     document.getElementById('totalUsersCount').textContent = allUsers.length;
 
+    // Mostra tabella se ci sono utenti
     document.getElementById('usersCard').style.display = 'block';
     document.getElementById('emptyMessage').style.display = 'none';
 }
@@ -703,41 +672,22 @@ function getUserRoleColor(user) {
     if (user.administrator) return 'text-danger';
     if (user.manager) return 'text-warning';
     if (user.readonly) return 'text-info';
-    return 'text-secondary';
+    return 'text-primary';
 }
 
 function getUserRoleBadges(user) {
     let badges = [];
-
-    if (user.administrator) {
-        badges.push('<span class="badge bg-danger">Amministratore</span>');
-    }
-    if (user.manager) {
-        badges.push('<span class="badge bg-warning">Manager</span>');
-    }
-    if (user.readonly) {
-        badges.push('<span class="badge bg-info">Solo Lettura</span>');
-    }
-    if (user.deviceReadonly) {
-        badges.push('<span class="badge bg-secondary">Dispositivi RO</span>');
-    }
-    if (user.limitCommands) {
-        badges.push('<span class="badge bg-secondary">Comandi Limitati</span>');
-    }
-    if (user.disableReports) {
-        badges.push('<span class="badge bg-secondary">Report Disabilitati</span>');
-    }
-
-    if (badges.length === 0) {
-        badges.push('<span class="badge bg-light text-dark">Standard</span>');
-    }
-
+    if (user.administrator) badges.push('<span class="badge bg-danger">Admin</span>');
+    if (user.manager && !user.administrator) badges.push('<span class="badge bg-warning">Manager</span>');
+    if (user.readonly) badges.push('<span class="badge bg-info">Solo lettura</span>');
+    if (user.deviceReadonly) badges.push('<span class="badge bg-secondary">Disp. R/O</span>');
+    if (badges.length === 0) badges.push('<span class="badge bg-light text-dark">Standard</span>');
     return badges.join(' ');
 }
 
 function getUserDeviceCount(userId) {
-    // Restituisce il numero di dispositivi assegnati all'utente
-    // Questo sarà aggiornato quando implementeremo il conteggio reale
+    // Questa funzione dovrebbe essere implementata per contare i dispositivi dell'utente
+    // Per ora restituisce 0
     return 0;
 }
 
@@ -905,62 +855,42 @@ function saveUser() {
     const form = document.getElementById('userForm');
     const formData = new FormData(form);
 
-    // Validazione base
-    if (!formData.get('name') || !formData.get('email')) {
-        showAlert('Nome e email sono campi obbligatori', 'warning');
-        return;
-    }
-
-    // Validazione password per nuovi utenti
+    // Validazione password se è nuovo utente
     if (!isEditing) {
-        if (!formData.get('password') || !formData.get('confirmPassword')) {
-            showAlert('Password è obbligatoria per nuovi utenti', 'warning');
+        const password = formData.get('password');
+        const confirmPassword = document.getElementById('confirmPassword').value;
+
+        if (!password || password.length < 6) {
+            showAlert('La password deve essere di almeno 6 caratteri', 'danger');
             return;
         }
 
-        if (formData.get('password') !== formData.get('confirmPassword')) {
-            showAlert('Le password non corrispondono', 'warning');
-            return;
-        }
-
-        if (formData.get('password').length < 6) {
-            showAlert('La password deve essere di almeno 6 caratteri', 'warning');
+        if (password !== confirmPassword) {
+            showAlert('Le password non coincidono', 'danger');
             return;
         }
     }
 
-    // Costruisci oggetto utente
+    // Costruisci oggetto dati utente
     const userData = {
         name: formData.get('name'),
         email: formData.get('email'),
         phone: formData.get('phone') || null,
         coordinateFormat: formData.get('coordinateFormat') || null,
-        administrator: formData.get('administrator') === 'on',
-        manager: formData.get('manager') === 'on',
-        readonly: formData.get('readonly') === 'on',
-        deviceReadonly: formData.get('deviceReadonly') === 'on',
-        limitCommands: formData.get('limitCommands') === 'on',
-        disableReports: formData.get('disableReports') === 'on',
-        disabled: formData.get('disabled') === 'on',
-        attributes: {}
+        administrator: document.getElementById('userAdministrator').checked,
+        manager: document.getElementById('userManager').checked,
+        readonly: document.getElementById('userReadonly').checked,
+        deviceReadonly: document.getElementById('userDeviceReadonly').checked,
+        limitCommands: document.getElementById('userLimitCommands').checked,
+        disableReports: document.getElementById('userDisableReports').checked,
+        disabled: document.getElementById('userDisabled').checked
     };
 
-    // Aggiungi password se presente
-    if (formData.get('password')) {
+    // Aggiungi password solo se non è in modifica o se è stata specificata
+    if (!isEditing || formData.get('password')) {
         userData.password = formData.get('password');
     }
 
-    // Aggiungi attributi personalizzati
-    const attrNames = formData.getAll('attrName[]');
-    const attrValues = formData.getAll('attrValue[]');
-
-    for (let i = 0; i < attrNames.length; i++) {
-        if (attrNames[i] && attrValues[i]) {
-            userData.attributes[attrNames[i]] = attrValues[i];
-        }
-    }
-
-    // Determina se stiamo creando o aggiornando
     const method = isEditing ? 'PUT' : 'POST';
     const url = isEditing ? `/api/users/${formData.get('id')}` : '/api/users';
 
@@ -1018,7 +948,7 @@ function showDevicePermissions(userId) {
 
 function renderDevicePermissionsList(devices, userPermissions) {
     const container = document.getElementById('devicePermissionsList');
-    const userDeviceIds = userPermissions.map(p => p.deviceId);
+    const userDeviceIds = Array.isArray(userPermissions) ? userPermissions : [];
 
     if (devices.length === 0) {
         container.innerHTML = '<div class="alert alert-info">Nessun dispositivo disponibile</div>';
@@ -1039,18 +969,19 @@ function renderDevicePermissionsList(devices, userPermissions) {
                                    id="device_${device.id}" value="${device.id}"
                                    ${isChecked ? 'checked' : ''}>
                             <label class="form-check-label" for="device_${device.id}">
-                                <strong>${device.name}</strong><br>
-                                <small class="text-muted">IMEI: ${device.uniqueId}</small>
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-mobile-alt text-primary me-2"></i>
+                                    <div>
+                                        <strong>${device.name}</strong>
+                                        <br><small class="text-muted">IMEI: ${device.uniqueId || 'N/A'}</small>
+                                    </div>
+                                </div>
                             </label>
                         </div>
                     </div>
                 </div>
             </div>
         `;
-
-        if ((index + 1) % 2 === 0) {
-            html += '</div><div class="row">';
-        }
     });
 
     html += '</div>';
@@ -1073,11 +1004,10 @@ function saveDevicePermissions() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            showAlert('Permessi dispositivi aggiornati con successo', 'success');
-
+            showAlert('Permessi aggiornati con successo', 'success');
             const modal = bootstrap.Modal.getInstance(document.getElementById('devicePermissionsModal'));
             modal.hide();
-            loadUsers(); // Ricarica per aggiornare i contatori
+            loadUsers(); // Ricarica per aggiornare i conteggi
         } else {
             showAlert(data.error || 'Errore nell\'aggiornamento dei permessi', 'danger');
         }
@@ -1089,66 +1019,48 @@ function saveDevicePermissions() {
 }
 
 function resetUserForm() {
-    document.getElementById('userForm').reset();
-    document.getElementById('userId').value = '';
+    const form = document.getElementById('userForm');
+    form.reset();
 
-    // Reset attributi personalizzati
-    const attributesContainer = document.getElementById('customAttributes');
-    attributesContainer.innerHTML = `
-        <div class="row mb-2">
-            <div class="col-md-5">
-                <input type="text" class="form-control form-control-sm"
-                       placeholder="Nome attributo" name="attrName[]">
-            </div>
-            <div class="col-md-5">
-                <input type="text" class="form-control form-control-sm"
-                       placeholder="Valore" name="attrValue[]">
-            </div>
-            <div class="col-md-2">
-                <button type="button" class="btn btn-sm btn-outline-success"
-                        onclick="addAttributeRow()">
-                    <i class="fas fa-plus"></i>
-                </button>
-            </div>
-        </div>
-    `;
+    // Reset checkboxes
+    document.querySelectorAll('#userForm input[type="checkbox"]').forEach(cb => cb.checked = false);
 
-    // Reset validazione password
-    document.getElementById('userPassword').classList.remove('is-valid', 'is-invalid');
-    document.getElementById('confirmPassword').classList.remove('is-valid', 'is-invalid');
+    // Pulisci attributi personalizzati
+    document.getElementById('customAttributes').innerHTML = '';
+    addAttributeRow(); // Aggiungi una riga vuota
 }
 
 function populateCustomAttributes(attributes) {
     const container = document.getElementById('customAttributes');
     container.innerHTML = '';
 
-    const entries = Object.entries(attributes);
-
-    if (entries.length === 0) {
+    if (!attributes || typeof attributes !== 'object') {
         addAttributeRow();
         return;
     }
 
-    entries.forEach(([name, value], index) => {
-        const isLast = index === entries.length - 1;
-        container.innerHTML += `
-            <div class="row mb-2">
-                <div class="col-md-5">
-                    <input type="text" class="form-control form-control-sm"
-                           placeholder="Nome attributo" name="attrName[]" value="${name}">
-                </div>
-                <div class="col-md-5">
-                    <input type="text" class="form-control form-control-sm"
-                           placeholder="Valore" name="attrValue[]" value="${value}">
-                </div>
-                <div class="col-md-2">
-                    <button type="button" class="btn btn-sm ${isLast ? 'btn-outline-success' : 'btn-outline-danger'}"
-                            onclick="${isLast ? 'addAttributeRow()' : 'removeAttributeRow(this)'}">
-                        <i class="fas fa-${isLast ? 'plus' : 'trash'}"></i>
-                    </button>
-                </div>
+    Object.entries(attributes).forEach(([key, value], index, array) => {
+        const isLast = index === array.length - 1;
+
+        const row = document.createElement('div');
+        row.className = 'row mb-2';
+        row.innerHTML = `
+            <div class="col-md-5">
+                <input type="text" class="form-control form-control-sm"
+                       placeholder="Nome attributo" name="attrName[]" value="${key}">
+            </div>
+            <div class="col-md-5">
+                <input type="text" class="form-control form-control-sm"
+                       placeholder="Valore" name="attrValue[]" value="${value}">
+            </div>
+            <div class="col-md-2">
+                <button type="button" class="btn btn-sm ${isLast ? 'btn-outline-success' : 'btn-outline-danger'}"
+                        onclick="${isLast ? 'addAttributeRow()' : 'removeAttributeRow(this)'}">
+                    <i class="fas fa-${isLast ? 'plus' : 'trash'}"></i>
+                </button>
             </div>
         `;
+        container.appendChild(row);
     });
 
     // Aggiungi una riga vuota alla fine
@@ -1194,40 +1106,16 @@ function removeAttributeRow(button) {
 }
 
 function validatePasswords() {
-    const password = document.getElementById('userPassword');
-    const confirmPassword = document.getElementById('confirmPassword');
+    const password = document.getElementById('userPassword').value;
+    const confirmPassword = document.getElementById('confirmPassword').value;
+    const feedback = document.getElementById('passwordMismatch');
 
-    if (password.value.length > 0 && confirmPassword.value.length > 0) {
-        if (password.value === confirmPassword.value && password.value.length >= 6) {
-            password.classList.remove('is-invalid');
-            password.classList.add('is-valid');
-            confirmPassword.classList.remove('is-invalid');
-            confirmPassword.classList.add('is-valid');
-        } else {
-            password.classList.remove('is-valid');
-            password.classList.add('is-invalid');
-            confirmPassword.classList.remove('is-valid');
-            confirmPassword.classList.add('is-invalid');
-        }
+    if (confirmPassword && password !== confirmPassword) {
+        document.getElementById('confirmPassword').classList.add('is-invalid');
+        feedback.style.display = 'block';
     } else {
-        password.classList.remove('is-valid', 'is-invalid');
-        confirmPassword.classList.remove('is-valid', 'is-invalid');
-    }
-}
-
-function togglePasswordVisibility(inputId) {
-    const input = document.getElementById(inputId);
-    const button = input.nextElementSibling;
-    const icon = button.querySelector('i');
-
-    if (input.type === 'password') {
-        input.type = 'text';
-        icon.classList.remove('fa-eye');
-        icon.classList.add('fa-eye-slash');
-    } else {
-        input.type = 'password';
-        icon.classList.remove('fa-eye-slash');
-        icon.classList.add('fa-eye');
+        document.getElementById('confirmPassword').classList.remove('is-invalid');
+        feedback.style.display = 'none';
     }
 }
 
@@ -1258,7 +1146,9 @@ function updateBulkActions() {
     const checkboxes = document.querySelectorAll('.user-checkbox:checked');
     const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
 
-    bulkDeleteBtn.disabled = checkboxes.length === 0;
+    if (bulkDeleteBtn) {
+        bulkDeleteBtn.disabled = checkboxes.length === 0;
+    }
 
     // Aggiorna stato checkbox "seleziona tutti"
     const allCheckboxes = document.querySelectorAll('.user-checkbox:not(:disabled)');
@@ -1310,44 +1200,56 @@ function bulkDelete() {
 }
 
 function showLoading(show) {
-    document.getElementById('loadingSpinner').style.display = show ? 'block' : 'none';
-    document.getElementById('usersCard').style.display = show ? 'none' : 'block';
-}
+    const loadingSpinner = document.getElementById('loadingSpinner');
+    const usersCard = document.getElementById('usersCard');
 
-// Utility functions
-function formatDateTime(dateTimeString) {
-    return new Date(dateTimeString).toLocaleString('it-IT');
+    if (loadingSpinner) {
+        loadingSpinner.style.display = show ? 'block' : 'none';
+    }
+    if (usersCard) {
+        usersCard.style.display = show ? 'none' : 'block';
+    }
 }
 
 function showAlert(message, type = 'info', duration = 5000) {
-    const alertHtml = `
-        <div class="alert alert-${type} alert-dismissible fade show position-fixed"
-             style="top: 80px; right: 20px; z-index: 2000; min-width: 300px;" role="alert">
-            <i class="fas fa-${getAlertIcon(type)}"></i> ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
+    // Questa funzione dovrebbe essere definita in base.html o in un file JS comune
+    console.log(`${type.toUpperCase()}: ${message}`);
+
+    // Implementazione semplice di alert
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 1050; max-width: 400px;';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     `;
 
-    document.body.insertAdjacentHTML('beforeend', alertHtml);
+    document.body.appendChild(alertDiv);
 
     if (duration > 0) {
         setTimeout(() => {
-            const alert = document.querySelector('.alert');
-            if (alert) {
-                alert.remove();
+            if (alertDiv.parentNode) {
+                alertDiv.remove();
             }
         }, duration);
     }
 }
 
-function getAlertIcon(type) {
-    const icons = {
-        'success': 'check-circle',
-        'danger': 'exclamation-triangle',
-        'warning': 'exclamation-circle',
-        'info': 'info-circle'
-    };
-    return icons[type] || 'info-circle';
+function formatDateTime(dateString) {
+    if (!dateString) return 'N/A';
+
+    try {
+        const date = new Date(dateString);
+        return date.toLocaleString('it-IT', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    } catch (e) {
+        return 'N/A';
+    }
 }
 </script>
 {% endblock %}
