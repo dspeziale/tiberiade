@@ -1,0 +1,1411 @@
+{% extends "base.html" %}
+
+{% block title %}Gestione Gruppi - Traccar{% endblock %}
+
+{% block page_title %}Gestione Gruppi{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('settings') }}">Impostazioni</a></li>
+        <li class="breadcrumb-item active">Gruppi</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h3><i class="fas fa-layer-group"></i> Gestione Gruppi</h3>
+                    <p class="text-muted mb-0">Organizza dispositivi e utenti in gruppi logici</p>
+                </div>
+                <div>
+                    <button class="btn btn-primary" onclick="showAddGroupModal()">
+                        <i class="fas fa-plus"></i> Nuovo Gruppo
+                    </button>
+                    <button class="btn btn-outline-secondary" onclick="loadGroups()">
+                        <i class="fas fa-sync-alt"></i> Ricarica
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-layer-group fa-2x mb-2"></i>
+                    <h4 id="totalGroups">0</h4>
+                    <p class="mb-0">Gruppi Totali</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-mobile-alt fa-2x mb-2"></i>
+                    <h4 id="devicesInGroups">0</h4>
+                    <p class="mb-0">Dispositivi Assegnati</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-users fa-2x mb-2"></i>
+                    <h4 id="usersInGroups">0</h4>
+                    <p class="mb-0">Utenti Assegnati</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                    <h4 id="emptyGroups">0</h4>
+                    <p class="mb-0">Gruppi Vuoti</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters and Search -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body py-2">
+                    <div class="row align-items-center">
+                        <div class="col-md-4">
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text">
+                                    <i class="fas fa-search"></i>
+                                </span>
+                                <input type="text" class="form-control" id="searchInput"
+                                       placeholder="Cerca gruppo...">
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <select class="form-select form-select-sm" id="typeFilter">
+                                <option value="">Tutti i tipi</option>
+                                <option value="device">Dispositivi</option>
+                                <option value="user">Utenti</option>
+                                <option value="mixed">Misto</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <select class="form-select form-select-sm" id="sortBy">
+                                <option value="name">Nome</option>
+                                <option value="created">Data Creazione</option>
+                                <option value="deviceCount">N° Dispositivi</option>
+                                <option value="userCount">N° Utenti</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="btn-group btn-group-sm w-100">
+                                <button class="btn btn-outline-primary" id="viewCards" onclick="setViewMode('cards')" title="Vista Carte">
+                                    <i class="fas fa-th-large"></i>
+                                </button>
+                                <button class="btn btn-outline-primary active" id="viewTable" onclick="setViewMode('table')" title="Vista Tabella">
+                                    <i class="fas fa-table"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-2 text-end">
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-outline-primary" onclick="selectAllGroups()">
+                                    <i class="fas fa-check-square"></i>
+                                </button>
+                                <button class="btn btn-outline-danger" onclick="bulkDeleteGroups()" disabled id="bulkDeleteBtn">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading -->
+    <div id="loadingSpinner" class="text-center p-5" style="display: none;">
+        <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;"></div>
+        <div class="mt-3">
+            <h5>Caricamento gruppi...</h5>
+        </div>
+    </div>
+
+    <!-- Groups Table View -->
+    <div class="card" id="groupsTableView">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="fas fa-table"></i> Lista Gruppi</h5>
+            <div>
+                <button class="btn btn-sm btn-outline-success" onclick="exportGroups()">
+                    <i class="fas fa-download"></i> Esporta
+                </button>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0" id="groupsTable">
+                    <thead class="table-dark">
+                        <tr>
+                            <th width="40">
+                                <input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll()">
+                            </th>
+                            <th>Nome Gruppo</th>
+                            <th>Descrizione</th>
+                            <th>Tipo</th>
+                            <th>Dispositivi</th>
+                            <th>Utenti</th>
+                            <th>Creato</th>
+                            <th>Stato</th>
+                            <th width="150">Azioni</th>
+                        </tr>
+                    </thead>
+                    <tbody id="groupsTableBody">
+                        <!-- I gruppi verranno caricati qui -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Groups Cards View -->
+    <div class="row" id="groupsCardsView" style="display: none;">
+        <!-- Le carte dei gruppi verranno caricate qui -->
+    </div>
+
+    <!-- Empty State -->
+    <div id="emptyMessage" class="text-center p-5" style="display: none;">
+        <div class="mb-4">
+            <i class="fas fa-layer-group fa-4x text-muted"></i>
+        </div>
+        <h4 class="text-muted">Nessun gruppo trovato</h4>
+        <p class="text-muted">Inizia creando il primo gruppo per organizzare dispositivi e utenti</p>
+        <button class="btn btn-primary" onclick="showAddGroupModal()">
+            <i class="fas fa-plus"></i> Crea Primo Gruppo
+        </button>
+    </div>
+</div>
+
+<!-- Modal Add/Edit Group -->
+<div class="modal fade" id="groupModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="groupModalTitle">
+                    <i class="fas fa-plus"></i> Nuovo Gruppo
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="groupForm">
+                    <input type="hidden" id="groupId" name="id">
+
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h6 class="border-bottom pb-2 mb-3">
+                                <i class="fas fa-info-circle"></i> Informazioni Base
+                            </h6>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Nome Gruppo *</label>
+                            <input type="text" class="form-control" id="groupName" name="name" required
+                                   placeholder="Es: Flotta Aziendale">
+                            <div class="form-text">Nome identificativo del gruppo</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Tipo Gruppo</label>
+                            <select class="form-select" id="groupType" name="type">
+                                <option value="mixed" selected>Misto (Dispositivi + Utenti)</option>
+                                <option value="device">Solo Dispositivi</option>
+                                <option value="user">Solo Utenti</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <label class="form-label">Descrizione</label>
+                            <textarea class="form-control" id="groupDescription" name="description" rows="3"
+                                      placeholder="Descrizione dettagliata del gruppo e del suo scopo..."></textarea>
+                        </div>
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h6 class="border-bottom pb-2 mb-3">
+                                <i class="fas fa-mobile-alt"></i> Dispositivi nel Gruppo
+                            </h6>
+                        </div>
+                        <div class="col-12" id="devicesSection">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <div>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="selectAllDevices">
+                                        <label class="form-check-label" for="selectAllDevices">
+                                            <strong>Seleziona tutti i dispositivi</strong>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div>
+                                    <span class="badge bg-info" id="selectedDevicesCount">0 selezionati</span>
+                                </div>
+                            </div>
+
+                            <div class="border rounded p-3" style="max-height: 300px; overflow-y: auto;">
+                                <div class="row" id="devicesList">
+                                    <!-- I dispositivi verranno caricati qui -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h6 class="border-bottom pb-2 mb-3">
+                                <i class="fas fa-users"></i> Utenti nel Gruppo
+                            </h6>
+                        </div>
+                        <div class="col-12" id="usersSection">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <div>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="selectAllUsers">
+                                        <label class="form-check-label" for="selectAllUsers">
+                                            <strong>Seleziona tutti gli utenti</strong>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div>
+                                    <span class="badge bg-warning" id="selectedUsersCount">0 selezionati</span>
+                                </div>
+                            </div>
+
+                            <div class="border rounded p-3" style="max-height: 300px; overflow-y: auto;">
+                                <div class="row" id="usersList">
+                                    <!-- Gli utenti verranno caricati qui -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <h6 class="border-bottom pb-2 mb-3">
+                                <i class="fas fa-cogs"></i> Opzioni Avanzate
+                            </h6>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="groupActive" name="active" checked>
+                                <label class="form-check-label" for="groupActive">
+                                    Gruppo Attivo
+                                </label>
+                            </div>
+                            <div class="form-text">Disabilita per nascondere il gruppo</div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="allowSubgroups" name="allowSubgroups">
+                                <label class="form-check-label" for="allowSubgroups">
+                                    Permetti Sottogruppi
+                                </label>
+                            </div>
+                            <div class="form-text">Abilita creazione di sottogruppi</div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="autoAssign" name="autoAssign">
+                                <label class="form-check-label" for="autoAssign">
+                                    Assegnazione Automatica
+                                </label>
+                            </div>
+                            <div class="form-text">Assegna automaticamente nuovi elementi</div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label class="form-label">Gruppo Genitore</label>
+                            <select class="form-select" id="parentGroup" name="parentGroupId">
+                                <option value="">Nessun genitore (gruppo principale)</option>
+                                <!-- I gruppi verranno caricati dinamicamente -->
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Colore Gruppo</label>
+                            <div class="d-flex align-items-center">
+                                <input type="color" class="form-control form-control-color" id="groupColor"
+                                       name="color" value="#0d6efd" style="width: 60px; height: 38px;">
+                                <span class="ms-2">Colore per identificazione visiva</span>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times"></i> Annulla
+                </button>
+                <button type="button" class="btn btn-primary" onclick="saveGroup()">
+                    <i class="fas fa-save"></i> <span id="saveGroupButtonText">Salva Gruppo</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Delete Confirmation -->
+<div class="modal fade" id="deleteGroupModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-exclamation-triangle"></i> Conferma Eliminazione
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>Attenzione!</strong> L'eliminazione di questo gruppo rimuoverà anche tutte le assegnazioni.
+                </div>
+                <p>Sei sicuro di voler eliminare il gruppo: <strong id="groupToDeleteName"></strong>?</p>
+                <div class="bg-light p-3 rounded" id="groupToDeleteInfo">
+                    <!-- Informazioni gruppo da eliminare -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times"></i> Annulla
+                </button>
+                <button type="button" class="btn btn-danger" onclick="confirmDeleteGroup()">
+                    <i class="fas fa-trash"></i> Elimina Gruppo
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Group Details -->
+<div class="modal fade" id="groupDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-layer-group"></i> Dettagli Gruppo
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="groupDetailsContent">
+                    <!-- Contenuto dettagli gruppo -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times"></i> Chiudi
+                </button>
+                <button type="button" class="btn btn-primary" onclick="editGroupFromDetails()">
+                    <i class="fas fa-edit"></i> Modifica
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let allGroups = [];
+let allDevices = [];
+let allUsers = [];
+let selectedGroups = [];
+let isEditingGroup = false;
+let groupToDeleteId = null;
+let currentGroupDetails = null;
+let currentViewMode = 'table';
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadGroups();
+    loadDevices();
+    loadUsers();
+    setupEventListeners();
+});
+
+function setupEventListeners() {
+    // Search and filters
+    document.getElementById('searchInput').addEventListener('input', filterGroups);
+    document.getElementById('typeFilter').addEventListener('change', filterGroups);
+    document.getElementById('sortBy').addEventListener('change', sortGroups);
+
+    // Group type change
+    document.getElementById('groupType').addEventListener('change', function() {
+        const type = this.value;
+        const devicesSection = document.getElementById('devicesSection');
+        const usersSection = document.getElementById('usersSection');
+
+        switch(type) {
+            case 'device':
+                devicesSection.style.display = 'block';
+                usersSection.style.display = 'none';
+                break;
+            case 'user':
+                devicesSection.style.display = 'none';
+                usersSection.style.display = 'block';
+                break;
+            case 'mixed':
+            default:
+                devicesSection.style.display = 'block';
+                usersSection.style.display = 'block';
+                break;
+        }
+    });
+
+    // Select all toggles
+    document.getElementById('selectAllDevices').addEventListener('change', function() {
+        const checkboxes = document.querySelectorAll('.device-checkbox');
+        checkboxes.forEach(cb => cb.checked = this.checked);
+        updateSelectedDevicesCount();
+    });
+
+    document.getElementById('selectAllUsers').addEventListener('change', function() {
+        const checkboxes = document.querySelectorAll('.user-checkbox');
+        checkboxes.forEach(cb => cb.checked = this.checked);
+        updateSelectedUsersCount();
+    });
+}
+
+function loadGroups() {
+    showLoading(true);
+
+    fetch('/api/groups')
+        .then(response => response.json())
+        .then(groups => {
+            allGroups = groups;
+            updateGroupStatistics();
+            renderGroups();
+            populateParentGroupOptions();
+            showLoading(false);
+        })
+        .catch(error => {
+            console.error('Errore nel caricamento gruppi:', error);
+            showAlert('Errore nel caricamento dei gruppi', 'danger');
+            showEmptyMessage();
+            showLoading(false);
+        });
+}
+
+function loadDevices() {
+    fetch('/api/devices')
+        .then(response => response.json())
+        .then(devices => {
+            allDevices = devices;
+            renderDevicesList();
+        })
+        .catch(error => {
+            console.error('Errore nel caricamento dispositivi:', error);
+        });
+}
+
+function loadUsers() {
+    fetch('/api/users')
+        .then(response => response.json())
+        .then(users => {
+            allUsers = users;
+            renderUsersList();
+        })
+        .catch(error => {
+            console.error('Errore nel caricamento utenti:', error);
+        });
+}
+
+function updateGroupStatistics() {
+    const totalGroups = allGroups.length;
+    const devicesInGroups = allGroups.reduce((sum, group) => sum + (group.deviceIds ? group.deviceIds.length : 0), 0);
+    const usersInGroups = allGroups.reduce((sum, group) => sum + (group.userIds ? group.userIds.length : 0), 0);
+    const emptyGroups = allGroups.filter(group =>
+        (!group.deviceIds || group.deviceIds.length === 0) &&
+        (!group.userIds || group.userIds.length === 0)
+    ).length;
+
+    document.getElementById('totalGroups').textContent = totalGroups;
+    document.getElementById('devicesInGroups').textContent = devicesInGroups;
+    document.getElementById('usersInGroups').textContent = usersInGroups;
+    document.getElementById('emptyGroups').textContent = emptyGroups;
+}
+
+function renderGroups() {
+    if (currentViewMode === 'table') {
+        renderGroupsTable();
+    } else {
+        renderGroupsCards();
+    }
+}
+
+function renderGroupsTable() {
+    const tbody = document.getElementById('groupsTableBody');
+
+    if (allGroups.length === 0) {
+        showEmptyMessage();
+        return;
+    }
+
+    tbody.innerHTML = '';
+
+    allGroups.forEach(group => {
+        const deviceCount = group.deviceIds ? group.deviceIds.length : 0;
+        const userCount = group.userIds ? group.userIds.length : 0;
+        const created = group.created ? formatDateTime(group.created) : 'N/A';
+        const isEmpty = deviceCount === 0 && userCount === 0;
+
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>
+                <input type="checkbox" class="group-checkbox" value="${group.id}"
+                       onchange="updateBulkActions()">
+            </td>
+            <td>
+                <div class="d-flex align-items-center">
+                    <div class="group-color-indicator me-2"
+                         style="width: 20px; height: 20px; background-color: ${group.color || '#0d6efd'}; border-radius: 50%;"></div>
+                    <div>
+                        <strong>${group.name}</strong>
+                        ${!group.active ? '<span class="badge bg-secondary ms-1">Inattivo</span>' : ''}
+                        ${group.parentGroupId ? '<span class="badge bg-info ms-1">Sottogruppo</span>' : ''}
+                    </div>
+                </div>
+            </td>
+            <td>
+                <small>${group.description || 'Nessuna descrizione'}</small>
+            </td>
+            <td>
+                <span class="badge ${getTypeBadgeClass(group.type)}">
+                    <i class="fas ${getTypeIcon(group.type)}"></i> ${getTypeName(group.type)}
+                </span>
+            </td>
+            <td>
+                <span class="badge ${deviceCount > 0 ? 'bg-primary' : 'bg-secondary'}">
+                    ${deviceCount}
+                </span>
+            </td>
+            <td>
+                <span class="badge ${userCount > 0 ? 'bg-success' : 'bg-secondary'}">
+                    ${userCount}
+                </span>
+            </td>
+            <td>
+                <small>${created}</small>
+            </td>
+            <td>
+                <span class="badge ${isEmpty ? 'bg-warning' : group.active ? 'bg-success' : 'bg-secondary'}">
+                    ${isEmpty ? 'Vuoto' : group.active ? 'Attivo' : 'Inattivo'}
+                </span>
+            </td>
+            <td>
+                <div class="btn-group btn-group-sm" role="group">
+                    <button class="btn btn-outline-info btn-sm" onclick="viewGroup(${group.id})"
+                            title="Visualizza">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    <button class="btn btn-outline-primary btn-sm" onclick="editGroup(${group.id})"
+                            title="Modifica">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-outline-danger btn-sm" onclick="showDeleteGroupModal(${group.id})"
+                            title="Elimina">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+
+    document.getElementById('groupsTableView').style.display = 'block';
+    document.getElementById('groupsCardsView').style.display = 'none';
+    document.getElementById('emptyMessage').style.display = 'none';
+}
+
+function renderDevicesList() {
+    const container = document.getElementById('devicesList');
+    container.innerHTML = '';
+
+    if (allDevices.length === 0) {
+        container.innerHTML = '<div class="col-12"><p class="text-muted">Nessun dispositivo disponibile</p></div>';
+        return;
+    }
+
+    allDevices.forEach(device => {
+        const deviceItem = document.createElement('div');
+        deviceItem.className = 'col-md-6 mb-2';
+        deviceItem.innerHTML = `
+            <div class="form-check">
+                <input class="form-check-input device-checkbox" type="checkbox"
+                       value="${device.id}" id="device_${device.id}" onchange="updateSelectedDevicesCount()">
+                <label class="form-check-label" for="device_${device.id}">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-mobile-alt text-primary me-2"></i>
+                        <div>
+                            <strong>${device.name}</strong>
+                            <br><small class="text-muted">IMEI: ${device.uniqueId}</small>
+                        </div>
+                    </div>
+                </label>
+            </div>
+        `;
+        container.appendChild(deviceItem);
+    });
+}
+
+function renderUsersList() {
+    const container = document.getElementById('usersList');
+    container.innerHTML = '';
+
+    if (allUsers.length === 0) {
+        container.innerHTML = '<div class="col-12"><p class="text-muted">Nessun utente disponibile</p></div>';
+        return;
+    }
+
+    allUsers.forEach(user => {
+        const userItem = document.createElement('div');
+        userItem.className = 'col-md-6 mb-2';
+        userItem.innerHTML = `
+            <div class="form-check">
+                <input class="form-check-input user-checkbox" type="checkbox"
+                       value="${user.id}" id="user_${user.id}" onchange="updateSelectedUsersCount()">
+                <label class="form-check-label" for="user_${user.id}">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-user text-success me-2"></i>
+                        <div>
+                            <strong>${user.name}</strong>
+                            <br><small class="text-muted">${user.email}</small>
+                        </div>
+                    </div>
+                </label>
+            </div>
+        `;
+        container.appendChild(userItem);
+    });
+}
+
+function populateParentGroupOptions() {
+    const select = document.getElementById('parentGroup');
+    const currentGroupId = document.getElementById('groupId').value;
+
+    // Clear existing options except first
+    select.innerHTML = '<option value="">Nessun genitore (gruppo principale)</option>';
+
+    allGroups.forEach(group => {
+        // Don't allow self-selection or circular dependencies
+        if (group.id != currentGroupId && !group.parentGroupId) {
+            const option = document.createElement('option');
+            option.value = group.id;
+            option.textContent = group.name;
+            select.appendChild(option);
+        }
+    });
+}
+
+function showAddGroupModal() {
+    resetGroupForm();
+    isEditingGroup = false;
+    document.getElementById('groupModalTitle').innerHTML = '<i class="fas fa-plus"></i> Nuovo Gruppo';
+    document.getElementById('saveGroupButtonText').textContent = 'Salva Gruppo';
+    populateParentGroupOptions();
+
+    const modal = new bootstrap.Modal(document.getElementById('groupModal'));
+    modal.show();
+}
+
+function editGroup(groupId) {
+    const group = allGroups.find(g => g.id === groupId);
+    if (!group) return;
+
+    isEditingGroup = true;
+    document.getElementById('groupModalTitle').innerHTML = '<i class="fas fa-edit"></i> Modifica Gruppo';
+    document.getElementById('saveGroupButtonText').textContent = 'Aggiorna Gruppo';
+
+    // Populate form
+    document.getElementById('groupId').value = group.id;
+    document.getElementById('groupName').value = group.name || '';
+    document.getElementById('groupType').value = group.type || 'mixed';
+    document.getElementById('groupDescription').value = group.description || '';
+    document.getElementById('groupActive').checked = group.active !== false;
+    document.getElementById('allowSubgroups').checked = group.allowSubgroups || false;
+    document.getElementById('autoAssign').checked = group.autoAssign || false;
+    document.getElementById('groupColor').value = group.color || '#0d6efd';
+
+    // Trigger type change to show/hide sections
+    document.getElementById('groupType').dispatchEvent(new Event('change'));
+
+    // Populate parent group options and select current parent
+    populateParentGroupOptions();
+    if (group.parentGroupId) {
+        document.getElementById('parentGroup').value = group.parentGroupId;
+    }
+
+    // Select devices
+    document.querySelectorAll('.device-checkbox').forEach(checkbox => {
+        checkbox.checked = group.deviceIds && group.deviceIds.includes(parseInt(checkbox.value));
+    });
+    updateSelectedDevicesCount();
+
+    // Select users
+    document.querySelectorAll('.user-checkbox').forEach(checkbox => {
+        checkbox.checked = group.userIds && group.userIds.includes(parseInt(checkbox.value));
+    });
+    updateSelectedUsersCount();
+
+    const modal = new bootstrap.Modal(document.getElementById('groupModal'));
+    modal.show();
+}
+
+function viewGroup(groupId) {
+    const group = allGroups.find(g => g.id === groupId);
+    if (!group) return;
+
+    currentGroupDetails = group;
+    const deviceNames = getGroupDeviceNames(group);
+    const userNames = getGroupUserNames(group);
+    const created = group.created ? formatDateTime(group.created) : 'N/A';
+    const parentGroupName = group.parentGroupId ? getGroupName(group.parentGroupId) : null;
+
+    const content = `
+        <div class="row">
+            <div class="col-md-8">
+                <div class="d-flex align-items-center mb-4">
+                    <div class="group-color-indicator me-3"
+                         style="width: 40px; height: 40px; background-color: ${group.color || '#0d6efd'}; border-radius: 50%;"></div>
+                    <div>
+                        <h4 class="mb-1">${group.name}</h4>
+                        <span class="badge ${getTypeBadgeClass(group.type)}">${getTypeName(group.type)}</span>
+                        ${!group.active ? '<span class="badge bg-secondary ms-1">Inattivo</span>' : ''}
+                        ${group.parentGroupId ? '<span class="badge bg-info ms-1">Sottogruppo</span>' : ''}
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <h6><i class="fas fa-info-circle"></i> Informazioni Gruppo</h6>
+                    <table class="table table-sm">
+                        <tr>
+                            <td width="30%"><strong>Nome:</strong></td>
+                            <td>${group.name}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Descrizione:</strong></td>
+                            <td>${group.description || 'Nessuna descrizione'}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Tipo:</strong></td>
+                            <td><span class="badge ${getTypeBadgeClass(group.type)}">${getTypeName(group.type)}</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Stato:</strong></td>
+                            <td><span class="badge ${group.active ? 'bg-success' : 'bg-secondary'}">${group.active ? 'Attivo' : 'Inattivo'}</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Creato il:</strong></td>
+                            <td>${created}</td>
+                        </tr>
+                        ${parentGroupName ? `
+                        <tr>
+                            <td><strong>Gruppo Genitore:</strong></td>
+                            <td><span class="badge bg-info">${parentGroupName}</span></td>
+                        </tr>
+                        ` : ''}
+                    </table>
+                </div>
+
+                <div class="mb-4">
+                    <h6><i class="fas fa-cogs"></i> Configurazioni</h6>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="text-center p-3 border rounded">
+                                <i class="fas fa-sitemap fa-2x ${group.allowSubgroups ? 'text-success' : 'text-secondary'} mb-2"></i>
+                                <br><small>${group.allowSubgroups ? 'Sottogruppi Permessi' : 'Sottogruppi Negati'}</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-center p-3 border rounded">
+                                <i class="fas fa-magic fa-2x ${group.autoAssign ? 'text-success' : 'text-secondary'} mb-2"></i>
+                                <br><small>${group.autoAssign ? 'Assegnazione Auto' : 'Assegnazione Manuale'}</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-center p-3 border rounded">
+                                <div class="color-preview mx-auto mb-2"
+                                     style="width: 30px; height: 30px; background-color: ${group.color || '#0d6efd'}; border-radius: 50%;"></div>
+                                <small>Colore Gruppo</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0"><i class="fas fa-chart-pie"></i> Statistiche</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row text-center">
+                            <div class="col-6">
+                                <h3 class="text-primary">${deviceNames.length}</h3>
+                                <small class="text-muted">Dispositivi</small>
+                            </div>
+                            <div class="col-6">
+                                <h3 class="text-success">${userNames.length}</h3>
+                                <small class="text-muted">Utenti</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                ${getSubgroupsCount(group.id) > 0 ? `
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h6 class="mb-0"><i class="fas fa-sitemap"></i> Sottogruppi</h6>
+                    </div>
+                    <div class="card-body">
+                        <h4 class="text-info text-center">${getSubgroupsCount(group.id)}</h4>
+                        <small class="text-muted d-block text-center">Sottogruppi attivi</small>
+                    </div>
+                </div>
+                ` : ''}
+            </div>
+        </div>
+
+        <div class="row mt-4">
+            <div class="col-md-6">
+                <h6><i class="fas fa-mobile-alt"></i> Dispositivi nel Gruppo (${deviceNames.length})</h6>
+                ${deviceNames.length > 0 ? `
+                    <div class="border rounded p-3" style="max-height: 200px; overflow-y: auto;">
+                        ${deviceNames.map(name => `
+                            <div class="d-flex align-items-center mb-2">
+                                <i class="fas fa-mobile-alt text-primary me-2"></i>
+                                <span>${name}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                ` : '<div class="text-muted">Nessun dispositivo assegnato</div>'}
+            </div>
+
+            <div class="col-md-6">
+                <h6><i class="fas fa-users"></i> Utenti nel Gruppo (${userNames.length})</h6>
+                ${userNames.length > 0 ? `
+                    <div class="border rounded p-3" style="max-height: 200px; overflow-y: auto;">
+                        ${userNames.map(user => `
+                            <div class="d-flex align-items-center mb-2">
+                                <i class="fas fa-user text-success me-2"></i>
+                                <div>
+                                    <div>${user.name}</div>
+                                    <small class="text-muted">${user.email}</small>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                ` : '<div class="text-muted">Nessun utente assegnato</div>'}
+            </div>
+        </div>
+    `;
+
+    document.getElementById('groupDetailsContent').innerHTML = content;
+    const modal = new bootstrap.Modal(document.getElementById('groupDetailsModal'));
+    modal.show();
+}
+
+function showDeleteGroupModal(groupId) {
+    const group = allGroups.find(g => g.id === groupId);
+    if (!group) return;
+
+    groupToDeleteId = groupId;
+    document.getElementById('groupToDeleteName').textContent = group.name;
+
+    const deviceCount = group.deviceIds ? group.deviceIds.length : 0;
+    const userCount = group.userIds ? group.userIds.length : 0;
+    const subgroupsCount = getSubgroupsCount(groupId);
+
+    document.getElementById('groupToDeleteInfo').innerHTML = `
+        <div class="row">
+            <div class="col-sm-4"><strong>Nome:</strong></div>
+            <div class="col-sm-8">${group.name}</div>
+        </div>
+        <div class="row">
+            <div class="col-sm-4"><strong>Tipo:</strong></div>
+            <div class="col-sm-8">${getTypeName(group.type)}</div>
+        </div>
+        <div class="row">
+            <div class="col-sm-4"><strong>Dispositivi:</strong></div>
+            <div class="col-sm-8">${deviceCount}</div>
+        </div>
+        <div class="row">
+            <div class="col-sm-4"><strong>Utenti:</strong></div>
+            <div class="col-sm-8">${userCount}</div>
+        </div>
+        ${subgroupsCount > 0 ? `
+        <div class="row">
+            <div class="col-sm-4"><strong>Sottogruppi:</strong></div>
+            <div class="col-sm-8">${subgroupsCount}</div>
+        </div>
+        ` : ''}
+    `;
+
+    const modal = new bootstrap.Modal(document.getElementById('deleteGroupModal'));
+    modal.show();
+}
+
+function saveGroup() {
+    const form = document.getElementById('groupForm');
+    const formData = new FormData(form);
+
+    // Validation
+    if (!formData.get('name')) {
+        showAlert('Nome gruppo è obbligatorio', 'warning');
+        return;
+    }
+
+    // Build group data
+    const groupData = {
+        name: formData.get('name'),
+        type: formData.get('type') || 'mixed',
+        description: formData.get('description') || null,
+        active: formData.get('active') === 'on',
+        allowSubgroups: formData.get('allowSubgroups') === 'on',
+        autoAssign: formData.get('autoAssign') === 'on',
+        color: formData.get('color') || '#0d6efd',
+        parentGroupId: parseInt(formData.get('parentGroupId')) || null
+    };
+
+    // Get selected devices and users
+    const selectedDevices = Array.from(document.querySelectorAll('.device-checkbox:checked'))
+        .map(cb => parseInt(cb.value));
+    const selectedUsers = Array.from(document.querySelectorAll('.user-checkbox:checked'))
+        .map(cb => parseInt(cb.value));
+
+    if (groupData.type === 'device' || groupData.type === 'mixed') {
+        groupData.deviceIds = selectedDevices;
+    }
+    if (groupData.type === 'user' || groupData.type === 'mixed') {
+        groupData.userIds = selectedUsers;
+    }
+
+    const method = isEditingGroup ? 'PUT' : 'POST';
+    const url = isEditingGroup ? `/api/groups/${formData.get('id')}` : '/api/groups';
+
+    if (isEditingGroup) {
+        groupData.id = parseInt(formData.get('id'));
+    }
+
+    fetch(url, {
+        method: method,
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(groupData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const action = isEditingGroup ? 'aggiornato' : 'creato';
+            showAlert(`Gruppo ${action} con successo`, 'success');
+
+            const modal = bootstrap.Modal.getInstance(document.getElementById('groupModal'));
+            modal.hide();
+            loadGroups();
+        } else {
+            showAlert(data.error || 'Errore nel salvataggio del gruppo', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Errore:', error);
+        showAlert('Errore nel salvataggio del gruppo', 'danger');
+    });
+}
+
+function confirmDeleteGroup() {
+    if (!groupToDeleteId) return;
+
+    fetch(`/api/groups/${groupToDeleteId}`, {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('Gruppo eliminato con successo', 'success');
+            const modal = bootstrap.Modal.getInstance(document.getElementById('deleteGroupModal'));
+            modal.hide();
+            loadGroups();
+        } else {
+            showAlert(data.error || 'Errore nell\'eliminazione del gruppo', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Errore:', error);
+        showAlert('Errore nell\'eliminazione del gruppo', 'danger');
+    })
+    .finally(() => {
+        groupToDeleteId = null;
+    });
+}
+
+function editGroupFromDetails() {
+    if (currentGroupDetails) {
+        const modal = bootstrap.Modal.getInstance(document.getElementById('groupDetailsModal'));
+        modal.hide();
+        editGroup(currentGroupDetails.id);
+    }
+}
+
+function resetGroupForm() {
+    document.getElementById('groupForm').reset();
+    document.getElementById('groupId').value = '';
+    document.getElementById('groupColor').value = '#0d6efd';
+
+    // Uncheck all devices and users
+    document.querySelectorAll('.device-checkbox').forEach(cb => cb.checked = false);
+    document.querySelectorAll('.user-checkbox').forEach(cb => cb.checked = false);
+    document.getElementById('selectAllDevices').checked = false;
+    document.getElementById('selectAllUsers').checked = false;
+
+    updateSelectedDevicesCount();
+    updateSelectedUsersCount();
+
+    // Show all sections by default
+    document.getElementById('devicesSection').style.display = 'block';
+    document.getElementById('usersSection').style.display = 'block';
+}
+
+function setViewMode(mode) {
+    currentViewMode = mode;
+
+    // Update button states
+    document.getElementById('viewCards').classList.toggle('active', mode === 'cards');
+    document.getElementById('viewTable').classList.toggle('active', mode === 'table');
+
+    renderGroups();
+}
+
+function updateSelectedDevicesCount() {
+    const count = document.querySelectorAll('.device-checkbox:checked').length;
+    document.getElementById('selectedDevicesCount').textContent = `${count} selezionati`;
+
+    // Update select all checkbox
+    const allCheckboxes = document.querySelectorAll('.device-checkbox');
+    const selectAllCheckbox = document.getElementById('selectAllDevices');
+
+    if (count === 0) {
+        selectAllCheckbox.indeterminate = false;
+        selectAllCheckbox.checked = false;
+    } else if (count === allCheckboxes.length) {
+        selectAllCheckbox.indeterminate = false;
+        selectAllCheckbox.checked = true;
+    } else {
+        selectAllCheckbox.indeterminate = true;
+    }
+}
+
+function updateSelectedUsersCount() {
+    const count = document.querySelectorAll('.user-checkbox:checked').length;
+    document.getElementById('selectedUsersCount').textContent = `${count} selezionati`;
+
+    // Update select all checkbox
+    const allCheckboxes = document.querySelectorAll('.user-checkbox');
+    const selectAllCheckbox = document.getElementById('selectAllUsers');
+
+    if (count === 0) {
+        selectAllCheckbox.indeterminate = false;
+        selectAllCheckbox.checked = false;
+    } else if (count === allCheckboxes.length) {
+        selectAllCheckbox.indeterminate = false;
+        selectAllCheckbox.checked = true;
+    } else {
+        selectAllCheckbox.indeterminate = true;
+    }
+}
+
+// Utility functions
+function filterGroups() {
+    // Implementation for filtering groups
+    renderGroups();
+}
+
+function sortGroups() {
+    // Implementation for sorting groups
+    renderGroups();
+}
+
+function toggleSelectAll() {
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+    const checkboxes = document.querySelectorAll('.group-checkbox');
+
+    checkboxes.forEach(cb => {
+        cb.checked = selectAllCheckbox.checked;
+    });
+
+    updateBulkActions();
+}
+
+function updateBulkActions() {
+    const checkboxes = document.querySelectorAll('.group-checkbox:checked');
+    const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+
+    bulkDeleteBtn.disabled = checkboxes.length === 0;
+}
+
+function selectAllGroups() {
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+    selectAllCheckbox.checked = !selectAllCheckbox.checked;
+    toggleSelectAll();
+}
+
+function bulkDeleteGroups() {
+    const checkboxes = document.querySelectorAll('.group-checkbox:checked');
+    const selectedIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
+
+    if (selectedIds.length === 0) return;
+
+    const confirmMsg = `Sei sicuro di voler eliminare ${selectedIds.length} gruppi selezionati? Questa azione rimuoverà anche tutte le assegnazioni.`;
+
+    if (confirm(confirmMsg)) {
+        const promises = selectedIds.map(id =>
+            fetch(`/api/groups/${id}`, { method: 'DELETE' })
+                .then(response => response.json())
+        );
+
+        Promise.all(promises)
+            .then(results => {
+                const successful = results.filter(r => r.success).length;
+                const failed = results.length - successful;
+
+                if (failed === 0) {
+                    showAlert(`${successful} gruppi eliminati con successo`, 'success');
+                } else {
+                    showAlert(`${successful} eliminati, ${failed} errori`, 'warning');
+                }
+
+                loadGroups();
+            })
+            .catch(error => {
+                console.error('Errore nell\'eliminazione multipla:', error);
+                showAlert('Errore nell\'eliminazione dei gruppi', 'danger');
+            });
+    }
+}
+
+function exportGroups() {
+    let csvContent = 'Nome,Tipo,Descrizione,Dispositivi,Utenti,Stato,Creato\n';
+
+    allGroups.forEach(group => {
+        const deviceCount = group.deviceIds ? group.deviceIds.length : 0;
+        const userCount = group.userIds ? group.userIds.length : 0;
+        const created = group.created ? formatDateTime(group.created) : 'N/A';
+
+        csvContent += `"${group.name}","${getTypeName(group.type)}","${group.description || ''}",${deviceCount},${userCount},"${group.active ? 'Attivo' : 'Inattivo'}","${created}"\n`;
+    });
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `groups_export_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    showAlert('Gruppi esportati con successo', 'success');
+}
+
+function showLoading(show) {
+    document.getElementById('loadingSpinner').style.display = show ? 'block' : 'none';
+}
+
+function showEmptyMessage() {
+    document.getElementById('groupsTableView').style.display = 'none';
+    document.getElementById('groupsCardsView').style.display = 'none';
+    document.getElementById('emptyMessage').style.display = 'block';
+}
+
+// Helper functions
+function getTypeBadgeClass(type) {
+    const classes = {
+        'device': 'bg-primary',
+        'user': 'bg-success',
+        'mixed': 'bg-info'
+    };
+    return classes[type] || 'bg-secondary';
+}
+
+function getTypeIcon(type) {
+    const icons = {
+        'device': 'fa-mobile-alt',
+        'user': 'fa-users',
+        'mixed': 'fa-layer-group'
+    };
+    return icons[type] || 'fa-layer-group';
+}
+
+function getTypeName(type) {
+    const names = {
+        'device': 'Dispositivi',
+        'user': 'Utenti',
+        'mixed': 'Misto'
+    };
+    return names[type] || type;
+}
+
+function getGroupDeviceNames(group) {
+    if (!group.deviceIds) return [];
+
+    return group.deviceIds.map(deviceId => {
+        const device = allDevices.find(d => d.id === deviceId);
+        return device ? device.name : `Dispositivo ${deviceId}`;
+    });
+}
+
+function getGroupUserNames(group) {
+    if (!group.userIds) return [];
+
+    return group.userIds.map(userId => {
+        const user = allUsers.find(u => u.id === userId);
+        return user ? { name: user.name, email: user.email } : { name: `Utente ${userId}`, email: '' };
+    });
+}
+
+function getGroupName(groupId) {
+    const group = allGroups.find(g => g.id === groupId);
+    return group ? group.name : `Gruppo ${groupId}`;
+}
+
+function getSubgroupsCount(parentId) {
+    return allGroups.filter(group => group.parentGroupId === parentId).length;
+}
+
+function formatDateTime(dateTimeString) {
+    return new Date(dateTimeString).toLocaleString('it-IT');
+}
+
+function showAlert(message, type = 'info') {
+    const alertHtml = `
+        <div class="alert alert-${type} alert-dismissible fade show position-fixed"
+             style="top: 80px; right: 20px; z-index: 2000; min-width: 300px;" role="alert">
+            <i class="fas fa-${getAlertIcon(type)}"></i> ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', alertHtml);
+
+    setTimeout(() => {
+        const alert = document.querySelector('.alert');
+        if (alert) {
+            alert.remove();
+        }
+    }, 5000);
+}
+
+function getAlertIcon(type) {
+    const icons = {
+        'success': 'check-circle',
+        'danger': 'exclamation-triangle',
+        'warning': 'exclamation-circle',
+        'info': 'info-circle'
+    };
+    return icons[type] || 'info-circle';
+}
+</script>
+{% endblock %}style.display = 'none';
+}
+
+function renderGroupsCards() {
+    const container = document.getElementById('groupsCardsView');
+
+    if (allGroups.length === 0) {
+        showEmptyMessage();
+        return;
+    }
+
+    container.innerHTML = '';
+
+    allGroups.forEach(group => {
+        const deviceCount = group.deviceIds ? group.deviceIds.length : 0;
+        const userCount = group.userIds ? group.userIds.length : 0;
+        const isEmpty = deviceCount === 0 && userCount === 0;
+
+        const card = document.createElement('div');
+        card.className = 'col-md-6 col-lg-4 mb-3';
+        card.innerHTML = `
+            <div class="card h-100 ${!group.active ? 'border-secondary' : ''}">
+                <div class="card-header d-flex justify-content-between align-items-center"
+                     style="background-color: ${group.color || '#0d6efd'}20; border-left: 4px solid ${group.color || '#0d6efd'};">
+                    <h6 class="mb-0 text-truncate" title="${group.name}">${group.name}</h6>
+                    <div>
+                        <span class="badge ${getTypeBadgeClass(group.type)}">${getTypeName(group.type)}</span>
+                        ${!group.active ? '<span class="badge bg-secondary ms-1">Inattivo</span>' : ''}
+                    </div>
+                </div>
+                <div class="card-body">
+                    <p class="card-text small text-muted mb-3">
+                        ${group.description || 'Nessuna descrizione disponibile'}
+                    </p>
+
+                    <div class="row text-center mb-3">
+                        <div class="col-6">
+                            <div class="border-end">
+                                <h5 class="mb-1 text-primary">${deviceCount}</h5>
+                                <small class="text-muted">Dispositivi</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <h5 class="mb-1 text-success">${userCount}</h5>
+                            <small class="text-muted">Utenti</small>
+                        </div>
+                    </div>
+
+                    ${isEmpty ?
+                        '<div class="alert alert-warning alert-sm mb-3"><i class="fas fa-exclamation-triangle"></i> Gruppo vuoto</div>' :
+                        ''
+                    }
+
+                    <div class="d-flex justify-content-between align-items-center">
+                        <small class="text-muted">
+                            ${group.parentGroupId ? '<i class="fas fa-sitemap"></i> Sottogruppo' : '<i class="fas fa-layer-group"></i> Gruppo principale'}
+                        </small>
+                        <span class="badge ${isEmpty ? 'bg-warning' : group.active ? 'bg-success' : 'bg-secondary'}">
+                            ${isEmpty ? 'Vuoto' : group.active ? 'Attivo' : 'Inattivo'}
+                        </span>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <div class="btn-group btn-group-sm w-100">
+                        <button class="btn btn-outline-info" onclick="viewGroup(${group.id})">
+                            <i class="fas fa-eye"></i> Dettagli
+                        </button>
+                        <button class="btn btn-outline-primary" onclick="editGroup(${group.id})">
+                            <i class="fas fa-edit"></i> Modifica
+                        </button>
+                        <button class="btn btn-outline-danger" onclick="showDeleteGroupModal(${group.id})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        container.appendChild(card);
+    });
+
+    document.getElementById('groupsTableView').style.display = 'none';
+    document.getElementById('groupsCardsView').style.display = 'block';
+    document.getElementById('emptyMessage').

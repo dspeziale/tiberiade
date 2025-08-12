@@ -3,6 +3,7 @@ import json
 from flask import Flask, render_template, jsonify, request, session, redirect, url_for
 from datetime import datetime, timedelta
 import os
+import hashlib
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'your-secret-key-here')
@@ -11,6 +12,59 @@ app.secret_key = os.environ.get('SECRET_KEY', 'your-secret-key-here')
 TRACCAR_SERVER = os.environ.get('TRACCAR_SERVER', 'http://localhost:8082')
 TRACCAR_USERNAME = os.environ.get('TRACCAR_USERNAME', '')
 TRACCAR_PASSWORD = os.environ.get('TRACCAR_PASSWORD', '')
+
+# Database demo per utenti e gruppi (in memoria)
+DEMO_USERS = [
+    {
+        'id': 1,
+        'name': 'Amministratore',
+        'email': 'admin@traccar.local',
+        'password': hashlib.sha256('admin123'.encode()).hexdigest(),
+        'role': 'admin',
+        'phone': '+39 123 456 7890',
+        'active': True,
+        'devices': [],
+        'notes': 'Account amministratore principale',
+        'lastLogin': '2024-01-15T09:30:00Z'
+    },
+    {
+        'id': 2,
+        'name': 'Mario Rossi',
+        'email': 'mario.rossi@example.com',
+        'password': hashlib.sha256('user123'.encode()).hexdigest(),
+        'role': 'user',
+        'phone': '+39 098 765 4321',
+        'active': True,
+        'devices': [1, 2],
+        'notes': 'Utente standard',
+        'lastLogin': '2024-01-14T16:45:00Z'
+    }
+]
+
+DEMO_GROUPS = [
+    {
+        'id': 1,
+        'name': 'Flotta Aziendale',
+        'type': 'mixed',
+        'description': 'Gruppo principale per veicoli aziendali',
+        'active': True,
+        'color': '#0d6efd',
+        'devices': [1, 2, 3],
+        'users': [2]
+    },
+    {
+        'id': 2,
+        'name': 'Amministratori',
+        'type': 'user',
+        'description': 'Gruppo per utenti amministratori',
+        'active': True,
+        'color': '#dc3545',
+        'devices': [],
+        'users': [1]
+    }
+]
+
+DEMO_SETTINGS = {}
 
 
 class TraccarAPI:
@@ -157,6 +211,7 @@ class TraccarAPI:
 traccar_api = TraccarAPI(TRACCAR_SERVER)
 
 
+# Route principali
 @app.route('/')
 def index():
     """Dashboard principale"""
@@ -206,7 +261,67 @@ def devices_management():
     return render_template('devices_management.html')
 
 
-# API Routes
+@app.route('/users')
+def users_management():
+    """Pagina gestione utenti"""
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+
+    return render_template('users_management.html')
+
+
+@app.route('/groups')
+def groups_management():
+    """Pagina gestione gruppi"""
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+
+    return render_template('groups_management.html')
+
+
+@app.route('/settings')
+def settings():
+    """Pagina impostazioni"""
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+
+    return render_template('settings.html')
+
+
+@app.route('/device/<int:device_id>')
+def device_detail(device_id):
+    """Pagina dettaglio dispositivo"""
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+
+    devices = traccar_api.get_devices()
+    device = next((d for d in devices if d['id'] == device_id), None)
+
+    if not device:
+        return "Dispositivo non trovato", 404
+
+    return render_template('device_detail.html', device=device)
+
+
+@app.route('/map')
+def map_view():
+    """Visualizzazione mappa"""
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+
+    return render_template('map.html')
+
+
+@app.route('/reports')
+def reports():
+    """Pagina reports"""
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+
+    return render_template('reports.html')
+
+
+# API Routes per dispositivi
 @app.route('/api/devices', methods=['GET'])
 def api_devices():
     """API per ottenere i dispositivi"""
@@ -254,8 +369,6 @@ def api_update_device(device_id):
 
     try:
         device_data = request.get_json()
-
-        # Assicurati che l'ID sia incluso nei dati
         device_data['id'] = device_id
 
         # Controllo se l'IMEI esiste già (escluso il dispositivo corrente)
@@ -324,39 +437,6 @@ def api_device_status(device_id):
     return jsonify(status)
 
 
-@app.route('/device/<int:device_id>')
-def device_detail(device_id):
-    """Pagina dettaglio dispositivo"""
-    if not session.get('logged_in'):
-        return redirect(url_for('login'))
-
-    devices = traccar_api.get_devices()
-    device = next((d for d in devices if d['id'] == device_id), None)
-
-    if not device:
-        return "Dispositivo non trovato", 404
-
-    return render_template('device_detail.html', device=device)
-
-
-@app.route('/map')
-def map_view():
-    """Visualizzazione mappa"""
-    if not session.get('logged_in'):
-        return redirect(url_for('login'))
-
-    return render_template('map.html')
-
-
-@app.route('/reports')
-def reports():
-    """Pagina reports"""
-    if not session.get('logged_in'):
-        return redirect(url_for('login'))
-
-    return render_template('reports.html')
-
-
 @app.route('/api/reports/route')
 def api_reports_route():
     """API per i report delle rotte"""
@@ -374,6 +454,255 @@ def api_reports_route():
     return jsonify(reports)
 
 
+# API Routes per utenti
+@app.route('/api/users', methods=['GET'])
+def api_users():
+    """API per ottenere gli utenti"""
+    if not session.get('logged_in'):
+        return jsonify({'error': 'Non autorizzato'}), 401
+
+    return jsonify(DEMO_USERS)
+
+
+@app.route('/api/users', methods=['POST'])
+def api_create_user():
+    """API per creare un nuovo utente"""
+    if not session.get('logged_in'):
+        return jsonify({'success': False, 'error': 'Non autorizzato'}), 401
+
+    try:
+        user_data = request.get_json()
+
+        # Validazione
+        if not user_data.get('name') or not user_data.get('email'):
+            return jsonify({'success': False, 'error': 'Nome e email sono obbligatori'}), 400
+
+        # Check email duplicato
+        for user in DEMO_USERS:
+            if user['email'] == user_data['email']:
+                return jsonify({'success': False, 'error': 'Email già esistente'}), 400
+
+        # Crea nuovo utente
+        new_user = {
+            'id': max([u['id'] for u in DEMO_USERS]) + 1 if DEMO_USERS else 1,
+            'name': user_data['name'],
+            'email': user_data['email'],
+            'password': hashlib.sha256(user_data['password'].encode()).hexdigest() if user_data.get('password') else '',
+            'role': user_data.get('role', 'user'),
+            'phone': user_data.get('phone', ''),
+            'active': user_data.get('active', True),
+            'devices': user_data.get('devices', []),
+            'notes': user_data.get('notes', ''),
+            'lastLogin': None
+        }
+
+        DEMO_USERS.append(new_user)
+        return jsonify({'success': True, 'data': new_user})
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/users/<int:user_id>', methods=['PUT'])
+def api_update_user(user_id):
+    """API per aggiornare un utente"""
+    if not session.get('logged_in'):
+        return jsonify({'success': False, 'error': 'Non autorizzato'}), 401
+
+    try:
+        user_data = request.get_json()
+
+        # Trova utente
+        user_index = next((i for i, u in enumerate(DEMO_USERS) if u['id'] == user_id), None)
+        if user_index is None:
+            return jsonify({'success': False, 'error': 'Utente non trovato'}), 404
+
+        # Aggiorna utente
+        user = DEMO_USERS[user_index]
+        user.update({
+            'name': user_data.get('name', user['name']),
+            'email': user_data.get('email', user['email']),
+            'role': user_data.get('role', user['role']),
+            'phone': user_data.get('phone', user.get('phone', '')),
+            'active': user_data.get('active', user['active']),
+            'devices': user_data.get('devices', user.get('devices', [])),
+            'notes': user_data.get('notes', user.get('notes', ''))
+        })
+
+        if user_data.get('password'):
+            user['password'] = hashlib.sha256(user_data['password'].encode()).hexdigest()
+
+        return jsonify({'success': True, 'data': user})
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/users/<int:user_id>', methods=['DELETE'])
+def api_delete_user(user_id):
+    """API per eliminare un utente"""
+    if not session.get('logged_in'):
+        return jsonify({'success': False, 'error': 'Non autorizzato'}), 401
+
+    try:
+        user_index = next((i for i, u in enumerate(DEMO_USERS) if u['id'] == user_id), None)
+        if user_index is None:
+            return jsonify({'success': False, 'error': 'Utente non trovato'}), 404
+
+        DEMO_USERS.pop(user_index)
+        return jsonify({'success': True})
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# API Routes per gruppi
+@app.route('/api/groups', methods=['GET'])
+def api_groups():
+    """API per ottenere i gruppi"""
+    if not session.get('logged_in'):
+        return jsonify({'error': 'Non autorizzato'}), 401
+
+    return jsonify(DEMO_GROUPS)
+
+
+@app.route('/api/groups', methods=['POST'])
+def api_create_group():
+    """API per creare un nuovo gruppo"""
+    if not session.get('logged_in'):
+        return jsonify({'success': False, 'error': 'Non autorizzato'}), 401
+
+    try:
+        group_data = request.get_json()
+
+        if not group_data.get('name'):
+            return jsonify({'success': False, 'error': 'Nome gruppo è obbligatorio'}), 400
+
+        new_group = {
+            'id': max([g['id'] for g in DEMO_GROUPS]) + 1 if DEMO_GROUPS else 1,
+            'name': group_data['name'],
+            'type': group_data.get('type', 'mixed'),
+            'description': group_data.get('description', ''),
+            'active': group_data.get('active', True),
+            'color': group_data.get('color', '#0d6efd'),
+            'devices': group_data.get('devices', []),
+            'users': group_data.get('users', [])
+        }
+
+        DEMO_GROUPS.append(new_group)
+        return jsonify({'success': True, 'data': new_group})
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/groups/<int:group_id>', methods=['PUT'])
+def api_update_group(group_id):
+    """API per aggiornare un gruppo"""
+    if not session.get('logged_in'):
+        return jsonify({'success': False, 'error': 'Non autorizzato'}), 401
+
+    try:
+        group_data = request.get_json()
+
+        group_index = next((i for i, g in enumerate(DEMO_GROUPS) if g['id'] == group_id), None)
+        if group_index is None:
+            return jsonify({'success': False, 'error': 'Gruppo non trovato'}), 404
+
+        group = DEMO_GROUPS[group_index]
+        group.update({
+            'name': group_data.get('name', group['name']),
+            'type': group_data.get('type', group['type']),
+            'description': group_data.get('description', group['description']),
+            'active': group_data.get('active', group['active']),
+            'color': group_data.get('color', group['color']),
+            'devices': group_data.get('devices', group['devices']),
+            'users': group_data.get('users', group['users'])
+        })
+
+        return jsonify({'success': True, 'data': group})
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/groups/<int:group_id>', methods=['DELETE'])
+def api_delete_group(group_id):
+    """API per eliminare un gruppo"""
+    if not session.get('logged_in'):
+        return jsonify({'success': False, 'error': 'Non autorizzato'}), 401
+
+    try:
+        group_index = next((i for i, g in enumerate(DEMO_GROUPS) if g['id'] == group_id), None)
+        if group_index is None:
+            return jsonify({'success': False, 'error': 'Gruppo non trovato'}), 404
+
+        DEMO_GROUPS.pop(group_index)
+        return jsonify({'success': True})
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# API Routes per impostazioni
+@app.route('/api/settings', methods=['GET'])
+def api_get_settings():
+    """API per ottenere le impostazioni"""
+    if not session.get('logged_in'):
+        return jsonify({'error': 'Non autorizzato'}), 401
+
+    return jsonify(DEMO_SETTINGS)
+
+
+@app.route('/api/settings', methods=['POST'])
+def api_save_settings():
+    """API per salvare le impostazioni"""
+    if not session.get('logged_in'):
+        return jsonify({'success': False, 'error': 'Non autorizzato'}), 401
+
+    try:
+        settings_data = request.get_json()
+        DEMO_SETTINGS.update(settings_data)
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/system/stats')
+def api_system_stats():
+    """API per statistiche sistema"""
+    if not session.get('logged_in'):
+        return jsonify({'error': 'Non autorizzato'}), 401
+
+    try:
+        devices = traccar_api.get_devices()
+        device_count = len(devices)
+    except:
+        device_count = 0
+
+    return jsonify({
+        'devices': device_count,
+        'users': len(DEMO_USERS),
+        'groups': len(DEMO_GROUPS)
+    })
+
+
+@app.route('/api/test-connection', methods=['POST'])
+def api_test_connection():
+    """API per testare la connessione"""
+    try:
+        data = request.get_json()
+        server_url = data.get('serverUrl', TRACCAR_SERVER)
+
+        # Test semplice connessione
+        test_api = TraccarAPI(server_url)
+        devices = test_api.get_devices()
+
+        return jsonify({'success': True, 'message': 'Connessione riuscita'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
 if __name__ == '__main__':
     # Autentica automaticamente se le credenziali sono fornite
     if TRACCAR_USERNAME and TRACCAR_PASSWORD:
@@ -381,5 +710,10 @@ if __name__ == '__main__':
             print("✓ Autenticazione con Traccar riuscita")
         else:
             print("✗ Errore nell'autenticazione con Traccar")
+
+    print("✓ Server avviato con:")
+    print(f"  - {len(DEMO_USERS)} utenti demo")
+    print(f"  - {len(DEMO_GROUPS)} gruppi demo")
+    print("✓ Dashboard disponibile su http://localhost:5000")
 
     app.run(debug=True, host='0.0.0.0', port=5000)

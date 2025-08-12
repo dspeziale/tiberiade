@@ -1,0 +1,843 @@
+{% extends "base.html" %}
+
+{% block title %}Impostazioni - Traccar{% endblock %}
+
+{% block page_title %}Impostazioni Sistema{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Impostazioni</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h3><i class="fas fa-cogs"></i> Impostazioni Sistema</h3>
+                    <p class="text-muted mb-0">Gestisci configurazioni e parametri del sistema</p>
+                </div>
+                <div>
+                    <button class="btn btn-primary" onclick="saveAllSettings()">
+                        <i class="fas fa-save"></i> Salva Impostazioni
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabs Navigation -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <ul class="nav nav-tabs card-header-tabs" role="tablist">
+                        <li class="nav-item">
+                            <a class="nav-link active" data-bs-toggle="tab" href="#general">
+                                <i class="fas fa-sliders-h"></i> Generale
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" data-bs-toggle="tab" href="#server">
+                                <i class="fas fa-server"></i> Server
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" data-bs-toggle="tab" href="#notifications">
+                                <i class="fas fa-bell"></i> Notifiche
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" data-bs-toggle="tab" href="#appearance">
+                                <i class="fas fa-paint-brush"></i> Aspetto
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" data-bs-toggle="tab" href="#about">
+                                <i class="fas fa-info-circle"></i> Informazioni
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+                <div class="card-body">
+                    <div class="tab-content">
+                        <!-- Tab Generale -->
+                        <div class="tab-pane fade show active" id="general">
+                            <form id="generalSettingsForm">
+                                <div class="row mb-4">
+                                    <div class="col-12">
+                                        <h5><i class="fas fa-info"></i> Informazioni Sistema</h5>
+                                        <hr>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Nome Applicazione</label>
+                                        <input type="text" class="form-control" id="appName"
+                                               value="Traccar Dashboard" name="appName">
+                                        <div class="form-text">Nome visualizzato nell'header</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Versione</label>
+                                        <input type="text" class="form-control" id="appVersion"
+                                               value="2.1.0" name="appVersion" readonly>
+                                        <div class="form-text">Versione corrente dell'applicazione</div>
+                                    </div>
+                                </div>
+
+                                <div class="row mb-4">
+                                    <div class="col-12">
+                                        <h5><i class="fas fa-globe"></i> Localizzazione</h5>
+                                        <hr>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Lingua</label>
+                                        <select class="form-select" id="language" name="language">
+                                            <option value="it" selected>Italiano</option>
+                                            <option value="en">English</option>
+                                            <option value="es">Español</option>
+                                            <option value="fr">Français</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Fuso Orario</label>
+                                        <select class="form-select" id="timezone" name="timezone">
+                                            <option value="Europe/Rome" selected>Europe/Rome (GMT+1)</option>
+                                            <option value="Europe/London">Europe/London (GMT+0)</option>
+                                            <option value="America/New_York">America/New_York (GMT-5)</option>
+                                            <option value="America/Los_Angeles">America/Los_Angeles (GMT-8)</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="row mb-4">
+                                    <div class="col-12">
+                                        <h5><i class="fas fa-map"></i> Impostazioni Mappa</h5>
+                                        <hr>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Mappa Predefinita</label>
+                                        <select class="form-select" id="defaultMapType" name="defaultMapType">
+                                            <option value="osm" selected>OpenStreetMap</option>
+                                            <option value="satellite">Satellite</option>
+                                            <option value="dark">Modalità Scura</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Zoom Predefinito</label>
+                                        <input type="number" class="form-control" id="defaultZoom"
+                                               value="10" min="1" max="20" name="defaultZoom">
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-12">
+                                        <h5><i class="fas fa-clock"></i> Aggiornamenti</h5>
+                                        <hr>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Intervallo Aggiornamento Automatico (secondi)</label>
+                                        <input type="number" class="form-control" id="autoRefreshInterval"
+                                               value="30" min="5" max="300" name="autoRefreshInterval">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-check form-switch mt-4">
+                                            <input class="form-check-input" type="checkbox"
+                                                   id="enableAutoRefresh" name="enableAutoRefresh" checked>
+                                            <label class="form-check-label" for="enableAutoRefresh">
+                                                Abilita Aggiornamento Automatico
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+
+                        <!-- Tab Server -->
+                        <div class="tab-pane fade" id="server">
+                            <form id="serverSettingsForm">
+                                <div class="row mb-4">
+                                    <div class="col-12">
+                                        <h5><i class="fas fa-link"></i> Connessione Traccar</h5>
+                                        <hr>
+                                    </div>
+                                    <div class="col-md-8">
+                                        <label class="form-label">URL Server Traccar</label>
+                                        <input type="url" class="form-control" id="traccarServer"
+                                               value="{{ traccar_server or 'http://localhost:8082' }}"
+                                               name="traccarServer">
+                                        <div class="form-text">URL completo del server Traccar (es: http://demo.traccar.org)</div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Stato Connessione</label>
+                                        <div class="input-group">
+                                            <span class="form-control" id="connectionStatus">
+                                                <span class="badge bg-secondary">Verifica...</span>
+                                            </span>
+                                            <button class="btn btn-outline-primary" type="button" onclick="testConnection()">
+                                                <i class="fas fa-plug"></i> Test
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row mb-4">
+                                    <div class="col-12">
+                                        <h5><i class="fas fa-database"></i> Database & Cache</h5>
+                                        <hr>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Timeout Connessione (secondi)</label>
+                                        <input type="number" class="form-control" id="connectionTimeout"
+                                               value="30" min="5" max="300" name="connectionTimeout">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Cache TTL (secondi)</label>
+                                        <input type="number" class="form-control" id="cacheTtl"
+                                               value="60" min="10" max="3600" name="cacheTtl">
+                                    </div>
+                                </div>
+
+                                <div class="row mb-4">
+                                    <div class="col-12">
+                                        <h5><i class="fas fa-shield-alt"></i> Sicurezza</h5>
+                                        <hr>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox"
+                                                   id="enableHttps" name="enableHttps">
+                                            <label class="form-check-label" for="enableHttps">
+                                                Forza HTTPS
+                                            </label>
+                                        </div>
+                                        <div class="form-text">Reindirizza automaticamente HTTP a HTTPS</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox"
+                                                   id="enableCors" name="enableCors" checked>
+                                            <label class="form-check-label" for="enableCors">
+                                                Abilita CORS
+                                            </label>
+                                        </div>
+                                        <div class="form-text">Permetti richieste cross-origin</div>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-12">
+                                        <div class="alert alert-info">
+                                            <i class="fas fa-info-circle"></i>
+                                            <strong>Nota:</strong> Le modifiche alle impostazioni del server richiederanno il riavvio dell'applicazione per essere applicate.
+                                        </div>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+
+                        <!-- Tab Notifiche -->
+                        <div class="tab-pane fade" id="notifications">
+                            <form id="notificationSettingsForm">
+                                <div class="row mb-4">
+                                    <div class="col-12">
+                                        <h5><i class="fas fa-bell"></i> Notifiche Sistema</h5>
+                                        <hr>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-check form-switch mb-3">
+                                            <input class="form-check-input" type="checkbox"
+                                                   id="enableNotifications" name="enableNotifications" checked>
+                                            <label class="form-check-label" for="enableNotifications">
+                                                Abilita Notifiche
+                                            </label>
+                                        </div>
+                                        <div class="form-check form-switch mb-3">
+                                            <input class="form-check-input" type="checkbox"
+                                                   id="soundNotifications" name="soundNotifications">
+                                            <label class="form-check-label" for="soundNotifications">
+                                                Suoni di Notifica
+                                            </label>
+                                        </div>
+                                        <div class="form-check form-switch mb-3">
+                                            <input class="form-check-input" type="checkbox"
+                                                   id="emailNotifications" name="emailNotifications">
+                                            <label class="form-check-label" for="emailNotifications">
+                                                Notifiche via Email
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Durata Notifica (millisecondi)</label>
+                                        <input type="number" class="form-control mb-3" id="notificationDuration"
+                                               value="5000" min="1000" max="30000" name="notificationDuration">
+
+                                        <label class="form-label">Posizione Notifiche</label>
+                                        <select class="form-select mb-3" id="notificationPosition" name="notificationPosition">
+                                            <option value="top-right" selected>Alto Destra</option>
+                                            <option value="top-left">Alto Sinistra</option>
+                                            <option value="bottom-right">Basso Destra</option>
+                                            <option value="bottom-left">Basso Sinistra</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="row mb-4">
+                                    <div class="col-12">
+                                        <h5><i class="fas fa-exclamation-triangle"></i> Alerti</h5>
+                                        <hr>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-check form-switch mb-3">
+                                            <input class="form-check-input" type="checkbox"
+                                                   id="offlineAlerts" name="offlineAlerts" checked>
+                                            <label class="form-check-label" for="offlineAlerts">
+                                                Allarmi Dispositivi Offline
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-check form-switch mb-3">
+                                            <input class="form-check-input" type="checkbox"
+                                                   id="speedingAlerts" name="speedingAlerts" checked>
+                                            <label class="form-check-label" for="speedingAlerts">
+                                                Allarmi Velocità Eccessiva
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-check form-switch mb-3">
+                                            <input class="form-check-input" type="checkbox"
+                                                   id="geofenceAlerts" name="geofenceAlerts">
+                                            <label class="form-check-label" for="geofenceAlerts">
+                                                Allarmi Geofence
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <label class="form-label">Soglia Offline (minuti)</label>
+                                        <input type="number" class="form-control" id="offlineThreshold"
+                                               value="5" min="1" max="60" name="offlineThreshold">
+                                        <div class="form-text">Minuti di inattività prima di considerare un dispositivo offline</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Velocità Massima (km/h)</label>
+                                        <input type="number" class="form-control" id="speedLimit"
+                                               value="130" min="10" max="300" name="speedLimit">
+                                        <div class="form-text">Velocità oltre la quale attivare l'allarme</div>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+
+                        <!-- Tab Aspetto -->
+                        <div class="tab-pane fade" id="appearance">
+                            <form id="appearanceSettingsForm">
+                                <div class="row mb-4">
+                                    <div class="col-12">
+                                        <h5><i class="fas fa-palette"></i> Tema</h5>
+                                        <hr>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Tema Applicazione</label>
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="radio" name="theme"
+                                                   id="themeLight" value="light" checked>
+                                            <label class="form-check-label" for="themeLight">
+                                                <i class="fas fa-sun text-warning"></i> Chiaro
+                                            </label>
+                                        </div>
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="radio" name="theme"
+                                                   id="themeDark" value="dark">
+                                            <label class="form-check-label" for="themeDark">
+                                                <i class="fas fa-moon text-primary"></i> Scuro
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="theme"
+                                                   id="themeAuto" value="auto">
+                                            <label class="form-check-label" for="themeAuto">
+                                                <i class="fas fa-adjust text-info"></i> Automatico (Sistema)
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Colore Accent</label>
+                                        <div class="d-flex flex-wrap gap-2">
+                                            <button type="button" class="btn btn-primary btn-sm accent-color active"
+                                                    data-color="primary" style="width: 40px; height: 40px;"></button>
+                                            <button type="button" class="btn btn-success btn-sm accent-color"
+                                                    data-color="success" style="width: 40px; height: 40px;"></button>
+                                            <button type="button" class="btn btn-info btn-sm accent-color"
+                                                    data-color="info" style="width: 40px; height: 40px;"></button>
+                                            <button type="button" class="btn btn-warning btn-sm accent-color"
+                                                    data-color="warning" style="width: 40px; height: 40px;"></button>
+                                            <button type="button" class="btn btn-danger btn-sm accent-color"
+                                                    data-color="danger" style="width: 40px; height: 40px;"></button>
+                                        </div>
+                                        <input type="hidden" id="accentColor" name="accentColor" value="primary">
+                                    </div>
+                                </div>
+
+                                <div class="row mb-4">
+                                    <div class="col-12">
+                                        <h5><i class="fas fa-desktop"></i> Layout</h5>
+                                        <hr>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-check form-switch mb-3">
+                                            <input class="form-check-input" type="checkbox"
+                                                   id="compactMode" name="compactMode">
+                                            <label class="form-check-label" for="compactMode">
+                                                Modalità Compatta
+                                            </label>
+                                        </div>
+                                        <div class="form-check form-switch mb-3">
+                                            <input class="form-check-input" type="checkbox"
+                                                   id="sidebarCollapsed" name="sidebarCollapsed">
+                                            <label class="form-check-label" for="sidebarCollapsed">
+                                                Sidebar Compressa di Default
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Dimensione Font</label>
+                                        <select class="form-select mb-3" id="fontSize" name="fontSize">
+                                            <option value="small">Piccolo</option>
+                                            <option value="normal" selected>Normale</option>
+                                            <option value="large">Grande</option>
+                                        </select>
+
+                                        <label class="form-label">Animazioni</label>
+                                        <select class="form-select" id="animations" name="animations">
+                                            <option value="none">Nessuna</option>
+                                            <option value="reduced">Ridotte</option>
+                                            <option value="full" selected>Complete</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-12">
+                                        <button type="button" class="btn btn-outline-secondary" onclick="previewTheme()">
+                                            <i class="fas fa-eye"></i> Anteprima
+                                        </button>
+                                        <button type="button" class="btn btn-outline-warning ms-2" onclick="resetTheme()">
+                                            <i class="fas fa-undo"></i> Ripristina Default
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+
+                        <!-- Tab Informazioni -->
+                        <div class="tab-pane fade" id="about">
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <div class="mb-4">
+                                        <h4><i class="fas fa-info-circle text-primary"></i> Traccar Dashboard</h4>
+                                        <p class="lead">Interfaccia web moderna per la gestione dei dispositivi GPS Traccar</p>
+
+                                        <div class="row mb-3">
+                                            <div class="col-sm-3"><strong>Versione:</strong></div>
+                                            <div class="col-sm-9">2.1.0</div>
+                                        </div>
+                                        <div class="row mb-3">
+                                            <div class="col-sm-3"><strong>Build:</strong></div>
+                                            <div class="col-sm-9">2024.01.15</div>
+                                        </div>
+                                        <div class="row mb-3">
+                                            <div class="col-sm-3"><strong>Framework:</strong></div>
+                                            <div class="col-sm-9">Flask 2.3, Bootstrap 5.3</div>
+                                        </div>
+                                        <div class="row mb-3">
+                                            <div class="col-sm-3"><strong>Licenza:</strong></div>
+                                            <div class="col-sm-9">MIT License</div>
+                                        </div>
+                                        <div class="row mb-3">
+                                            <div class="col-sm-3"><strong>Autore:</strong></div>
+                                            <div class="col-sm-9">Sistema GPS Team</div>
+                                        </div>
+                                    </div>
+
+                                    <div class="mb-4">
+                                        <h5><i class="fas fa-server"></i> Informazioni Sistema</h5>
+                                        <div class="table-responsive">
+                                            <table class="table table-sm">
+                                                <tr>
+                                                    <td><strong>Server Traccar:</strong></td>
+                                                    <td id="traccarServerInfo">Caricamento...</td>
+                                                </tr>
+                                                <tr>
+                                                    <td><strong>Versione Traccar:</strong></td>
+                                                    <td id="traccarVersionInfo">Caricamento...</td>
+                                                </tr>
+                                                <tr>
+                                                    <td><strong>Dispositivi Totali:</strong></td>
+                                                    <td id="totalDevicesInfo">Caricamento...</td>
+                                                </tr>
+                                                <tr>
+                                                    <td><strong>Utenti Attivi:</strong></td>
+                                                    <td id="activeUsersInfo">Caricamento...</td>
+                                                </tr>
+                                                <tr>
+                                                    <td><strong>Uptime Sistema:</strong></td>
+                                                    <td id="systemUptimeInfo">Caricamento...</td>
+                                                </tr>
+                                            </table>
+                                        </div>
+                                    </div>
+
+                                    <div class="mb-4">
+                                        <h5><i class="fas fa-link"></i> Collegamenti Utili</h5>
+                                        <div class="list-group">
+                                            <a href="https://www.traccar.org/" target="_blank"
+                                               class="list-group-item list-group-item-action">
+                                                <i class="fas fa-external-link-alt"></i> Sito Ufficiale Traccar
+                                            </a>
+                                            <a href="https://www.traccar.org/documentation/" target="_blank"
+                                               class="list-group-item list-group-item-action">
+                                                <i class="fas fa-book"></i> Documentazione
+                                            </a>
+                                            <a href="https://github.com/traccar/traccar" target="_blank"
+                                               class="list-group-item list-group-item-action">
+                                                <i class="fab fa-github"></i> Repository GitHub
+                                            </a>
+                                            <a href="mailto:support@traccar.org"
+                                               class="list-group-item list-group-item-action">
+                                                <i class="fas fa-envelope"></i> Supporto Tecnico
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-4">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h6 class="mb-0"><i class="fas fa-chart-pie"></i> Statistiche Utilizzo</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="mb-3">
+                                                <div class="d-flex justify-content-between">
+                                                    <span>Storage Utilizzato</span>
+                                                    <span id="storageUsed">65%</span>
+                                                </div>
+                                                <div class="progress">
+                                                    <div class="progress-bar bg-warning" style="width: 65%"></div>
+                                                </div>
+                                            </div>
+
+                                            <div class="mb-3">
+                                                <div class="d-flex justify-content-between">
+                                                    <span>Memoria RAM</span>
+                                                    <span id="memoryUsed">42%</span>
+                                                </div>
+                                                <div class="progress">
+                                                    <div class="progress-bar bg-info" style="width: 42%"></div>
+                                                </div>
+                                            </div>
+
+                                            <div class="mb-3">
+                                                <div class="d-flex justify-content-between">
+                                                    <span>CPU</span>
+                                                    <span id="cpuUsed">28%</span>
+                                                </div>
+                                                <div class="progress">
+                                                    <div class="progress-bar bg-success" style="width: 28%"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="card mt-3">
+                                        <div class="card-header">
+                                            <h6 class="mb-0"><i class="fas fa-history"></i> Changelog</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="timeline-item mb-3">
+                                                <div class="timeline-marker bg-primary"></div>
+                                                <div class="timeline-content">
+                                                    <h6 class="mb-1">v2.1.0</h6>
+                                                    <small class="text-muted">15 Gen 2024</small>
+                                                    <p class="mb-0 small">Aggiunta gestione utenti e gruppi</p>
+                                                </div>
+                                            </div>
+
+                                            <div class="timeline-item mb-3">
+                                                <div class="timeline-marker bg-success"></div>
+                                                <div class="timeline-content">
+                                                    <h6 class="mb-1">v2.0.5</h6>
+                                                    <small class="text-muted">10 Gen 2024</small>
+                                                    <p class="mb-0 small">Miglioramenti UI e correzioni bug</p>
+                                                </div>
+                                            </div>
+
+                                            <div class="timeline-item">
+                                                <div class="timeline-marker bg-info"></div>
+                                                <div class="timeline-content">
+                                                    <h6 class="mb-1">v2.0.0</h6>
+                                                    <small class="text-muted">01 Gen 2024</small>
+                                                    <p class="mb-0 small">Nuovo design e funzionalità</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.accent-color {
+    border: 2px solid transparent !important;
+    border-radius: 50% !important;
+}
+
+.accent-color.active {
+    border-color: #000 !important;
+    transform: scale(1.1);
+}
+
+.timeline-item {
+    position: relative;
+    padding-left: 30px;
+}
+
+.timeline-marker {
+    position: absolute;
+    left: 0;
+    top: 5px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+}
+
+.timeline-content {
+    border-left: 2px solid #e9ecef;
+    padding-left: 15px;
+}
+
+.progress {
+    height: 8px;
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    loadSettings();
+    loadSystemInfo();
+    setupEventListeners();
+});
+
+function setupEventListeners() {
+    // Accent color selection
+    document.querySelectorAll('.accent-color').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('.accent-color').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            document.getElementById('accentColor').value = this.dataset.color;
+        });
+    });
+
+    // Theme preview
+    document.querySelectorAll('input[name="theme"]').forEach(input => {
+        input.addEventListener('change', previewTheme);
+    });
+}
+
+function loadSettings() {
+    // Carica le impostazioni salvate dal localStorage o dal server
+    const saved = localStorage.getItem('appSettings');
+    if (saved) {
+        const settings = JSON.parse(saved);
+
+        // Popola i form con le impostazioni salvate
+        Object.keys(settings).forEach(key => {
+            const element = document.getElementById(key);
+            if (element) {
+                if (element.type === 'checkbox') {
+                    element.checked = settings[key];
+                } else if (element.type === 'radio') {
+                    if (element.value === settings[key]) {
+                        element.checked = true;
+                    }
+                } else {
+                    element.value = settings[key];
+                }
+            }
+        });
+    }
+
+    // Verifica la connessione
+    testConnection();
+}
+
+function loadSystemInfo() {
+    // Carica informazioni sistema
+    fetch('/api/system/info')
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('traccarServerInfo').textContent = data.traccarServer || 'Non configurato';
+            document.getElementById('traccarVersionInfo').textContent = data.traccarVersion || 'N/A';
+            document.getElementById('totalDevicesInfo').textContent = data.totalDevices || '0';
+            document.getElementById('activeUsersInfo').textContent = data.activeUsers || '1';
+            document.getElementById('systemUptimeInfo').textContent = data.uptime || 'N/A';
+        })
+        .catch(error => {
+            console.error('Errore nel caricamento info sistema:', error);
+        });
+}
+
+function testConnection() {
+    const statusElement = document.getElementById('connectionStatus');
+    statusElement.innerHTML = '<span class="badge bg-warning"><i class="fas fa-spinner fa-spin"></i> Test...</span>';
+
+    fetch('/api/test-connection')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                statusElement.innerHTML = '<span class="badge bg-success"><i class="fas fa-check"></i> Connesso</span>';
+            } else {
+                statusElement.innerHTML = '<span class="badge bg-danger"><i class="fas fa-times"></i> Errore</span>';
+            }
+        })
+        .catch(error => {
+            statusElement.innerHTML = '<span class="badge bg-danger"><i class="fas fa-times"></i> Offline</span>';
+        });
+}
+
+function saveAllSettings() {
+    const settings = {};
+
+    // Raccoglie tutti i valori dei form
+    const forms = ['generalSettingsForm', 'serverSettingsForm', 'notificationSettingsForm', 'appearanceSettingsForm'];
+
+    forms.forEach(formId => {
+        const form = document.getElementById(formId);
+        if (form) {
+            const formData = new FormData(form);
+            for (let [key, value] of formData.entries()) {
+                const element = form.querySelector(`[name="${key}"]`);
+                if (element && element.type === 'checkbox') {
+                    settings[key] = element.checked;
+                } else {
+                    settings[key] = value;
+                }
+            }
+        }
+    });
+
+    // Salva nel localStorage
+    localStorage.setItem('appSettings', JSON.stringify(settings));
+
+    // Invia al server
+    fetch('/api/settings', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(settings)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('Impostazioni salvate con successo', 'success');
+            applySettings(settings);
+        } else {
+            showAlert('Errore nel salvataggio delle impostazioni', 'danger');
+        }
+    })
+    .catch(error => {
+        showAlert('Errore nella comunicazione con il server', 'danger');
+    });
+}
+
+function applySettings(settings) {
+    // Applica le impostazioni dell'aspetto
+    if (settings.theme) {
+        document.documentElement.setAttribute('data-theme', settings.theme);
+    }
+
+    if (settings.accentColor) {
+        document.documentElement.setAttribute('data-accent', settings.accentColor);
+    }
+
+    if (settings.fontSize) {
+        document.documentElement.setAttribute('data-font-size', settings.fontSize);
+    }
+
+    if (settings.compactMode) {
+        document.body.classList.toggle('compact-mode', settings.compactMode);
+    }
+}
+
+function previewTheme() {
+    const theme = document.querySelector('input[name="theme"]:checked').value;
+    const accentColor = document.getElementById('accentColor').value;
+    const fontSize = document.getElementById('fontSize').value;
+
+    document.documentElement.setAttribute('data-theme', theme);
+    document.documentElement.setAttribute('data-accent', accentColor);
+    document.documentElement.setAttribute('data-font-size', fontSize);
+
+    showAlert('Anteprima tema applicata', 'info');
+}
+
+function resetTheme() {
+    document.getElementById('themeLight').checked = true;
+    document.getElementById('accentColor').value = 'primary';
+    document.getElementById('fontSize').value = 'normal';
+    document.getElementById('compactMode').checked = false;
+
+    document.querySelectorAll('.accent-color').forEach(btn => btn.classList.remove('active'));
+    document.querySelector('[data-color="primary"]').classList.add('active');
+
+    previewTheme();
+    showAlert('Tema ripristinato ai valori di default', 'success');
+}
+
+function showAlert(message, type = 'info') {
+    const alertHtml = `
+        <div class="alert alert-${type} alert-dismissible fade show position-fixed"
+             style="top: 80px; right: 20px; z-index: 2000; min-width: 300px;" role="alert">
+            <i class="fas fa-${getAlertIcon(type)}"></i> ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', alertHtml);
+
+    setTimeout(() => {
+        const alert = document.querySelector('.alert');
+        if (alert) {
+            alert.remove();
+        }
+    }, 5000);
+}
+
+function getAlertIcon(type) {
+    const icons = {
+        'success': 'check-circle',
+        'danger': 'exclamation-triangle',
+        'warning': 'exclamation-circle',
+        'info': 'info-circle'
+    };
+    return icons[type] || 'info-circle';
+}
+</script>
+{% endblock %}

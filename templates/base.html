@@ -229,77 +229,116 @@
         </div>
 
         <div class="sidebar-nav">
-            {% if session.logged_in %}
-                <ul class="nav flex-column">
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}"
-                           href="{{ url_for('dashboard') }}">
-                            <i class="fas fa-tachometer-alt"></i> Dashboard
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'map_view' %}active{% endif %}"
-                           href="{{ url_for('map_view') }}">
-                            <i class="fas fa-map"></i> Mappa Live
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'reports' %}active{% endif %}"
-                           href="{{ url_for('reports') }}">
-                            <i class="fas fa-chart-line"></i> Reports
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="#" data-bs-toggle="collapse" data-bs-target="#devicesSubmenu">
-                            <i class="fas fa-mobile-alt"></i> Dispositivi
-                            <i class="fas fa-chevron-down float-end"></i>
-                        </a>
-                        <div class="collapse" id="devicesSubmenu">
-                            <ul class="nav flex-column ms-3">
-                                <li class="nav-item">
-                                    <a class="nav-link" href="{{ url_for('dashboard') }}">
-                                        <i class="fas fa-list"></i> Lista Dispositivi
-                                    </a>
-                                </li>
-                                <li class="nav-item">
-                                    <a class="nav-link" href="#" onclick="showOnlineDevices()">
-                                        <i class="fas fa-wifi"></i> Solo Online
-                                    </a>
-                                </li>
-                            </ul>
-                        </div>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="#" data-bs-toggle="collapse" data-bs-target="#toolsSubmenu">
-                            <i class="fas fa-tools"></i> Strumenti
-                            <i class="fas fa-chevron-down float-end"></i>
-                        </a>
-                        <div class="collapse" id="toolsSubmenu">
-                            <ul class="nav flex-column ms-3">
-                                <li class="nav-item">
-                                    <a class="nav-link" href="#" onclick="exportAllData()">
-                                        <i class="fas fa-download"></i> Esporta Dati
-                                    </a>
-                                </li>
-                                <li class="nav-item">
-                                    <a class="nav-link" href="#" onclick="showSettings()">
-                                        <i class="fas fa-cog"></i> Impostazioni
-                                    </a>
-                                </li>
-                            </ul>
-                        </div>
-                    </li>
-                </ul>
-            {% else %}
-                <ul class="nav flex-column">
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('login') }}">
-                            <i class="fas fa-sign-in-alt"></i> Login
-                        </a>
-                    </li>
-                </ul>
-            {% endif %}
-        </div>
+    {% if session.logged_in %}
+        <ul class="nav flex-column">
+            <li class="nav-item">
+                <a class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}"
+                   href="{{ url_for('dashboard') }}">
+                    <i class="fas fa-tachometer-alt"></i> Dashboard
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if request.endpoint == 'map_view' %}active{% endif %}"
+                   href="{{ url_for('map_view') }}">
+                    <i class="fas fa-map"></i> Mappa Live
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if request.endpoint == 'reports' %}active{% endif %}"
+                   href="{{ url_for('reports') }}">
+                    <i class="fas fa-chart-line"></i> Reports
+                </a>
+            </li>
+
+            <!-- Menu Dispositivi -->
+            <li class="nav-item">
+                <a class="nav-link" href="#" data-bs-toggle="collapse" data-bs-target="#devicesSubmenu">
+                    <i class="fas fa-mobile-alt"></i> Dispositivi
+                    <i class="fas fa-chevron-down float-end"></i>
+                </a>
+                <div class="collapse" id="devicesSubmenu">
+                    <ul class="nav flex-column ms-3">
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('dashboard') }}">
+                                <i class="fas fa-list"></i> Lista Dispositivi
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('devices_management') }}">
+                                <i class="fas fa-cogs"></i> Gestisci Dispositivi
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" onclick="showOnlineDevices()">
+                                <i class="fas fa-wifi"></i> Solo Online
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </li>
+
+            <!-- Menu Amministrazione -->
+            <li class="nav-item">
+                <a class="nav-link" href="#" data-bs-toggle="collapse" data-bs-target="#adminSubmenu">
+                    <i class="fas fa-user-shield"></i> Amministrazione
+                    <i class="fas fa-chevron-down float-end"></i>
+                </a>
+                <div class="collapse" id="adminSubmenu">
+                    <ul class="nav flex-column ms-3">
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'users_management' %}active{% endif %}"
+                               href="{{ url_for('users_management') }}">
+                                <i class="fas fa-users"></i> Gestione Utenti
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'groups_management' %}active{% endif %}"
+                               href="{{ url_for('groups_management') }}">
+                                <i class="fas fa-layer-group"></i> Gestione Gruppi
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'settings' %}active{% endif %}"
+                               href="{{ url_for('settings') }}">
+                                <i class="fas fa-cogs"></i> Impostazioni
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </li>
+
+            <!-- Menu Strumenti -->
+            <li class="nav-item">
+                <a class="nav-link" href="#" data-bs-toggle="collapse" data-bs-target="#toolsSubmenu">
+                    <i class="fas fa-tools"></i> Strumenti
+                    <i class="fas fa-chevron-down float-end"></i>
+                </a>
+                <div class="collapse" id="toolsSubmenu">
+                    <ul class="nav flex-column ms-3">
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" onclick="exportAllData()">
+                                <i class="fas fa-download"></i> Esporta Dati
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('settings') }}">
+                                <i class="fas fa-cog"></i> Impostazioni
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </li>
+        </ul>
+    {% else %}
+        <ul class="nav flex-column">
+            <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('login') }}">
+                    <i class="fas fa-sign-in-alt"></i> Login
+                </a>
+            </li>
+        </ul>
+    {% endif %}
+</div>
 
         {% if session.logged_in %}
         <div class="user-info">
