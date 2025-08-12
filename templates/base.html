@@ -96,6 +96,26 @@
             background-color: rgba(255,255,255,0.1);
         }
 
+        .user-badge {
+            display: inline-block;
+            font-size: 0.75rem;
+            padding: 0.2rem 0.4rem;
+            border-radius: 3px;
+            margin-left: 0.5rem;
+        }
+
+        .user-badge.admin {
+            background-color: #e74c3c;
+        }
+
+        .user-badge.manager {
+            background-color: #f39c12;
+        }
+
+        .user-badge.readonly {
+            background-color: #95a5a6;
+        }
+
         /* Main Content */
         .main-content {
             margin-left: 250px;
@@ -112,6 +132,27 @@
 
         .content-area {
             padding: 2rem;
+        }
+
+        /* Flash Messages */
+        .flash-messages {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 2000;
+            max-width: 400px;
+        }
+
+        .alert {
+            border: none;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
         }
 
         /* Mobile Responsive */
@@ -188,11 +229,6 @@
             border-radius: 8px;
         }
 
-        .alert {
-            border: none;
-            border-radius: 8px;
-        }
-
         .loading {
             display: flex;
             justify-content: center;
@@ -214,12 +250,52 @@
             content: ">";
             color: #6c757d;
         }
+
+        /* Connection status indicator */
+        .connection-indicator {
+            position: relative;
+            display: inline-block;
+        }
+
+        .connection-indicator.online::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            right: -2px;
+            width: 8px;
+            height: 8px;
+            background-color: #28a745;
+            border: 2px solid white;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
     </style>
     {% block extra_css %}{% endblock %}
 </head>
 <body>
     <!-- Mobile Overlay -->
     <div class="mobile-overlay" id="mobileOverlay" onclick="toggleSidebar()"></div>
+
+    <!-- Flash Messages -->
+    <div class="flash-messages" id="flashMessages">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                        <i class="fas fa-{{ 'exclamation-triangle' if category == 'error' else 'check-circle' if category == 'success' else 'info-circle' }}"></i>
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
 
     <!-- Sidebar -->
     <nav class="sidebar" id="sidebar">
@@ -229,127 +305,153 @@
         </div>
 
         <div class="sidebar-nav">
-    {% if session.logged_in %}
-        <ul class="nav flex-column">
-            <li class="nav-item">
-                <a class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}"
-                   href="{{ url_for('dashboard') }}">
-                    <i class="fas fa-tachometer-alt"></i> Dashboard
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {% if request.endpoint == 'map_view' %}active{% endif %}"
-                   href="{{ url_for('map_view') }}">
-                    <i class="fas fa-map"></i> Mappa Live
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {% if request.endpoint == 'reports' %}active{% endif %}"
-                   href="{{ url_for('reports') }}">
-                    <i class="fas fa-chart-line"></i> Reports
-                </a>
-            </li>
+            {% if session.logged_in %}
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}"
+                           href="{{ url_for('dashboard') }}">
+                            <i class="fas fa-tachometer-alt"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'map_view' %}active{% endif %}"
+                           href="{{ url_for('map_view') }}">
+                            <i class="fas fa-map"></i> Mappa Live
+                        </a>
+                    </li>
 
-            <!-- Menu Dispositivi -->
-            <li class="nav-item">
-                <a class="nav-link" href="#" data-bs-toggle="collapse" data-bs-target="#devicesSubmenu">
-                    <i class="fas fa-mobile-alt"></i> Dispositivi
-                    <i class="fas fa-chevron-down float-end"></i>
-                </a>
-                <div class="collapse" id="devicesSubmenu">
-                    <ul class="nav flex-column ms-3">
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('dashboard') }}">
-                                <i class="fas fa-list"></i> Lista Dispositivi
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('devices_management') }}">
-                                <i class="fas fa-cogs"></i> Gestisci Dispositivi
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="#" onclick="showOnlineDevices()">
-                                <i class="fas fa-wifi"></i> Solo Online
-                            </a>
-                        </li>
-                    </ul>
-                </div>
-            </li>
+                    {% if not session.user_readonly %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'reports' %}active{% endif %}"
+                           href="{{ url_for('reports') }}">
+                            <i class="fas fa-chart-line"></i> Reports
+                        </a>
+                    </li>
+                    {% endif %}
 
-            <!-- Menu Amministrazione -->
-            <li class="nav-item">
-                <a class="nav-link" href="#" data-bs-toggle="collapse" data-bs-target="#adminSubmenu">
-                    <i class="fas fa-user-shield"></i> Amministrazione
-                    <i class="fas fa-chevron-down float-end"></i>
-                </a>
-                <div class="collapse" id="adminSubmenu">
-                    <ul class="nav flex-column ms-3">
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.endpoint == 'users_management' %}active{% endif %}"
-                               href="{{ url_for('users_management') }}">
-                                <i class="fas fa-users"></i> Gestione Utenti
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.endpoint == 'groups_management' %}active{% endif %}"
-                               href="{{ url_for('groups_management') }}">
-                                <i class="fas fa-layer-group"></i> Gestione Gruppi
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.endpoint == 'settings' %}active{% endif %}"
-                               href="{{ url_for('settings') }}">
-                                <i class="fas fa-cogs"></i> Impostazioni
-                            </a>
-                        </li>
-                    </ul>
-                </div>
-            </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" data-bs-toggle="collapse" data-bs-target="#devicesSubmenu">
+                            <i class="fas fa-mobile-alt"></i> Dispositivi
+                            <i class="fas fa-chevron-down float-end"></i>
+                        </a>
+                        <div class="collapse" id="devicesSubmenu">
+                            <ul class="nav flex-column ms-3">
+                                <li class="nav-item">
+                                    <a class="nav-link" href="{{ url_for('dashboard') }}">
+                                        <i class="fas fa-list"></i> Lista Dispositivi
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" href="#" onclick="showOnlineDevices()">
+                                        <i class="fas fa-wifi"></i> Solo Online
+                                    </a>
+                                </li>
+                                {% if session.user_admin or session.user_manager %}
+                                <li class="nav-item">
+                                    <a class="nav-link {% if request.endpoint == 'devices_management' %}active{% endif %}"
+                                       href="{{ url_for('devices_management') }}">
+                                        <i class="fas fa-cogs"></i> Gestione
+                                    </a>
+                                </li>
+                                {% endif %}
+                            </ul>
+                        </div>
+                    </li>
 
-            <!-- Menu Strumenti -->
-            <li class="nav-item">
-                <a class="nav-link" href="#" data-bs-toggle="collapse" data-bs-target="#toolsSubmenu">
-                    <i class="fas fa-tools"></i> Strumenti
-                    <i class="fas fa-chevron-down float-end"></i>
-                </a>
-                <div class="collapse" id="toolsSubmenu">
-                    <ul class="nav flex-column ms-3">
-                        <li class="nav-item">
-                            <a class="nav-link" href="#" onclick="exportAllData()">
-                                <i class="fas fa-download"></i> Esporta Dati
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('settings') }}">
-                                <i class="fas fa-cog"></i> Impostazioni
-                            </a>
-                        </li>
-                    </ul>
-                </div>
-            </li>
-        </ul>
-    {% else %}
-        <ul class="nav flex-column">
-            <li class="nav-item">
-                <a class="nav-link" href="{{ url_for('login') }}">
-                    <i class="fas fa-sign-in-alt"></i> Login
-                </a>
-            </li>
-        </ul>
-    {% endif %}
-</div>
+                    {% if session.user_admin %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" data-bs-toggle="collapse" data-bs-target="#adminSubmenu">
+                            <i class="fas fa-shield-alt"></i> Amministrazione
+                            <i class="fas fa-chevron-down float-end"></i>
+                        </a>
+                        <div class="collapse" id="adminSubmenu">
+                            <ul class="nav flex-column ms-3">
+                                <li class="nav-item">
+                                    <a class="nav-link {% if request.endpoint == 'user_management' %}active{% endif %}"
+                                       href="{{ url_for('user_management') }}">
+                                        <i class="fas fa-users"></i> Gestione Utenti
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" href="#" onclick="showServerInfo()">
+                                        <i class="fas fa-server"></i> Info Server
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" href="#" onclick="showSystemLogs()">
+                                        <i class="fas fa-file-alt"></i> Log Sistema
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                    </li>
+                    {% endif %}
+
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" data-bs-toggle="collapse" data-bs-target="#toolsSubmenu">
+                            <i class="fas fa-tools"></i> Strumenti
+                            <i class="fas fa-chevron-down float-end"></i>
+                        </a>
+                        <div class="collapse" id="toolsSubmenu">
+                            <ul class="nav flex-column ms-3">
+                                <li class="nav-item">
+                                    <a class="nav-link" href="#" onclick="exportAllData()">
+                                        <i class="fas fa-download"></i> Esporta Dati
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" href="#" onclick="showSettings()">
+                                        <i class="fas fa-cog"></i> Impostazioni
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                    </li>
+                </ul>
+            {% else %}
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('login') }}">
+                            <i class="fas fa-sign-in-alt"></i> Login
+                        </a>
+                    </li>
+                </ul>
+            {% endif %}
+        </div>
 
         {% if session.logged_in %}
         <div class="user-info">
             <div class="dropdown">
                 <button class="dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                    <i class="fas fa-user-circle"></i> {{ session.username }}
+                    <div class="connection-indicator online">
+                        <i class="fas fa-user-circle"></i>
+                    </div>
+                    <div class="ms-2">
+                        <div style="font-size: 0.9rem;">{{ session.username }}</div>
+                        <div style="font-size: 0.75rem; opacity: 0.8;">
+                            {% if session.user_admin %}
+                                <span class="user-badge admin">ADMIN</span>
+                            {% elif session.user_manager %}
+                                <span class="user-badge manager">MANAGER</span>
+                            {% elif session.user_readonly %}
+                                <span class="user-badge readonly">READONLY</span>
+                            {% endif %}
+                        </div>
+                    </div>
                     <i class="fas fa-chevron-up float-end"></i>
                 </button>
                 <ul class="dropdown-menu dropdown-menu-dark">
+                    <li>
+                        <div class="dropdown-header">
+                            <small>{{ session.user_email }}</small>
+                        </div>
+                    </li>
+                    <li><hr class="dropdown-divider"></li>
                     <li><a class="dropdown-item" href="#" onclick="showProfile()">
                         <i class="fas fa-user"></i> Profilo
+                    </a></li>
+                    <li><a class="dropdown-item" href="#" onclick="showUserInfo()">
+                        <i class="fas fa-info-circle"></i> Info Account
                     </a></li>
                     <li><a class="dropdown-item" href="#" onclick="showSettings()">
                         <i class="fas fa-cog"></i> Impostazioni
@@ -382,7 +484,7 @@
                 {% if session.logged_in %}
                     <div class="me-3">
                         <span class="badge bg-success" id="connectionStatus">
-                            <i class="fas fa-circle"></i> Connesso
+                            <i class="fas fa-circle"></i> Connesso a Traccar
                         </span>
                     </div>
                     <div class="me-3">
@@ -499,12 +601,81 @@
         }
 
         function showProfile() {
-            showAlert('Gestione profilo in sviluppo', 'info');
+            showUserInfo();
+        }
+
+        function showUserInfo() {
+            fetch('/api/user/info')
+                .then(response => response.json())
+                .then(data => {
+                    const user = data.user;
+                    const permissions = data.permissions;
+
+                    let permissionsList = [];
+                    if (permissions.admin) permissionsList.push('Amministratore');
+                    if (permissions.manager) permissionsList.push('Manager');
+                    if (permissions.readonly) permissionsList.push('Solo lettura');
+                    if (permissions.deviceReadonly) permissionsList.push('Dispositivi solo lettura');
+                    if (permissions.limitCommands) permissionsList.push('Comandi limitati');
+                    if (permissions.disableReports) permissionsList.push('Report disabilitati');
+
+                    showAlert(`
+                        <strong>Info Account</strong><br>
+                        <strong>Nome:</strong> ${user.name}<br>
+                        <strong>Email:</strong> ${user.email}<br>
+                        <strong>ID:</strong> ${user.id}<br>
+                        <strong>Permessi:</strong> ${permissionsList.join(', ') || 'Standard'}
+                    `, 'info', 10000);
+                })
+                .catch(error => {
+                    showAlert('Errore nel caricamento delle informazioni utente', 'danger');
+                });
+        }
+
+        function showUsers() {
+            window.location.href = '/users';
+        }
+
+        function showServerInfo() {
+            fetch('/api/server/info')
+                .then(response => response.json())
+                .then(data => {
+                    const info = `
+                        <strong>Informazioni Server Traccar</strong><br>
+                        <strong>Versione:</strong> ${data.version || 'N/A'}<br>
+                        <strong>Uptime:</strong> ${data.uptime || 'N/A'}<br>
+                        <strong>Connessioni:</strong> ${data.connections || 'N/A'}<br>
+                        <strong>Memoria:</strong> ${data.memory || 'N/A'}<br>
+                        <strong>Database:</strong> ${data.database || 'N/A'}
+                    `;
+                    showAlert(info, 'info', 10000);
+                })
+                .catch(error => {
+                    showAlert('Errore nel caricamento delle informazioni del server', 'danger');
+                });
+        }
+
+        function showSystemLogs() {
+            showAlert('Visualizzazione log sistema - Funzionalità in sviluppo', 'info');
+        }
+
+        function showServerSettings() {
+            showServerInfo();
         }
 
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {
             updateLastUpdate();
+
+            // Auto-dismiss flash messages
+            setTimeout(() => {
+                const alerts = document.querySelectorAll('.flash-messages .alert');
+                alerts.forEach(alert => {
+                    if (!alert.querySelector('.btn-close:hover')) {
+                        alert.remove();
+                    }
+                });
+            }, 5000);
 
             // Close sidebar on mobile when clicking outside
             document.addEventListener('click', function(e) {
@@ -520,17 +691,23 @@
             });
         });
 
-        // Auto-refresh connection status
+        // Auto-refresh connection status with Traccar
         setInterval(() => {
             fetch('/api/devices')
                 .then(response => {
                     const statusElement = document.getElementById('connectionStatus');
                     if (statusElement) {
                         if (response.ok) {
-                            statusElement.innerHTML = '<i class="fas fa-circle"></i> Connesso';
+                            statusElement.innerHTML = '<i class="fas fa-circle"></i> Connesso a Traccar';
                             statusElement.className = 'badge bg-success';
+                        } else if (response.status === 401 || response.status === 403) {
+                            statusElement.innerHTML = '<i class="fas fa-circle"></i> Sessione scaduta';
+                            statusElement.className = 'badge bg-warning';
+                            setTimeout(() => {
+                                window.location.href = '/login';
+                            }, 2000);
                         } else {
-                            statusElement.innerHTML = '<i class="fas fa-circle"></i> Errore';
+                            statusElement.innerHTML = '<i class="fas fa-circle"></i> Errore Traccar';
                             statusElement.className = 'badge bg-danger';
                         }
                     }

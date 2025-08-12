@@ -1,0 +1,1353 @@
+{% extends "base.html" %}
+
+{% block title %}Gestione Utenti - Traccar{% endblock %}
+
+{% block page_title %}Gestione Utenti{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Gestione Utenti</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header con pulsanti azioni -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h3><i class="fas fa-users"></i> Gestione Utenti Traccar</h3>
+                    <p class="text-muted mb-0">Gestisci gli utenti del sistema Traccar</p>
+                </div>
+                <div>
+                    <button class="btn btn-primary" onclick="showAddUserModal()">
+                        <i class="fas fa-user-plus"></i> Nuovo Utente
+                    </button>
+                    <button class="btn btn-outline-secondary" onclick="loadUsers()">
+                        <i class="fas fa-sync-alt"></i> Ricarica
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistiche Utenti -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-users fa-2x mb-2"></i>
+                    <h4 id="totalUsers">0</h4>
+                    <p class="mb-0">Totale Utenti</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-danger text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-crown fa-2x mb-2"></i>
+                    <h4 id="adminUsers">0</h4>
+                    <p class="mb-0">Amministratori</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-user-tie fa-2x mb-2"></i>
+                    <h4 id="managerUsers">0</h4>
+                    <p class="mb-0">Manager</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-clock fa-2x mb-2"></i>
+                    <h4 id="activeUsers">0</h4>
+                    <p class="mb-0">Attivi (30gg)</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtri di ricerca -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body py-2">
+                    <div class="row align-items-center">
+                        <div class="col-md-3">
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text">
+                                    <i class="fas fa-search"></i>
+                                </span>
+                                <input type="text" class="form-control" id="searchInput"
+                                       placeholder="Cerca per nome o email...">
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <select class="form-select form-select-sm" id="roleFilter">
+                                <option value="">Tutti i ruoli</option>
+                                <option value="administrator">Amministratori</option>
+                                <option value="manager">Manager</option>
+                                <option value="readonly">Solo lettura</option>
+                                <option value="standard">Standard</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <select class="form-select form-select-sm" id="statusFilter">
+                                <option value="">Tutti gli stati</option>
+                                <option value="enabled">Abilitati</option>
+                                <option value="disabled">Disabilitati</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <select class="form-select form-select-sm" id="sortBy">
+                                <option value="name">Nome</option>
+                                <option value="email">Email</option>
+                                <option value="id">ID</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3 text-end">
+                            <small class="text-muted">
+                                Visualizzati: <span id="visibleUsers">0</span> di <span id="totalUsersCount">0</span>
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading -->
+    <div id="loadingSpinner" class="text-center p-5" style="display: none;">
+        <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;"></div>
+        <div class="mt-3">
+            <h5>Caricamento utenti...</h5>
+        </div>
+    </div>
+
+    <!-- Tabella utenti -->
+    <div class="card" id="usersCard">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="fas fa-list"></i> Lista Utenti</h5>
+            <div>
+                <button class="btn btn-sm btn-outline-primary" onclick="selectAll()">
+                    <i class="fas fa-check-square"></i> Seleziona tutti
+                </button>
+                <button class="btn btn-sm btn-outline-danger" onclick="bulkDelete()" disabled id="bulkDeleteBtn">
+                    <i class="fas fa-trash"></i> Elimina selezionati
+                </button>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0" id="usersTable">
+                    <thead class="table-dark">
+                        <tr>
+                            <th width="40">
+                                <input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll()">
+                            </th>
+                            <th>Nome</th>
+                            <th>Email</th>
+                            <th>Ruolo</th>
+                            <th>Stato</th>
+                            <th>Dispositivi</th>
+                            <th>Ultimo Accesso</th>
+                            <th>Creato</th>
+                            <th width="120">Azioni</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersTableBody">
+                        <!-- Gli utenti verranno caricati qui -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Messaggio vuoto -->
+    <div id="emptyMessage" class="text-center p-5" style="display: none;">
+        <div class="mb-4">
+            <i class="fas fa-users fa-4x text-muted"></i>
+        </div>
+        <h4 class="text-muted">Nessun utente trovato</h4>
+        <p class="text-muted">Crea il primo utente del sistema</p>
+        <button class="btn btn-primary" onclick="showAddUserModal()">
+            <i class="fas fa-user-plus"></i> Aggiungi Utente
+        </button>
+    </div>
+</div>
+
+<!-- Modal Aggiungi/Modifica Utente -->
+<div class="modal fade" id="userModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="userModalTitle">
+                    <i class="fas fa-user-plus"></i> Nuovo Utente
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="userForm">
+                    <input type="hidden" id="userId" name="id">
+
+                    <!-- Informazioni base -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h6 class="border-bottom pb-2 mb-3">
+                                <i class="fas fa-user"></i> Informazioni Personali
+                            </h6>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Nome Completo *</label>
+                            <input type="text" class="form-control" id="userName" name="name"
+                                   placeholder="Es: Mario Rossi" required>
+                            <div class="form-text">Nome e cognome dell'utente</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Email *</label>
+                            <input type="email" class="form-control" id="userEmail" name="email"
+                                   placeholder="Es: mario.rossi@example.com" required>
+                            <div class="form-text">Email utilizzata per il login</div>
+                        </div>
+                    </div>
+
+                    <!-- Password -->
+                    <div class="row mb-4" id="passwordSection">
+                        <div class="col-12">
+                            <h6 class="border-bottom pb-2 mb-3">
+                                <i class="fas fa-lock"></i> Credenziali di Accesso
+                            </h6>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Password *</label>
+                            <div class="input-group">
+                                <input type="password" class="form-control" id="userPassword" name="password"
+                                       placeholder="Password sicura" required>
+                                <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('userPassword')">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                            <div class="form-text">Minimo 6 caratteri</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Conferma Password *</label>
+                            <div class="input-group">
+                                <input type="password" class="form-control" id="confirmPassword" name="confirmPassword"
+                                       placeholder="Ripeti password" required>
+                                <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('confirmPassword')">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                            <div class="form-text">Deve corrispondere alla password</div>
+                        </div>
+                    </div>
+
+                    <!-- Ruoli e Permessi -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h6 class="border-bottom pb-2 mb-3">
+                                <i class="fas fa-shield-alt"></i> Ruoli e Permessi
+                            </h6>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header bg-light">
+                                    <h6 class="mb-0">Ruoli Principali</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="form-check mb-3">
+                                        <input class="form-check-input" type="checkbox" id="userAdministrator" name="administrator">
+                                        <label class="form-check-label text-danger" for="userAdministrator">
+                                            <strong>Amministratore</strong>
+                                        </label>
+                                        <div class="form-text">Accesso completo al sistema</div>
+                                    </div>
+                                    <div class="form-check mb-3">
+                                        <input class="form-check-input" type="checkbox" id="userManager" name="manager">
+                                        <label class="form-check-label text-warning" for="userManager">
+                                            <strong>Manager</strong>
+                                        </label>
+                                        <div class="form-text">Gestione utenti e dispositivi</div>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="userReadonly" name="readonly">
+                                        <label class="form-check-label text-info" for="userReadonly">
+                                            <strong>Solo Lettura</strong>
+                                        </label>
+                                        <div class="form-text">Accesso in sola lettura</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header bg-light">
+                                    <h6 class="mb-0">Permessi Specifici</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="form-check mb-3">
+                                        <input class="form-check-input" type="checkbox" id="userDeviceReadonly" name="deviceReadonly">
+                                        <label class="form-check-label" for="userDeviceReadonly">
+                                            Dispositivi Solo Lettura
+                                        </label>
+                                        <div class="form-text">Non può modificare dispositivi</div>
+                                    </div>
+                                    <div class="form-check mb-3">
+                                        <input class="form-check-input" type="checkbox" id="userLimitCommands" name="limitCommands">
+                                        <label class="form-check-label" for="userLimitCommands">
+                                            Limita Comandi
+                                        </label>
+                                        <div class="form-text">Comandi limitati sui dispositivi</div>
+                                    </div>
+                                    <div class="form-check mb-3">
+                                        <input class="form-check-input" type="checkbox" id="userDisableReports" name="disableReports">
+                                        <label class="form-check-label" for="userDisableReports">
+                                            Disabilita Report
+                                        </label>
+                                        <div class="form-text">Non può generare report</div>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="userDisabled" name="disabled">
+                                        <label class="form-check-label text-secondary" for="userDisabled">
+                                            Account Disabilitato
+                                        </label>
+                                        <div class="form-text">Impedisce l'accesso</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Attributi aggiuntivi -->
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <h6 class="border-bottom pb-2 mb-3">
+                                <i class="fas fa-cogs"></i> Configurazioni Aggiuntive
+                            </h6>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Telefono</label>
+                            <input type="tel" class="form-control" id="userPhone" name="phone"
+                                   placeholder="+39 123 456 7890">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Coordinate</label>
+                            <input type="text" class="form-control" id="userCoordinateFormat" name="coordinateFormat"
+                                   placeholder="Es: dd">
+                            <div class="form-text">Formato coordinate preferito</div>
+                        </div>
+                    </div>
+
+                    <!-- Attributi personalizzati -->
+                    <div class="row">
+                        <div class="col-12">
+                            <h6 class="border-bottom pb-2 mb-3">
+                                <i class="fas fa-tags"></i> Attributi Personalizzati
+                            </h6>
+                            <div id="customAttributes">
+                                <div class="row mb-2">
+                                    <div class="col-md-5">
+                                        <input type="text" class="form-control form-control-sm"
+                                               placeholder="Nome attributo" name="attrName[]">
+                                    </div>
+                                    <div class="col-md-5">
+                                        <input type="text" class="form-control form-control-sm"
+                                               placeholder="Valore" name="attrValue[]">
+                                    </div>
+                                    <div class="col-md-2">
+                                        <button type="button" class="btn btn-sm btn-outline-success"
+                                                onclick="addAttributeRow()">
+                                            <i class="fas fa-plus"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times"></i> Annulla
+                </button>
+                <button type="button" class="btn btn-primary" onclick="saveUser()">
+                    <i class="fas fa-save"></i> <span id="saveButtonText">Salva Utente</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Permessi Dispositivi -->
+<div class="modal fade" id="devicePermissionsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-mobile-alt"></i> Permessi Dispositivi - <span id="devicePermissionsUserName"></span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    Seleziona i dispositivi a cui l'utente può accedere
+                </div>
+                <div id="devicePermissionsList">
+                    <!-- Lista dispositivi verrà caricata qui -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times"></i> Annulla
+                </button>
+                <button type="button" class="btn btn-primary" onclick="saveDevicePermissions()">
+                    <i class="fas fa-save"></i> Salva Permessi
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Conferma Eliminazione -->
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-exclamation-triangle"></i> Conferma Eliminazione
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>Attenzione!</strong> Questa azione non può essere annullata.
+                </div>
+                <p id="deleteMessage">Sei sicuro di voler eliminare questo utente?</p>
+                <div class="bg-light p-3 rounded" id="userToDelete">
+                    <!-- Informazioni utente da eliminare -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times"></i> Annulla
+                </button>
+                <button type="button" class="btn btn-danger" onclick="confirmDelete()">
+                    <i class="fas fa-trash"></i> Elimina Utente
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let allUsers = [];
+let allDevices = [];
+let selectedUsers = [];
+let isEditing = false;
+let userToDeleteId = null;
+let currentUserForPermissions = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadUsers();
+    loadDevices();
+    setupEventListeners();
+});
+
+function setupEventListeners() {
+    // Filtri
+    document.getElementById('searchInput').addEventListener('input', filterUsers);
+    document.getElementById('roleFilter').addEventListener('change', filterUsers);
+    document.getElementById('statusFilter').addEventListener('change', filterUsers);
+    document.getElementById('sortBy').addEventListener('change', sortUsers);
+
+    // Reset form quando modal si chiude
+    document.getElementById('userModal').addEventListener('hidden.bs.modal', function() {
+        resetUserForm();
+    });
+
+    // Validazione password in tempo reale
+    document.getElementById('confirmPassword').addEventListener('input', validatePasswords);
+    document.getElementById('userPassword').addEventListener('input', validatePasswords);
+
+    // Controllo ruoli esclusivi
+    document.getElementById('userAdministrator').addEventListener('change', function() {
+        if (this.checked) {
+            document.getElementById('userManager').checked = false;
+            document.getElementById('userReadonly').checked = false;
+        }
+    });
+
+    document.getElementById('userManager').addEventListener('change', function() {
+        if (this.checked) {
+            document.getElementById('userAdministrator').checked = false;
+            document.getElementById('userReadonly').checked = false;
+        }
+    });
+
+    document.getElementById('userReadonly').addEventListener('change', function() {
+        if (this.checked) {
+            document.getElementById('userAdministrator').checked = false;
+            document.getElementById('userManager').checked = false;
+        }
+    });
+}
+
+function loadUsers() {
+    showLoading(true);
+
+    fetch('/api/users')
+        .then(response => response.json())
+        .then(users => {
+            allUsers = users;
+            updateStatistics();
+            renderUsersTable();
+        })
+        .catch(error => {
+            console.error('Errore nel caricamento utenti:', error);
+            showAlert('Errore nel caricamento degli utenti', 'danger');
+            showEmptyMessage();
+        })
+        .finally(() => {
+            showLoading(false);
+        });
+}
+
+function loadDevices() {
+    fetch('/api/devices')
+        .then(response => response.json())
+        .then(devices => {
+            allDevices = devices;
+        })
+        .catch(error => {
+            console.error('Errore nel caricamento dispositivi:', error);
+        });
+}
+
+function updateStatistics() {
+    const total = allUsers.length;
+    const admins = allUsers.filter(u => u.administrator).length;
+    const managers = allUsers.filter(u => u.manager && !u.administrator).length;
+
+    // Calcola utenti attivi negli ultimi 30 giorni
+    // Usa diversi campi per determinare l'attività
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    let active = 0;
+    allUsers.forEach(user => {
+        // Controlla vari campi per determinare se l'utente è attivo
+        let isActive = false;
+
+        if (user.lastUpdate && new Date(user.lastUpdate) > thirtyDaysAgo) {
+            isActive = true;
+        } else if (user.login && new Date(user.login) > thirtyDaysAgo) {
+            isActive = true;
+        } else if (user.expirationTime && new Date(user.expirationTime) > new Date()) {
+            isActive = true;
+        } else if (!user.disabled) {
+            // Se l'utente non è disabilitato, consideralo potenzialmente attivo
+            isActive = true;
+        }
+
+        if (isActive) active++;
+    });
+
+    document.getElementById('totalUsers').textContent = total;
+    document.getElementById('adminUsers').textContent = admins;
+    document.getElementById('managerUsers').textContent = managers;
+    document.getElementById('activeUsers').textContent = active;
+}
+
+function renderUsersTable() {
+    const tbody = document.getElementById('usersTableBody');
+
+    if (allUsers.length === 0) {
+        showEmptyMessage();
+        return;
+    }
+
+    tbody.innerHTML = '';
+    let filteredUsers = [...allUsers];
+
+    // Applica filtri
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+    const roleFilter = document.getElementById('roleFilter').value;
+    const statusFilter = document.getElementById('statusFilter').value;
+
+    if (searchTerm) {
+        filteredUsers = filteredUsers.filter(user =>
+            user.name.toLowerCase().includes(searchTerm) ||
+            user.email.toLowerCase().includes(searchTerm)
+        );
+    }
+
+    if (roleFilter) {
+        filteredUsers = filteredUsers.filter(user => {
+            switch (roleFilter) {
+                case 'administrator': return user.administrator;
+                case 'manager': return user.manager;
+                case 'readonly': return user.readonly;
+                case 'standard': return !user.administrator && !user.manager && !user.readonly;
+                default: return true;
+            }
+        });
+    }
+
+    if (statusFilter) {
+        filteredUsers = filteredUsers.filter(user => {
+            return statusFilter === 'enabled' ? !user.disabled : user.disabled;
+        });
+    }
+
+    // Ordinamento
+    const sortBy = document.getElementById('sortBy').value;
+    filteredUsers.sort((a, b) => {
+        return (a[sortBy] || '').localeCompare(b[sortBy] || '');
+    });
+
+    filteredUsers.forEach(user => {
+        const row = document.createElement('tr');
+        const isCurrentUser = user.id === {{ session.user_id }};
+
+        // Calcola numero dispositivi assegnati
+        const deviceCount = getUserDeviceCount(user.id);
+
+        row.innerHTML = `
+            <td>
+                <input type="checkbox" class="user-checkbox" value="${user.id}"
+                       onchange="updateBulkActions()" ${isCurrentUser ? 'disabled' : ''}>
+            </td>
+            <td>
+                <div class="d-flex align-items-center">
+                    <div class="user-avatar me-2">
+                        <i class="fas fa-user-circle fa-2x ${getUserRoleColor(user)}"></i>
+                    </div>
+                    <div>
+                        <strong>${user.name}</strong>
+                        ${isCurrentUser ? '<span class="badge bg-info ms-1">Tu</span>' : ''}
+                        ${user.disabled ? '<span class="badge bg-secondary ms-1">Disabilitato</span>' : ''}
+                    </div>
+                </div>
+            </td>
+            <td>
+                <code>${user.email}</code>
+                ${user.phone ? `<br><small class="text-muted">${user.phone}</small>` : ''}
+            </td>
+            <td>
+                ${getUserRoleBadges(user)}
+            </td>
+            <td>
+                <span class="badge ${user.disabled ? 'bg-danger' : 'bg-success'}">
+                    <i class="fas fa-${user.disabled ? 'times' : 'check'}"></i>
+                    ${user.disabled ? 'Disabilitato' : 'Abilitato'}
+                </span>
+            </td>
+            <td>
+                <span class="badge bg-info">${deviceCount} dispositivi</span>
+                <button class="btn btn-sm btn-outline-primary ms-1" onclick="showDevicePermissions(${user.id})"
+                        title="Gestisci permessi dispositivi">
+                    <i class="fas fa-mobile-alt"></i>
+                </button>
+            </td>
+            <td>
+                ${user.lastUpdate ? `
+                    <small>${formatDateTime(user.lastUpdate)}</small>
+                ` : '<span class="text-muted">Mai</span>'}
+            </td>
+            <td>
+                ${user.fixedEmail ? `
+                    <small>${formatDateTime(user.fixedEmail)}</small>
+                ` : '<span class="text-muted">N/A</span>'}
+            </td>
+            <td>
+                <div class="btn-group btn-group-sm" role="group">
+                    <button class="btn btn-outline-primary btn-sm" onclick="editUser(${user.id})"
+                            title="Modifica" ${isCurrentUser && !{{ session.user_admin }} ? 'disabled' : ''}>
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-outline-info btn-sm" onclick="viewUserDetails(${user.id})"
+                            title="Dettagli">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    <button class="btn btn-outline-danger btn-sm" onclick="showDeleteModal(${user.id})"
+                            title="Elimina" ${isCurrentUser ? 'disabled' : ''}>
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+
+    // Aggiorna contatori
+    document.getElementById('visibleUsers').textContent = filteredUsers.length;
+    document.getElementById('totalUsersCount').textContent = allUsers.length;
+
+    document.getElementById('usersCard').style.display = 'block';
+    document.getElementById('emptyMessage').style.display = 'none';
+}
+
+function getUserRoleColor(user) {
+    if (user.administrator) return 'text-danger';
+    if (user.manager) return 'text-warning';
+    if (user.readonly) return 'text-info';
+    return 'text-secondary';
+}
+
+function getUserRoleBadges(user) {
+    let badges = [];
+
+    if (user.administrator) {
+        badges.push('<span class="badge bg-danger">Amministratore</span>');
+    }
+    if (user.manager) {
+        badges.push('<span class="badge bg-warning">Manager</span>');
+    }
+    if (user.readonly) {
+        badges.push('<span class="badge bg-info">Solo Lettura</span>');
+    }
+    if (user.deviceReadonly) {
+        badges.push('<span class="badge bg-secondary">Dispositivi RO</span>');
+    }
+    if (user.limitCommands) {
+        badges.push('<span class="badge bg-secondary">Comandi Limitati</span>');
+    }
+    if (user.disableReports) {
+        badges.push('<span class="badge bg-secondary">Report Disabilitati</span>');
+    }
+
+    if (badges.length === 0) {
+        badges.push('<span class="badge bg-light text-dark">Standard</span>');
+    }
+
+    return badges.join(' ');
+}
+
+function getUserDeviceCount(userId) {
+    // Restituisce il numero di dispositivi assegnati all'utente
+    // Questo sarà aggiornato quando implementeremo il conteggio reale
+    return 0;
+}
+
+function showEmptyMessage() {
+    document.getElementById('usersCard').style.display = 'none';
+    document.getElementById('emptyMessage').style.display = 'block';
+}
+
+function filterUsers() {
+    renderUsersTable();
+}
+
+function sortUsers() {
+    renderUsersTable();
+}
+
+function showAddUserModal() {
+    resetUserForm();
+    isEditing = false;
+    document.getElementById('userModalTitle').innerHTML = '<i class="fas fa-user-plus"></i> Nuovo Utente';
+    document.getElementById('saveButtonText').textContent = 'Salva Utente';
+
+    // Mostra sezione password per nuovo utente
+    document.getElementById('passwordSection').style.display = 'block';
+    document.getElementById('userPassword').required = true;
+    document.getElementById('confirmPassword').required = true;
+
+    const modal = new bootstrap.Modal(document.getElementById('userModal'));
+    modal.show();
+}
+
+function editUser(userId) {
+    const user = allUsers.find(u => u.id === userId);
+    if (!user) return;
+
+    isEditing = true;
+    document.getElementById('userModalTitle').innerHTML = '<i class="fas fa-user-edit"></i> Modifica Utente';
+    document.getElementById('saveButtonText').textContent = 'Aggiorna Utente';
+
+    // Nascondi sezione password per modifica (opzionale)
+    document.getElementById('passwordSection').style.display = 'none';
+    document.getElementById('userPassword').required = false;
+    document.getElementById('confirmPassword').required = false;
+
+    // Popola il form
+    document.getElementById('userId').value = user.id;
+    document.getElementById('userName').value = user.name || '';
+    document.getElementById('userEmail').value = user.email || '';
+    document.getElementById('userPhone').value = user.phone || '';
+    document.getElementById('userCoordinateFormat').value = user.coordinateFormat || '';
+
+    // Permessi
+    document.getElementById('userAdministrator').checked = user.administrator || false;
+    document.getElementById('userManager').checked = user.manager || false;
+    document.getElementById('userReadonly').checked = user.readonly || false;
+    document.getElementById('userDeviceReadonly').checked = user.deviceReadonly || false;
+    document.getElementById('userLimitCommands').checked = user.limitCommands || false;
+    document.getElementById('userDisableReports').checked = user.disableReports || false;
+    document.getElementById('userDisabled').checked = user.disabled || false;
+
+    // Popola attributi personalizzati
+    if (user.attributes) {
+        populateCustomAttributes(user.attributes);
+    }
+
+    const modal = new bootstrap.Modal(document.getElementById('userModal'));
+    modal.show();
+}
+
+function viewUserDetails(userId) {
+    const user = allUsers.find(u => u.id === userId);
+    if (!user) return;
+
+    // Calcola ruoli
+    let roles = [];
+    if (user.administrator) roles.push('Amministratore');
+    if (user.manager && !user.administrator) roles.push('Manager');
+    if (user.readonly) roles.push('Solo lettura');
+    if (user.deviceReadonly) roles.push('Dispositivi solo lettura');
+    if (user.limitCommands) roles.push('Comandi limitati');
+    if (user.disableReports) roles.push('Report disabilitati');
+
+    if (roles.length === 0) roles.push('Standard');
+
+    const details = `
+        <div style="text-align: left;">
+            <strong>📋 Dettagli Utente</strong><br><br>
+            <strong>🆔 ID:</strong> ${user.id}<br>
+            <strong>👤 Nome:</strong> ${user.name}<br>
+            <strong>📧 Email:</strong> ${user.email}<br>
+            <strong>📱 Telefono:</strong> ${user.phone || 'N/A'}<br>
+            <strong>🔐 Ruoli:</strong> ${roles.join(', ')}<br>
+            <strong>📊 Stato:</strong> ${user.disabled ? '❌ Disabilitato' : '✅ Abilitato'}<br>
+            <strong>📱 Dispositivi:</strong> ${getUserDeviceCount(user.id)} assegnati<br>
+            <strong>🕒 Ultimo accesso:</strong> ${user.lastUpdate ? formatDateTime(user.lastUpdate) : user.login ? formatDateTime(user.login) : 'Mai'}<br>
+            ${user.expirationTime ? `<strong>⏰ Scadenza:</strong> ${formatDateTime(user.expirationTime)}<br>` : ''}
+            ${user.coordinateFormat ? `<strong>🗺️ Formato coordinate:</strong> ${user.coordinateFormat}<br>` : ''}
+        </div>
+    `;
+
+    showAlert(details, 'info', 15000);
+}
+
+function showDeleteModal(userId) {
+    const user = allUsers.find(u => u.id === userId);
+    if (!user) return;
+
+    userToDeleteId = userId;
+
+    document.getElementById('userToDelete').innerHTML = `
+        <div class="row">
+            <div class="col-sm-4"><strong>Nome:</strong></div>
+            <div class="col-sm-8">${user.name}</div>
+        </div>
+        <div class="row">
+            <div class="col-sm-4"><strong>Email:</strong></div>
+            <div class="col-sm-8"><code>${user.email}</code></div>
+        </div>
+        <div class="row">
+            <div class="col-sm-4"><strong>Ruolo:</strong></div>
+            <div class="col-sm-8">${getUserRoleBadges(user)}</div>
+        </div>
+        ${user.administrator ? `
+        <div class="alert alert-danger mt-2 mb-0">
+            <i class="fas fa-exclamation-triangle"></i>
+            <strong>Attenzione:</strong> Stai eliminando un amministratore!
+        </div>
+        ` : ''}
+    `;
+
+    const modal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
+    modal.show();
+}
+
+function confirmDelete() {
+    if (!userToDeleteId) return;
+
+    fetch(`/api/users/${userToDeleteId}`, {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('Utente eliminato con successo', 'success');
+            const modal = bootstrap.Modal.getInstance(document.getElementById('deleteConfirmModal'));
+            modal.hide();
+            loadUsers();
+        } else {
+            showAlert(data.error || 'Errore nell\'eliminazione dell\'utente', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Errore:', error);
+        showAlert('Errore nell\'eliminazione dell\'utente', 'danger');
+    })
+    .finally(() => {
+        userToDeleteId = null;
+    });
+}
+
+function saveUser() {
+    const form = document.getElementById('userForm');
+    const formData = new FormData(form);
+
+    // Validazione base
+    if (!formData.get('name') || !formData.get('email')) {
+        showAlert('Nome e email sono campi obbligatori', 'warning');
+        return;
+    }
+
+    // Validazione password per nuovi utenti
+    if (!isEditing) {
+        if (!formData.get('password') || !formData.get('confirmPassword')) {
+            showAlert('Password è obbligatoria per nuovi utenti', 'warning');
+            return;
+        }
+
+        if (formData.get('password') !== formData.get('confirmPassword')) {
+            showAlert('Le password non corrispondono', 'warning');
+            return;
+        }
+
+        if (formData.get('password').length < 6) {
+            showAlert('La password deve essere di almeno 6 caratteri', 'warning');
+            return;
+        }
+    }
+
+    // Costruisci oggetto utente
+    const userData = {
+        name: formData.get('name'),
+        email: formData.get('email'),
+        phone: formData.get('phone') || null,
+        coordinateFormat: formData.get('coordinateFormat') || null,
+        administrator: formData.get('administrator') === 'on',
+        manager: formData.get('manager') === 'on',
+        readonly: formData.get('readonly') === 'on',
+        deviceReadonly: formData.get('deviceReadonly') === 'on',
+        limitCommands: formData.get('limitCommands') === 'on',
+        disableReports: formData.get('disableReports') === 'on',
+        disabled: formData.get('disabled') === 'on',
+        attributes: {}
+    };
+
+    // Aggiungi password se presente
+    if (formData.get('password')) {
+        userData.password = formData.get('password');
+    }
+
+    // Aggiungi attributi personalizzati
+    const attrNames = formData.getAll('attrName[]');
+    const attrValues = formData.getAll('attrValue[]');
+
+    for (let i = 0; i < attrNames.length; i++) {
+        if (attrNames[i] && attrValues[i]) {
+            userData.attributes[attrNames[i]] = attrValues[i];
+        }
+    }
+
+    // Determina se stiamo creando o aggiornando
+    const method = isEditing ? 'PUT' : 'POST';
+    const url = isEditing ? `/api/users/${formData.get('id')}` : '/api/users';
+
+    if (isEditing) {
+        userData.id = parseInt(formData.get('id'));
+    }
+
+    fetch(url, {
+        method: method,
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(userData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const action = isEditing ? 'aggiornato' : 'creato';
+            showAlert(`Utente ${action} con successo`, 'success');
+
+            const modal = bootstrap.Modal.getInstance(document.getElementById('userModal'));
+            modal.hide();
+            loadUsers();
+        } else {
+            showAlert(data.error || 'Errore nel salvataggio dell\'utente', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Errore:', error);
+        showAlert('Errore nel salvataggio dell\'utente', 'danger');
+    });
+}
+
+function showDevicePermissions(userId) {
+    const user = allUsers.find(u => u.id === userId);
+    if (!user) return;
+
+    currentUserForPermissions = userId;
+    document.getElementById('devicePermissionsUserName').textContent = user.name;
+
+    // Carica permessi attuali e dispositivi
+    Promise.all([
+        fetch(`/api/users/${userId}/permissions`).then(r => r.json()),
+        fetch('/api/devices').then(r => r.json())
+    ]).then(([permissions, devices]) => {
+        renderDevicePermissionsList(devices, permissions);
+
+        const modal = new bootstrap.Modal(document.getElementById('devicePermissionsModal'));
+        modal.show();
+    }).catch(error => {
+        console.error('Errore nel caricamento permessi:', error);
+        showAlert('Errore nel caricamento dei permessi', 'danger');
+    });
+}
+
+function renderDevicePermissionsList(devices, userPermissions) {
+    const container = document.getElementById('devicePermissionsList');
+    const userDeviceIds = userPermissions.map(p => p.deviceId);
+
+    if (devices.length === 0) {
+        container.innerHTML = '<div class="alert alert-info">Nessun dispositivo disponibile</div>';
+        return;
+    }
+
+    let html = '<div class="row">';
+
+    devices.forEach((device, index) => {
+        const isChecked = userDeviceIds.includes(device.id);
+
+        html += `
+            <div class="col-md-6 mb-3">
+                <div class="card ${isChecked ? 'border-primary' : ''}">
+                    <div class="card-body p-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox"
+                                   id="device_${device.id}" value="${device.id}"
+                                   ${isChecked ? 'checked' : ''}>
+                            <label class="form-check-label" for="device_${device.id}">
+                                <strong>${device.name}</strong><br>
+                                <small class="text-muted">IMEI: ${device.uniqueId}</small>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        if ((index + 1) % 2 === 0) {
+            html += '</div><div class="row">';
+        }
+    });
+
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+function saveDevicePermissions() {
+    if (!currentUserForPermissions) return;
+
+    const checkboxes = document.querySelectorAll('#devicePermissionsList input[type="checkbox"]:checked');
+    const deviceIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
+
+    fetch(`/api/users/${currentUserForPermissions}/permissions`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ deviceIds: deviceIds })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('Permessi dispositivi aggiornati con successo', 'success');
+
+            const modal = bootstrap.Modal.getInstance(document.getElementById('devicePermissionsModal'));
+            modal.hide();
+            loadUsers(); // Ricarica per aggiornare i contatori
+        } else {
+            showAlert(data.error || 'Errore nell\'aggiornamento dei permessi', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Errore:', error);
+        showAlert('Errore nell\'aggiornamento dei permessi', 'danger');
+    });
+}
+
+function resetUserForm() {
+    document.getElementById('userForm').reset();
+    document.getElementById('userId').value = '';
+
+    // Reset attributi personalizzati
+    const attributesContainer = document.getElementById('customAttributes');
+    attributesContainer.innerHTML = `
+        <div class="row mb-2">
+            <div class="col-md-5">
+                <input type="text" class="form-control form-control-sm"
+                       placeholder="Nome attributo" name="attrName[]">
+            </div>
+            <div class="col-md-5">
+                <input type="text" class="form-control form-control-sm"
+                       placeholder="Valore" name="attrValue[]">
+            </div>
+            <div class="col-md-2">
+                <button type="button" class="btn btn-sm btn-outline-success"
+                        onclick="addAttributeRow()">
+                    <i class="fas fa-plus"></i>
+                </button>
+            </div>
+        </div>
+    `;
+
+    // Reset validazione password
+    document.getElementById('userPassword').classList.remove('is-valid', 'is-invalid');
+    document.getElementById('confirmPassword').classList.remove('is-valid', 'is-invalid');
+}
+
+function populateCustomAttributes(attributes) {
+    const container = document.getElementById('customAttributes');
+    container.innerHTML = '';
+
+    const entries = Object.entries(attributes);
+
+    if (entries.length === 0) {
+        addAttributeRow();
+        return;
+    }
+
+    entries.forEach(([name, value], index) => {
+        const isLast = index === entries.length - 1;
+        container.innerHTML += `
+            <div class="row mb-2">
+                <div class="col-md-5">
+                    <input type="text" class="form-control form-control-sm"
+                           placeholder="Nome attributo" name="attrName[]" value="${name}">
+                </div>
+                <div class="col-md-5">
+                    <input type="text" class="form-control form-control-sm"
+                           placeholder="Valore" name="attrValue[]" value="${value}">
+                </div>
+                <div class="col-md-2">
+                    <button type="button" class="btn btn-sm ${isLast ? 'btn-outline-success' : 'btn-outline-danger'}"
+                            onclick="${isLast ? 'addAttributeRow()' : 'removeAttributeRow(this)'}">
+                        <i class="fas fa-${isLast ? 'plus' : 'trash'}"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+    });
+
+    // Aggiungi una riga vuota alla fine
+    addAttributeRow();
+}
+
+function addAttributeRow() {
+    const container = document.getElementById('customAttributes');
+
+    // Converti il pulsante + dell'ultima riga in pulsante -
+    const lastPlusBtn = container.querySelector('.btn-outline-success:last-of-type');
+    if (lastPlusBtn) {
+        lastPlusBtn.className = 'btn btn-sm btn-outline-danger';
+        lastPlusBtn.innerHTML = '<i class="fas fa-trash"></i>';
+        lastPlusBtn.setAttribute('onclick', 'removeAttributeRow(this)');
+    }
+
+    // Aggiungi nuova riga
+    const newRow = document.createElement('div');
+    newRow.className = 'row mb-2';
+    newRow.innerHTML = `
+        <div class="col-md-5">
+            <input type="text" class="form-control form-control-sm"
+                   placeholder="Nome attributo" name="attrName[]">
+        </div>
+        <div class="col-md-5">
+            <input type="text" class="form-control form-control-sm"
+                   placeholder="Valore" name="attrValue[]">
+        </div>
+        <div class="col-md-2">
+            <button type="button" class="btn btn-sm btn-outline-success"
+                    onclick="addAttributeRow()">
+                <i class="fas fa-plus"></i>
+            </button>
+        </div>
+    `;
+
+    container.appendChild(newRow);
+}
+
+function removeAttributeRow(button) {
+    button.closest('.row').remove();
+}
+
+function validatePasswords() {
+    const password = document.getElementById('userPassword');
+    const confirmPassword = document.getElementById('confirmPassword');
+
+    if (password.value.length > 0 && confirmPassword.value.length > 0) {
+        if (password.value === confirmPassword.value && password.value.length >= 6) {
+            password.classList.remove('is-invalid');
+            password.classList.add('is-valid');
+            confirmPassword.classList.remove('is-invalid');
+            confirmPassword.classList.add('is-valid');
+        } else {
+            password.classList.remove('is-valid');
+            password.classList.add('is-invalid');
+            confirmPassword.classList.remove('is-valid');
+            confirmPassword.classList.add('is-invalid');
+        }
+    } else {
+        password.classList.remove('is-valid', 'is-invalid');
+        confirmPassword.classList.remove('is-valid', 'is-invalid');
+    }
+}
+
+function togglePasswordVisibility(inputId) {
+    const input = document.getElementById(inputId);
+    const button = input.nextElementSibling;
+    const icon = button.querySelector('i');
+
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
+    } else {
+        input.type = 'password';
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
+    }
+}
+
+function selectAll() {
+    const checkboxes = document.querySelectorAll('.user-checkbox:not(:disabled)');
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+
+    checkboxes.forEach(cb => {
+        cb.checked = !selectAllCheckbox.checked;
+    });
+
+    selectAllCheckbox.checked = !selectAllCheckbox.checked;
+    updateBulkActions();
+}
+
+function toggleSelectAll() {
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+    const checkboxes = document.querySelectorAll('.user-checkbox:not(:disabled)');
+
+    checkboxes.forEach(cb => {
+        cb.checked = selectAllCheckbox.checked;
+    });
+
+    updateBulkActions();
+}
+
+function updateBulkActions() {
+    const checkboxes = document.querySelectorAll('.user-checkbox:checked');
+    const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+
+    bulkDeleteBtn.disabled = checkboxes.length === 0;
+
+    // Aggiorna stato checkbox "seleziona tutti"
+    const allCheckboxes = document.querySelectorAll('.user-checkbox:not(:disabled)');
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+
+    if (checkboxes.length === 0) {
+        selectAllCheckbox.indeterminate = false;
+        selectAllCheckbox.checked = false;
+    } else if (checkboxes.length === allCheckboxes.length) {
+        selectAllCheckbox.indeterminate = false;
+        selectAllCheckbox.checked = true;
+    } else {
+        selectAllCheckbox.indeterminate = true;
+    }
+}
+
+function bulkDelete() {
+    const checkboxes = document.querySelectorAll('.user-checkbox:checked');
+    const selectedIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
+
+    if (selectedIds.length === 0) return;
+
+    const confirmMsg = `Sei sicuro di voler eliminare ${selectedIds.length} utenti selezionati? Questa azione non può essere annullata.`;
+
+    if (confirm(confirmMsg)) {
+        const promises = selectedIds.map(id =>
+            fetch(`/api/users/${id}`, { method: 'DELETE' })
+                .then(response => response.json())
+        );
+
+        Promise.all(promises)
+            .then(results => {
+                const successful = results.filter(r => r.success).length;
+                const failed = results.length - successful;
+
+                if (failed === 0) {
+                    showAlert(`${successful} utenti eliminati con successo`, 'success');
+                } else {
+                    showAlert(`${successful} eliminati, ${failed} errori`, 'warning');
+                }
+
+                loadUsers();
+            })
+            .catch(error => {
+                console.error('Errore nell\'eliminazione multipla:', error);
+                showAlert('Errore nell\'eliminazione degli utenti', 'danger');
+            });
+    }
+}
+
+function showLoading(show) {
+    document.getElementById('loadingSpinner').style.display = show ? 'block' : 'none';
+    document.getElementById('usersCard').style.display = show ? 'none' : 'block';
+}
+
+// Utility functions
+function formatDateTime(dateTimeString) {
+    return new Date(dateTimeString).toLocaleString('it-IT');
+}
+
+function showAlert(message, type = 'info', duration = 5000) {
+    const alertHtml = `
+        <div class="alert alert-${type} alert-dismissible fade show position-fixed"
+             style="top: 80px; right: 20px; z-index: 2000; min-width: 300px;" role="alert">
+            <i class="fas fa-${getAlertIcon(type)}"></i> ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', alertHtml);
+
+    if (duration > 0) {
+        setTimeout(() => {
+            const alert = document.querySelector('.alert');
+            if (alert) {
+                alert.remove();
+            }
+        }, duration);
+    }
+}
+
+function getAlertIcon(type) {
+    const icons = {
+        'success': 'check-circle',
+        'danger': 'exclamation-triangle',
+        'warning': 'exclamation-circle',
+        'info': 'info-circle'
+    };
+    return icons[type] || 'info-circle';
+}
+</script>
+{% endblock %}
