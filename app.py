@@ -9,6 +9,8 @@ from datetime import timedelta
 import os
 from functools import wraps
 
+from simulatore.device_simulator import logger
+
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'your-secret-key-here')
 
@@ -16,6 +18,18 @@ app.secret_key = os.environ.get('SECRET_KEY', 'your-secret-key-here')
 TRACCAR_SERVER = os.environ.get('TRACCAR_SERVER', 'http://localhost:8082')
 TRACCAR_USERNAME = os.environ.get('TRACCAR_USERNAME', '')
 TRACCAR_PASSWORD = os.environ.get('TRACCAR_PASSWORD', '')
+
+import subprocess
+import threading
+import json
+import os
+from typing import Dict, List
+from datetime import datetime
+
+# Aggiungi queste variabili globali
+simulator_processes = {}  # Dizionario per tracciare i processi di simulazione attivi
+simulator_manager = None
+
 
 
 def login_required(f):
@@ -1280,5 +1294,375 @@ def api_devices_status():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+
+@app.route('/simulator')
+@login_required
+def simulator_dashboard():
+    """Pagina dashboard simulatore GPS"""
+    permissions = traccar_api.get_user_permissions()
+
+    # Solo admin e manager possono usare il simulatore
+    if not (permissions.get('admin') or permissions.get('manager')):
+        flash('Permessi insufficienti per accedere al simulatore', 'error')
+        return redirect(url_for('dashboard'))
+
+    return render_template('simulator_dashboard.html', permissions=permissions)
+
+
+@app.route('/api/simulator/status')
+@login_required
+def api_simulator_status():
+    """API per ottenere lo status di tutte le simulazioni attive"""
+    permissions = traccar_api.get_user_permissions()
+
+    if not (permissions.get('admin') or permissions.get('manager')):
+        return jsonify({'error': 'Permessi insufficienti'}), 403
+
+    try:
+        # Verifica quali processi sono ancora attivi
+        active_simulators = {}
+        for imei, proc_info in list(simulator_processes.items()):
+            process = proc_info['process']
+            if process.poll() is None:  # Processo ancora in esecuzione
+                active_simulators[imei] = {
+                    'imei': imei,
+                    'device_name': proc_info.get('device_name', 'Unknown'),
+                    'start_time': proc_info.get('start_time'),
+                    'config': proc_info.get('config', {}),
+                    'pid': process.pid,
+                    'status': 'running'
+                }
+            else:
+                # Rimuovi processi terminati
+                del simulator_processes[imei]
+
+        return jsonify({
+            'active_simulators': active_simulators,
+            'total_count': len(active_simulators)
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/simulator/start', methods=['POST'])
+@login_required
+def api_simulator_start():
+    """API per avviare una simulazione GPS"""
+    permissions = traccar_api.get_user_permissions()
+
+    if not (permissions.get('admin') or permissions.get('manager')):
+        return jsonify({'error': 'Permessi insufficienti'}), 403
+
+    try:
+        data = request.get_json()
+
+        # Validazione dati richiesti
+        required_fields = ['device_id', 'imei', 'simulation_type']
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({'error': f'Campo {field} richiesto'}), 400
+
+        device_id = data['device_id']
+        imei = data['imei']
+
+        # Verifica che il dispositivo esista in Traccar
+        device = traccar_api.get_device_by_id(device_id)
+        if not device:
+            return jsonify({'error': 'Dispositivo non trovato in Traccar'}), 404
+
+        # Verifica che non ci sia già una simulazione attiva per questo IMEI
+        if imei in simulator_processes:
+            proc = simulator_processes[imei]['process']
+            if proc.poll() is None:
+                return jsonify({'error': 'Simulazione già attiva per questo dispositivo'}), 409
+            else:
+                # Rimuovi processo terminato
+                del simulator_processes[imei]
+
+        # Crea configurazione per il simulatore
+        config = create_simulator_config(data, device)
+
+        # Salva configurazione temporanea
+        temp_config_file = f'temp_simulator_{imei}.json'
+        with open(temp_config_file, 'w', encoding='utf-8') as f:
+            json.dump(config, f, indent=2, ensure_ascii=False)
+
+        # Avvia il processo del simulatore
+        try:
+            cmd = ['python3', 'device_simulator.py', '--config', temp_config_file]
+            process = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
+            )
+
+            # Traccia il processo
+            simulator_processes[imei] = {
+                'process': process,
+                'device_name': device.get('name', f'Device {device_id}'),
+                'start_time': datetime.now().isoformat(),
+                'config': data,
+                'temp_config_file': temp_config_file
+            }
+
+            logger.info(f"Simulazione avviata per dispositivo {imei} (PID: {process.pid})")
+
+            return jsonify({
+                'success': True,
+                'message': f'Simulazione avviata per {device.get("name")}',
+                'imei': imei,
+                'pid': process.pid
+            })
+
+        except Exception as e:
+            # Pulisci file temporaneo in caso di errore
+            if os.path.exists(temp_config_file):
+                os.remove(temp_config_file)
+            raise e
+
+    except Exception as e:
+        logger.error(f"Errore nell'avvio simulazione: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/simulator/stop', methods=['POST'])
+@login_required
+def api_simulator_stop():
+    """API per fermare una simulazione GPS"""
+    permissions = traccar_api.get_user_permissions()
+
+    if not (permissions.get('admin') or permissions.get('manager')):
+        return jsonify({'error': 'Permessi insufficienti'}), 403
+
+    try:
+        data = request.get_json()
+        imei = data.get('imei')
+
+        if not imei:
+            return jsonify({'error': 'IMEI richiesto'}), 400
+
+        if imei not in simulator_processes:
+            return jsonify({'error': 'Simulazione non trovata'}), 404
+
+        proc_info = simulator_processes[imei]
+        process = proc_info['process']
+
+        # Termina il processo
+        try:
+            process.terminate()
+            # Aspetta fino a 5 secondi per la terminazione graceful
+            try:
+                process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                # Se non termina, forza la chiusura
+                process.kill()
+                process.wait()
+
+        except Exception as e:
+            logger.warning(f"Errore nella terminazione del processo {process.pid}: {e}")
+
+        # Pulisci file temporaneo
+        temp_file = proc_info.get('temp_config_file')
+        if temp_file and os.path.exists(temp_file):
+            try:
+                os.remove(temp_file)
+            except Exception as e:
+                logger.warning(f"Impossibile rimuovere file temporaneo {temp_file}: {e}")
+
+        # Rimuovi dalla lista
+        device_name = proc_info.get('device_name', 'Unknown')
+        del simulator_processes[imei]
+
+        logger.info(f"Simulazione fermata per dispositivo {imei}")
+
+        return jsonify({
+            'success': True,
+            'message': f'Simulazione fermata per {device_name}'
+        })
+
+    except Exception as e:
+        logger.error(f"Errore nell'arresto simulazione: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/simulator/stop-all', methods=['POST'])
+@login_required
+def api_simulator_stop_all():
+    """API per fermare tutte le simulazioni"""
+    permissions = traccar_api.get_user_permissions()
+
+    if not (permissions.get('admin') or permissions.get('manager')):
+        return jsonify({'error': 'Permessi insufficienti'}), 403
+
+    try:
+        stopped_count = 0
+        errors = []
+
+        for imei in list(simulator_processes.keys()):
+            try:
+                # Usa l'endpoint di stop singolo
+                result = api_simulator_stop()
+                if result[1] == 200:  # Status code OK
+                    stopped_count += 1
+                else:
+                    errors.append(f"Errore fermando {imei}")
+            except Exception as e:
+                errors.append(f"Errore fermando {imei}: {str(e)}")
+
+        return jsonify({
+            'success': True,
+            'message': f'Fermate {stopped_count} simulazioni',
+            'stopped_count': stopped_count,
+            'errors': errors
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/simulator/templates')
+@login_required
+def api_simulator_templates():
+    """API per ottenere template di configurazione predefiniti"""
+    permissions = traccar_api.get_user_permissions()
+
+    if not (permissions.get('admin') or permissions.get('manager')):
+        return jsonify({'error': 'Permessi insufficienti'}), 403
+
+    # Template predefiniti per diversi scenari
+    templates = {
+        'city_tour': {
+            'name': 'Tour Cittadino',
+            'description': 'Percorso circolare per simulare un tour in città',
+            'simulation_type': 'circular',
+            'speed_kmh': 30,
+            'update_interval': 15,
+            'radius_km': 1.5,
+            'points': 16
+        },
+        'highway_route': {
+            'name': 'Percorso Autostradale',
+            'description': 'Viaggio lineare ad alta velocità',
+            'simulation_type': 'route',
+            'speed_kmh': 90,
+            'update_interval': 30,
+            'points': 30
+        },
+        'delivery_route': {
+            'name': 'Giro Consegne',
+            'description': 'Percorso con multiple fermate',
+            'simulation_type': 'custom',
+            'speed_kmh': 40,
+            'update_interval': 20,
+            'includes_stops': True
+        },
+        'patrol_route': {
+            'name': 'Pattugliamento',
+            'description': 'Percorso di sorveglianza ripetitivo',
+            'simulation_type': 'circular',
+            'speed_kmh': 25,
+            'update_interval': 10,
+            'radius_km': 3.0,
+            'points': 24
+        }
+    }
+
+    return jsonify(templates)
+
+
+def create_simulator_config(data: Dict, device: Dict) -> Dict:
+    """Crea la configurazione per il simulatore basata sui dati ricevuti"""
+
+    # Configurazione base
+    config = {
+        'traccar_server': f'http://localhost:8082',  # Usa la configurazione del tuo server
+        'devices': [{
+            'device_id': device['id'],
+            'imei': data['imei'],
+            'update_interval': data.get('update_interval', 30),
+            'speed_kmh': data.get('speed_kmh', 50),
+            'simulation_type': data['simulation_type']
+        }]
+    }
+
+    device_config = config['devices'][0]
+
+    # Configurazione specifica per tipo di simulazione
+    if data['simulation_type'] == 'circular':
+        device_config.update({
+            'center_lat': data.get('center_lat', 45.4642),
+            'center_lng': data.get('center_lng', 9.1900),
+            'radius_km': data.get('radius_km', 2.0),
+            'points': data.get('points', 20)
+        })
+
+    elif data['simulation_type'] == 'route':
+        device_config.update({
+            'start_lat': data.get('start_lat', 45.4642),
+            'start_lng': data.get('start_lng', 9.1900),
+            'end_lat': data.get('end_lat', 45.4842),
+            'end_lng': data.get('end_lng', 9.2100),
+            'points': data.get('points', 50)
+        })
+
+    elif data['simulation_type'] == 'custom':
+        # Percorso personalizzato
+        path = data.get('path', [])
+        if not path:
+            # Genera un percorso di default se non specificato
+            path = [
+                [45.4642, 9.1900],
+                [45.4652, 9.1920],
+                [45.4672, 9.1950],
+                [45.4692, 9.1980],
+                [45.4642, 9.1900]
+            ]
+        device_config['path'] = path
+
+    return config
+
+
+@app.teardown_appcontext
+def cleanup_simulators(error):
+    """Pulisce i processi del simulatore quando l'app si chiude"""
+    pass  # Il cleanup viene gestito dall'atexit handler
+
+
+import atexit
+
+
+def cleanup_all_simulators():
+    """Funzione di cleanup chiamata alla chiusura dell'applicazione"""
+    global simulator_processes
+
+    if simulator_processes:
+        logger.info(f"Pulizia di {len(simulator_processes)} simulatori attivi...")
+
+        for imei, proc_info in simulator_processes.items():
+            try:
+                process = proc_info['process']
+                if process.poll() is None:  # Processo ancora attivo
+                    logger.info(f"Terminando simulatore {imei} (PID: {process.pid})")
+                    process.terminate()
+                    try:
+                        process.wait(timeout=3)
+                    except subprocess.TimeoutExpired:
+                        process.kill()
+
+                # Pulisci file temporanei
+                temp_file = proc_info.get('temp_config_file')
+                if temp_file and os.path.exists(temp_file):
+                    os.remove(temp_file)
+
+            except Exception as e:
+                logger.error(f"Errore nella pulizia del simulatore {imei}: {e}")
+
+        simulator_processes.clear()
+
+
 if __name__ == '__main__':
+    # Registra la funzione di cleanup
+    atexit.register(cleanup_all_simulators)
     app.run(debug=True, host='0.0.0.0', port=5000)
