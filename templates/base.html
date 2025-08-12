@@ -210,9 +210,25 @@
             color: #dc3545;
         }
 
-        #map {
+        /* MAPPA: Regola CSS corretta per evitare overflow */
+        .content-area #map {
             height: 500px;
+            max-width: 100%;
             border-radius: 8px;
+            box-sizing: border-box;
+        }
+
+        /* Regola di sicurezza generale per tutte le mappe */
+        #map {
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+
+        /* Per contenitori specifici (come video) */
+        .video-container #map {
+            width: 100%;
+            height: 400px;
+            max-width: 100%;
         }
 
         .custom-div-icon {
@@ -275,6 +291,27 @@
             50% { opacity: 0.5; }
             100% { opacity: 1; }
         }
+
+        /* Media queries responsive per mappe */
+        @media (max-width: 768px) {
+            .content-area #map {
+                height: 300px;
+            }
+
+            .video-container #map {
+                height: 250px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .content-area #map {
+                height: 200px;
+            }
+
+            .video-container #map {
+                height: 200px;
+            }
+        }
     </style>
     {% block extra_css %}{% endblock %}
 </head>
@@ -313,6 +350,7 @@
                             <i class="fas fa-tachometer-alt"></i> Dashboard
                         </a>
                     </li>
+
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'map_view' %}active{% endif %}"
                            href="{{ url_for('map_view') }}">
@@ -320,14 +358,12 @@
                         </a>
                     </li>
 
-                    {% if not session.user_readonly %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'reports' %}active{% endif %}"
                            href="{{ url_for('reports') }}">
                             <i class="fas fa-chart-line"></i> Reports
                         </a>
                     </li>
-                    {% endif %}
 
                     <li class="nav-item">
                         <a class="nav-link" href="#" data-bs-toggle="collapse" data-bs-target="#devicesSubmenu">
@@ -337,13 +373,8 @@
                         <div class="collapse" id="devicesSubmenu">
                             <ul class="nav flex-column ms-3">
                                 <li class="nav-item">
-                                    <a class="nav-link" href="{{ url_for('dashboard') }}">
-                                        <i class="fas fa-list"></i> Lista Dispositivi
-                                    </a>
-                                </li>
-                                <li class="nav-item">
-                                    <a class="nav-link" href="#" onclick="showOnlineDevices()">
-                                        <i class="fas fa-wifi"></i> Solo Online
+                                    <a class="nav-link" href="#" onclick="showMyDevices()">
+                                        <i class="fas fa-list"></i> I Miei Dispositivi
                                     </a>
                                 </li>
                                 {% if session.user_admin or session.user_manager %}
@@ -525,201 +556,98 @@
             refreshIcon.classList.add('fa-spin');
 
             // Trigger refresh based on current page
-            if (typeof loadDevices === 'function') {
-                loadDevices();
-            }
-            if (typeof updateMap === 'function') {
+            if (typeof updateDevices === 'function') {
+                updateDevices();
+            } else if (typeof updateMap === 'function') {
                 updateMap();
-            }
-            if (typeof refreshData === 'function') {
-                refreshData();
+            } else if (typeof loadUsers === 'function') {
+                loadUsers();
             }
 
+            // Remove spin class after animation
             setTimeout(() => {
                 refreshIcon.classList.remove('fa-spin');
-                updateLastUpdate();
             }, 2000);
         }
 
-        function updateLastUpdate() {
-            const element = document.getElementById('lastUpdate');
-            if (element) {
-                element.textContent = `Aggiornato: ${new Date().toLocaleTimeString('it-IT')}`;
-            }
-        }
-
-        function showAlert(message, type = 'info', duration = 5000) {
-            const alertsContainer = document.getElementById('alertsContainer');
-            const alertId = 'alert_' + Date.now();
-
-            const alertHtml = `
-                <div class="alert alert-${type} alert-dismissible fade show" id="${alertId}" role="alert">
-                    <i class="fas fa-${getAlertIcon(type)}"></i> ${message}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
-            `;
-
-            alertsContainer.insertAdjacentHTML('beforeend', alertHtml);
-
-            if (duration > 0) {
-                setTimeout(() => {
-                    const alert = document.getElementById(alertId);
-                    if (alert) {
-                        alert.remove();
-                    }
-                }, duration);
-            }
-        }
-
-        function getAlertIcon(type) {
-            const icons = {
-                'success': 'check-circle',
-                'danger': 'exclamation-triangle',
-                'warning': 'exclamation-circle',
-                'info': 'info-circle'
-            };
-            return icons[type] || 'info-circle';
-        }
-
-        function showOnlineDevices() {
-            if (window.location.pathname === '/dashboard' || window.location.pathname === '/') {
-                document.getElementById('statusFilter').value = 'online';
-                if (typeof filterDevices === 'function') {
-                    filterDevices();
-                }
-            } else {
-                window.location.href = '/dashboard?filter=online';
-            }
-        }
-
-        function exportAllData() {
-            showAlert('Funzionalità di esportazione completa in sviluppo', 'info');
-        }
-
-        function showSettings() {
-            showAlert('Pannello impostazioni in sviluppo', 'info');
-        }
-
-        function showProfile() {
-            showUserInfo();
-        }
-
-        function showUserInfo() {
-            fetch('/api/user/info')
-                .then(response => response.json())
-                .then(data => {
-                    const user = data.user;
-                    const permissions = data.permissions;
-
-                    let permissionsList = [];
-                    if (permissions.admin) permissionsList.push('Amministratore');
-                    if (permissions.manager) permissionsList.push('Manager');
-                    if (permissions.readonly) permissionsList.push('Solo lettura');
-                    if (permissions.deviceReadonly) permissionsList.push('Dispositivi solo lettura');
-                    if (permissions.limitCommands) permissionsList.push('Comandi limitati');
-                    if (permissions.disableReports) permissionsList.push('Report disabilitati');
-
-                    showAlert(`
-                        <strong>Info Account</strong><br>
-                        <strong>Nome:</strong> ${user.name}<br>
-                        <strong>Email:</strong> ${user.email}<br>
-                        <strong>ID:</strong> ${user.id}<br>
-                        <strong>Permessi:</strong> ${permissionsList.join(', ') || 'Standard'}
-                    `, 'info', 10000);
-                })
-                .catch(error => {
-                    showAlert('Errore nel caricamento delle informazioni utente', 'danger');
-                });
-        }
-
-        function showUsers() {
-            window.location.href = '/users';
-        }
-
-        function showServerInfo() {
-            fetch('/api/server/info')
-                .then(response => response.json())
-                .then(data => {
-                    const info = `
-                        <strong>Informazioni Server Traccar</strong><br>
-                        <strong>Versione:</strong> ${data.version || 'N/A'}<br>
-                        <strong>Uptime:</strong> ${data.uptime || 'N/A'}<br>
-                        <strong>Connessioni:</strong> ${data.connections || 'N/A'}<br>
-                        <strong>Memoria:</strong> ${data.memory || 'N/A'}<br>
-                        <strong>Database:</strong> ${data.database || 'N/A'}
-                    `;
-                    showAlert(info, 'info', 10000);
-                })
-                .catch(error => {
-                    showAlert('Errore nel caricamento delle informazioni del server', 'danger');
-                });
-        }
-
-        function showSystemLogs() {
-            showAlert('Visualizzazione log sistema - Funzionalità in sviluppo', 'info');
-        }
-
-        function showServerSettings() {
-            showServerInfo();
-        }
-
-        // Initialize on page load
+        // Auto-hide flash messages after 5 seconds
         document.addEventListener('DOMContentLoaded', function() {
-            updateLastUpdate();
-
-            // Auto-dismiss flash messages
             setTimeout(() => {
-                const alerts = document.querySelectorAll('.flash-messages .alert');
+                const alerts = document.querySelectorAll('.alert');
                 alerts.forEach(alert => {
-                    if (!alert.querySelector('.btn-close:hover')) {
-                        alert.remove();
+                    if (alert.classList.contains('show')) {
+                        alert.classList.remove('show');
+                        alert.classList.add('fade');
+                        setTimeout(() => alert.remove(), 150);
                     }
                 });
             }, 5000);
 
-            // Close sidebar on mobile when clicking outside
-            document.addEventListener('click', function(e) {
-                if (window.innerWidth <= 768) {
-                    const sidebar = document.getElementById('sidebar');
-                    const overlay = document.getElementById('mobileOverlay');
-
-                    if (!sidebar.contains(e.target) && sidebar.classList.contains('show')) {
-                        sidebar.classList.remove('show');
-                        overlay.classList.remove('show');
-                    }
-                }
-            });
+            // Update connection status
+            updateConnectionStatus();
+            setInterval(updateConnectionStatus, 30000); // Every 30 seconds
         });
 
-        // Auto-refresh connection status with Traccar
-        setInterval(() => {
-            fetch('/api/devices')
-                .then(response => {
-                    const statusElement = document.getElementById('connectionStatus');
-                    if (statusElement) {
-                        if (response.ok) {
-                            statusElement.innerHTML = '<i class="fas fa-circle"></i> Connesso a Traccar';
-                            statusElement.className = 'badge bg-success';
-                        } else if (response.status === 401 || response.status === 403) {
-                            statusElement.innerHTML = '<i class="fas fa-circle"></i> Sessione scaduta';
-                            statusElement.className = 'badge bg-warning';
-                            setTimeout(() => {
-                                window.location.href = '/login';
-                            }, 2000);
-                        } else {
-                            statusElement.innerHTML = '<i class="fas fa-circle"></i> Errore Traccar';
-                            statusElement.className = 'badge bg-danger';
-                        }
+        function updateConnectionStatus() {
+            fetch('/api/server/status')
+                .then(response => response.json())
+                .then(data => {
+                    const status = document.getElementById('connectionStatus');
+                    const lastUpdate = document.getElementById('lastUpdate');
+
+                    if (data.status === 'online') {
+                        status.className = 'badge bg-success';
+                        status.innerHTML = '<i class="fas fa-circle"></i> Connesso a Traccar';
+                        lastUpdate.textContent = 'Ultimo aggiornamento: ' + new Date().toLocaleTimeString();
+                    } else {
+                        status.className = 'badge bg-danger';
+                        status.innerHTML = '<i class="fas fa-circle"></i> Disconnesso';
                     }
                 })
                 .catch(() => {
-                    const statusElement = document.getElementById('connectionStatus');
-                    if (statusElement) {
-                        statusElement.innerHTML = '<i class="fas fa-circle"></i> Disconnesso';
-                        statusElement.className = 'badge bg-warning';
+                    const status = document.getElementById('connectionStatus');
+                    if (status) {
+                        status.className = 'badge bg-warning';
+                        status.innerHTML = '<i class="fas fa-circle"></i> Connessione instabile';
                     }
                 });
-        }, 30000);
+        }
+
+        // Utility functions for modals and UI interactions
+        function showProfile() {
+            // Implementation for profile modal
+            console.log('Show profile modal');
+        }
+
+        function showUserInfo() {
+            // Implementation for user info modal
+            console.log('Show user info modal');
+        }
+
+        function showSettings() {
+            // Implementation for settings modal
+            console.log('Show settings modal');
+        }
+
+        function showServerInfo() {
+            // Implementation for server info modal
+            console.log('Show server info modal');
+        }
+
+        function showSystemLogs() {
+            // Implementation for system logs modal
+            console.log('Show system logs modal');
+        }
+
+        function showMyDevices() {
+            // Implementation for my devices modal
+            console.log('Show my devices modal');
+        }
+
+        function exportAllData() {
+            // Implementation for data export
+            console.log('Export all data');
+        }
     </script>
 
     {% block scripts %}{% endblock %}

@@ -4,377 +4,314 @@
 
 {% block extra_css %}
 <style>
-    /* Override base layout for fullscreen map */
-    .main-content {
-        margin-left: 0 !important;
-        padding: 0 !important;
-    }
+/* BASE LAYOUT OVERRIDE */
+.main-content {
+    margin-left: 0 !important;
+    padding: 0 !important;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+}
 
-    .sidebar {
-        display: none;
-    }
+.sidebar, .top-bar {
+    display: none !important;
+}
 
-    .top-bar {
-        display: none;
-    }
+/* CONTENITORE MAPPA */
+.map-container {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+}
 
-    /* Fullscreen map container */
-    .map-container {
-        position: relative;
-        height: 100vh;
-        width: 100vw;
-        overflow: hidden;
-    }
+#map {
+    width: 100vw !important;
+    height: 100vh !important;
+    z-index: 1;
+}
 
-    #map {
-        height: 100vh;
-        width: 100vw;
-        z-index: 1;
-    }
+/* LEAFLET CONTAINER */
+.leaflet-container {
+    width: 100vw !important;
+    height: 100vh !important;
+}
 
-    /* Floating controls panel */
+/* PANNELLO CONTROLLI */
+.controls-panel {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    width: 320px;
+    max-width: calc(100vw - 40px);
+    max-height: calc(100vh - 40px);
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+
+.controls-panel.collapsed {
+    width: 60px;
+    height: 60px;
+}
+
+.controls-panel.collapsed .panel-content {
+    display: none;
+}
+
+.controls-panel.collapsed .panel-header h6 {
+    display: none;
+}
+
+.panel-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 15px 20px;
+    border-radius: 12px 12px 0 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+}
+
+.controls-panel.collapsed .panel-header {
+    border-radius: 12px;
+    justify-content: center;
+    padding: 18px;
+}
+
+.panel-header h6 {
+    margin: 0;
+    font-weight: 600;
+}
+
+.toggle-btn {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 18px;
+    cursor: pointer;
+    transition: transform 0.3s ease;
+}
+
+.controls-panel.collapsed .toggle-btn {
+    transform: rotate(180deg);
+}
+
+.panel-content {
+    padding: 20px;
+    max-height: calc(100vh - 120px);
+    overflow-y: auto;
+}
+
+/* BARRA NAVIGAZIONE SUPERIORE */
+.top-nav {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 10px;
+    padding: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+    display: flex;
+    gap: 10px;
+}
+
+.nav-btn {
+    background: none;
+    border: none;
+    color: #4a5568;
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    font-size: 14px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.nav-btn:hover {
+    background: #667eea;
+    color: white;
+    text-decoration: none;
+}
+
+/* CONTROLLI FLOTTANTI */
+.floating-controls {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.floating-btn {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border: none;
+    color: #4a5568;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    font-size: 16px;
+}
+
+.floating-btn:hover {
+    background: #667eea;
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(102, 126, 234, 0.3);
+}
+
+.floating-separator {
+    height: 2px;
+    background: rgba(0,0,0,0.1);
+    margin: 5px 20px;
+    border-radius: 1px;
+}
+
+/* LOADING OVERLAY */
+.loading-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 2000;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 12px;
+    padding: 30px;
+    text-align: center;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+}
+
+/* STATISTICHE */
+.stats-panel {
+    background: rgba(255,255,255,0.9);
+    border-radius: 10px;
+    padding: 15px;
+    margin-top: 15px;
+}
+
+.stat-item {
+    text-align: center;
+    padding: 8px;
+}
+
+.stat-value {
+    font-size: 1.25rem;
+    font-weight: bold;
+    margin: 0;
+}
+
+.stat-label {
+    font-size: 0.85rem;
+    color: #6c757d;
+    margin: 0;
+}
+
+/* FORM ELEMENTS */
+.form-label {
+    font-weight: 600;
+    color: #4a5568;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.form-select, .form-control {
+    border: 1px solid rgba(0,0,0,0.1);
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    background: rgba(255,255,255,0.8);
+}
+
+.form-select:focus, .form-control:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    background: white;
+}
+
+/* RESPONSIVE */
+@media (max-width: 768px) {
     .controls-panel {
-        position: absolute;
-        top: 20px;
-        left: 20px;
-        width: 320px;
-        max-height: calc(100vh - 120px);
-        background: rgba(255, 255, 255, 0.95);
-        backdrop-filter: blur(10px);
-        border-radius: 15px;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        z-index: 1000;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        overflow: hidden;
+        left: 10px;
+        right: 10px;
+        width: calc(100vw - 20px);
+        max-width: calc(100vw - 20px);
     }
 
     .controls-panel.collapsed {
-        width: 60px;
-        height: 60px;
-    }
-
-    .controls-panel.collapsed .panel-content {
-        opacity: 0;
-        pointer-events: none;
-    }
-
-    .controls-panel.collapsed .panel-header h6 {
-        opacity: 0;
-    }
-
-    .panel-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 15px 20px;
-        border-radius: 15px 15px 0 0;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        cursor: pointer;
-        position: relative;
-        overflow: hidden;
-    }
-
-    .controls-panel.collapsed .panel-header {
-        border-radius: 15px;
-        justify-content: center;
-        padding: 18px;
-    }
-
-    .panel-header::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: linear-gradient(45deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 100%);
-        pointer-events: none;
-    }
-
-    .panel-header h6 {
-        margin: 0;
-        font-weight: 600;
-        transition: opacity 0.3s ease;
-    }
-
-    .toggle-btn {
-        background: none;
-        border: none;
-        color: white;
-        font-size: 18px;
-        cursor: pointer;
-        padding: 0;
-        transition: transform 0.3s ease;
-    }
-
-    .controls-panel.collapsed .toggle-btn {
-        transform: rotate(180deg);
-    }
-
-    .panel-content {
-        padding: 20px;
-        max-height: calc(100vh - 200px);
-        overflow-y: auto;
-        transition: opacity 0.3s ease;
-    }
-
-    /* Custom scrollbar */
-    .panel-content::-webkit-scrollbar {
-        width: 6px;
-    }
-
-    .panel-content::-webkit-scrollbar-track {
-        background: rgba(0,0,0,0.05);
-        border-radius: 3px;
-    }
-
-    .panel-content::-webkit-scrollbar-thumb {
-        background: rgba(0,0,0,0.2);
-        border-radius: 3px;
-    }
-
-    /* Form controls styling */
-    .form-label {
-        font-weight: 600;
-        color: #4a5568;
-        margin-bottom: 8px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-    .form-select, .form-control {
-        border: 1px solid rgba(0,0,0,0.1);
-        border-radius: 8px;
-        transition: all 0.2s ease;
-        background: rgba(255,255,255,0.8);
-    }
-
-    .form-select:focus, .form-control:focus {
-        border-color: #667eea;
-        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-        background: white;
-    }
-
-    .form-check-input:checked {
-        background-color: #667eea;
-        border-color: #667eea;
-    }
-
-    /* Top navigation bar */
-    .top-nav {
-        position: absolute;
-        top: 20px;
-        right: 20px;
-        z-index: 1000;
-        background: rgba(255, 255, 255, 0.95);
-        backdrop-filter: blur(10px);
-        border-radius: 12px;
-        padding: 10px 15px;
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        display: flex;
-        gap: 10px;
-    }
-
-    .nav-btn {
-        background: none;
-        border: none;
-        color: #4a5568;
-        padding: 8px 12px;
-        border-radius: 8px;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        font-size: 14px;
-        text-decoration: none;
-    }
-
-    .nav-btn:hover {
-        background: #667eea;
-        color: white;
-    }
-
-    /* Floating action buttons */
-    .floating-controls {
-        position: absolute;
-        bottom: 20px;
-        right: 20px;
-        z-index: 1000;
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-    }
-
-    .floating-btn {
         width: 50px;
-        height: 50px;
-        border-radius: 50%;
-        background: rgba(255, 255, 255, 0.95);
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        color: #4a5568;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        font-size: 16px;
+        right: auto;
+        left: 10px;
     }
 
-    .floating-btn:hover {
-        background: #667eea;
-        color: white;
-        transform: translateY(-2px);
-        box-shadow: 0 6px 16px rgba(102, 126, 234, 0.3);
+    .top-nav {
+        right: 10px;
+        flex-wrap: wrap;
     }
 
-    .floating-separator {
-        height: 2px;
-        background: rgba(0,0,0,0.1);
-        margin: 5px 20px;
-        border-radius: 1px;
+    .floating-controls {
+        bottom: 10px;
+        right: 10px;
     }
+}
 
-    /* Statistics panel */
-    .stats-panel {
-        background: rgba(255,255,255,0.9);
-        backdrop-filter: blur(10px);
-        border-radius: 12px;
-        padding: 15px;
-        margin-top: 15px;
-        border: 1px solid rgba(255,255,255,0.2);
-    }
+/* SCROLLBAR CUSTOMIZZATA */
+.panel-content::-webkit-scrollbar {
+    width: 6px;
+}
 
-    .stat-item {
-        text-align: center;
-        padding: 8px;
-    }
+.panel-content::-webkit-scrollbar-track {
+    background: rgba(0,0,0,0.05);
+    border-radius: 3px;
+}
 
-    .stat-value {
-        font-size: 1.25rem;
-        font-weight: bold;
-        margin: 0;
-    }
+.panel-content::-webkit-scrollbar-thumb {
+    background: rgba(0,0,0,0.2);
+    border-radius: 3px;
+}
 
-    .stat-label {
-        font-size: 0.85rem;
-        color: #6c757d;
-        margin: 0;
-    }
+/* AUTO-TRACKING */
+.tracking-active #trackingToggleBtn {
+    background: #28a745 !important;
+    color: white !important;
+    box-shadow: 0 0 20px rgba(40, 167, 69, 0.5);
+}
 
-    /* Auto-tracking styles */
-    .tracking-active #trackingToggleBtn {
-        background: #28a745 !important;
-        color: white !important;
-        box-shadow: 0 0 20px rgba(40, 167, 69, 0.5);
-        animation: pulse 2s infinite;
-    }
+/* ANIMAZIONI */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
 
-    @keyframes pulse {
-        0% { box-shadow: 0 0 20px rgba(40, 167, 69, 0.5); }
-        50% { box-shadow: 0 0 30px rgba(40, 167, 69, 0.8); }
-        100% { box-shadow: 0 0 20px rgba(40, 167, 69, 0.5); }
-    }
-
-    .tracking-marker {
-        background: #28a745;
-        width: 24px;
-        height: 24px;
-        border-radius: 50%;
-        border: 3px solid white;
-        box-shadow: 0 2px 12px rgba(40, 167, 69, 0.4);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        animation: trackingPulse 1.5s infinite;
-    }
-
-    @keyframes trackingPulse {
-        0% { transform: scale(1); }
-        50% { transform: scale(1.1); }
-        100% { transform: scale(1); }
-    }
-
-    /* Loading overlay */
-    .loading-overlay {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        z-index: 2000;
-        background: rgba(255, 255, 255, 0.95);
-        backdrop-filter: blur(10px);
-        border-radius: 12px;
-        padding: 30px;
-        text-align: center;
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
-    }
-
-    /* Mobile responsiveness */
-    @media (max-width: 768px) {
-        .controls-panel {
-            left: 10px;
-            right: 10px;
-            width: calc(100vw - 20px);
-            max-width: none;
-        }
-
-        .controls-panel.collapsed {
-            width: 50px;
-            right: auto;
-        }
-
-        .top-nav {
-            right: 10px;
-            top: 10px;
-            flex-wrap: wrap;
-        }
-
-        .floating-controls {
-            bottom: 10px;
-            right: 10px;
-        }
-
-        .floating-btn {
-            width: 45px;
-            height: 45px;
-        }
-    }
-
-    /* Custom date inputs */
-    input[type="datetime-local"] {
-        border: 1px solid rgba(0,0,0,0.1);
-        border-radius: 8px;
-        padding: 8px 12px;
-        background: rgba(255,255,255,0.8);
-        transition: all 0.2s ease;
-    }
-
-    input[type="datetime-local"]:focus {
-        border-color: #667eea;
-        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-        background: white;
-    }
-
-    /* Animations */
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-
-    .fade-in {
-        animation: fadeIn 0.3s ease;
-    }
+.fade-in {
+    animation: fadeIn 0.3s ease;
+}
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="map-container">
-    <!-- Main Map -->
+    <!-- Mappa principale -->
     <div id="map"></div>
 
     <!-- Loading Overlay -->
@@ -384,12 +321,12 @@
         <p class="text-muted mb-0">Elaborazione tracce GPS</p>
     </div>
 
-    <!-- Top Navigation -->
+    <!-- Barra navigazione superiore -->
     <div class="top-nav">
-        <a href="/dashboard" class="nav-btn">
+        <a href="{{ url_for('dashboard') }}" class="nav-btn">
             <i class="fas fa-tachometer-alt"></i> Dashboard
         </a>
-        <a href="/reports" class="nav-btn">
+        <a href="{{ url_for('reports') }}" class="nav-btn">
             <i class="fas fa-chart-line"></i> Reports
         </a>
         <button class="nav-btn" onclick="toggleFullscreen()">
@@ -397,145 +334,88 @@
         </button>
     </div>
 
-    <!-- Floating Controls Panel -->
+    <!-- Pannello controlli -->
     <div class="controls-panel" id="controlsPanel">
-        <div class="panel-header" onclick="togglePanel()">
+        <div class="panel-header" onclick="toggleControlsPanel()">
             <h6><i class="fas fa-sliders-h"></i> Controlli Mappa</h6>
-            <button class="toggle-btn">
+            <button class="toggle-btn" type="button">
                 <i class="fas fa-chevron-left"></i>
             </button>
         </div>
 
         <div class="panel-content">
-            <!-- Device Selection -->
-            <div class="mb-4">
+            <!-- Selezione dispositivo -->
+            <div class="mb-3">
                 <label class="form-label">
                     <i class="fas fa-mobile-alt"></i> Dispositivo
                 </label>
                 <select class="form-select" id="deviceSelect">
-                    <option value="">Caricamento...</option>
+                    <option value="">Caricamento dispositivi...</option>
                 </select>
-                <div class="form-check mt-3">
-                    <input class="form-check-input" type="checkbox" id="showAllDevices">
-                    <label class="form-check-label" for="showAllDevices">
-                        Mostra tutti i dispositivi
-                    </label>
-                </div>
             </div>
 
-            <!-- Time Range -->
-            <div class="mb-4">
+            <!-- Selezione periodo -->
+            <div class="mb-3">
                 <label class="form-label">
-                    <i class="fas fa-clock"></i> Periodo
+                    <i class="fas fa-calendar"></i> Periodo
                 </label>
-                <select class="form-select" id="timeRange">
-                    <option value="1">Ultima ora</option>
-                    <option value="6">Ultime 6 ore</option>
-                    <option value="24" selected>Ultime 24 ore</option>
-                    <option value="72">Ultimi 3 giorni</option>
-                    <option value="168">Ultima settimana</option>
-                    <option value="custom">Periodo personalizzato</option>
-                </select>
-
-                <!-- Custom Time Range -->
-                <div id="customTimeRange" style="display: none;" class="mt-3">
-                    <div class="mb-3">
-                        <label class="form-label">Da</label>
-                        <input type="datetime-local" class="form-control form-control-sm" id="fromTime">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">A</label>
-                        <input type="datetime-local" class="form-control form-control-sm" id="toTime">
-                    </div>
-                </div>
-            </div>
-
-            <!-- Map Options -->
-            <div class="mb-4">
-                <label class="form-label">
-                    <i class="fas fa-layer-group"></i> Visualizzazione
-                </label>
-                <div class="row">
-                    <div class="col-6">
-                        <div class="form-check mb-2">
-                            <input class="form-check-input" type="checkbox" id="showPath" checked>
-                            <label class="form-check-label" for="showPath">
-                                Percorso
-                            </label>
-                        </div>
-                        <div class="form-check mb-2">
-                            <input class="form-check-input" type="checkbox" id="showMarkers" checked>
-                            <label class="form-check-label" for="showMarkers">
-                                Punti
-                            </label>
-                        </div>
-                    </div>
-                    <div class="col-6">
-                        <div class="form-check mb-2">
-                            <input class="form-check-input" type="checkbox" id="showSpeed">
-                            <label class="form-check-label" for="showSpeed">
-                                Velocità
-                            </label>
-                        </div>
-                        <div class="form-check mb-2">
-                            <input class="form-check-input" type="checkbox" id="animatePath">
-                            <label class="form-check-label" for="animatePath">
-                                Anima
-                            </label>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Auto-tracking Options -->
-            <div class="mb-4">
-                <label class="form-label">
-                    <i class="fas fa-crosshairs"></i> Tracking Automatico
-                </label>
-                <div class="form-check form-switch mb-3">
-                    <input class="form-check-input" type="checkbox" id="autoTrackingEnabled">
-                    <label class="form-check-label" for="autoTrackingEnabled">
-                        <strong>Abilita Tracking</strong>
-                    </label>
-                </div>
-
-                <div id="trackingOptions" style="display: none;">
-                    <div class="mb-3">
-                        <label class="form-label">Modalità Tracking</label>
-                        <select class="form-select form-select-sm" id="trackingMode">
-                            <option value="follow">Segui Dispositivo</option>
-                            <option value="center">Mantieni al Centro</option>
-                            <option value="bounds">Vista Completa</option>
-                        </select>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">Intervallo Aggiornamento</label>
-                        <select class="form-select form-select-sm" id="refreshInterval">
-                            <option value="5">5 secondi</option>
-                            <option value="10" selected>10 secondi</option>
-                            <option value="30">30 secondi</option>
-                            <option value="60">1 minuto</option>
-                        </select>
-                    </div>
-
-                    <div class="tracking-status p-2 rounded" style="background: rgba(40, 167, 69, 0.1); border: 1px solid rgba(40, 167, 69, 0.2); display: none;" id="trackingStatus">
-                        <small class="text-success">
-                            <i class="fas fa-satellite-dish fa-spin"></i>
-                            Tracking attivo per: <span id="trackedDeviceName">-</span>
-                        </small>
-                        <br>
-                        <small class="text-muted">
-                            Ultimo aggiornamento: <span id="lastTrackingUpdate">-</span>
-                        </small>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Statistics -->
-            <div id="mapStats" class="stats-panel" style="display: none;">
-                <h6 class="mb-3"><i class="fas fa-chart-bar"></i> Statistiche</h6>
                 <div class="row g-2">
+                    <div class="col-6">
+                        <label class="form-label">Da</label>
+                        <input type="datetime-local" class="form-control form-control-sm" id="fromDate">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label">A</label>
+                        <input type="datetime-local" class="form-control form-control-sm" id="toDate">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pulsanti periodo rapido -->
+            <div class="mb-3">
+                <label class="form-label">
+                    <i class="fas fa-clock"></i> Periodo Rapido
+                </label>
+                <div class="d-grid gap-2">
+                    <button class="btn btn-outline-primary btn-sm" onclick="setTimeRange(1)">Ultima ora</button>
+                    <button class="btn btn-outline-primary btn-sm" onclick="setTimeRange(24)">Ultime 24 ore</button>
+                    <button class="btn btn-outline-primary btn-sm" onclick="setTimeRange(168)">Ultima settimana</button>
+                </div>
+            </div>
+
+            <!-- Opzioni mappa -->
+            <div class="mb-3">
+                <label class="form-label">
+                    <i class="fas fa-cog"></i> Opzioni
+                </label>
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" id="showPath" checked>
+                    <label class="form-check-label" for="showPath">Mostra percorso</label>
+                </div>
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" id="showMarkers" checked>
+                    <label class="form-check-label" for="showMarkers">Mostra markers</label>
+                </div>
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" id="autoRefresh">
+                    <label class="form-check-label" for="autoRefresh">Auto-aggiornamento</label>
+                </div>
+            </div>
+
+            <!-- Pulsanti azione -->
+            <div class="d-grid gap-2">
+                <button class="btn btn-primary" onclick="updateMap()">
+                    <i class="fas fa-sync"></i> Aggiorna Mappa
+                </button>
+                <button class="btn btn-outline-success" onclick="exportData()">
+                    <i class="fas fa-download"></i> Esporta Dati
+                </button>
+            </div>
+
+            <!-- Pannello statistiche -->
+            <div class="stats-panel">
+                <h6><i class="fas fa-chart-bar"></i> Statistiche</h6>
+                <div class="row">
                     <div class="col-6">
                         <div class="stat-item">
                             <div class="stat-value text-primary" id="totalDistance">0 km</div>
@@ -565,9 +445,8 @@
         </div>
     </div>
 
-    <!-- Floating Action Buttons -->
+    <!-- Controlli flottanti -->
     <div class="floating-controls">
-        <!-- Main Actions -->
         <div class="floating-btn" onclick="updateMap()" title="Aggiorna Mappa">
             <i class="fas fa-sync-alt"></i>
         </div>
@@ -580,7 +459,6 @@
 
         <div class="floating-separator"></div>
 
-        <!-- Map Controls -->
         <div class="floating-btn" onclick="map.zoomIn()" title="Zoom In">
             <i class="fas fa-plus"></i>
         </div>
@@ -593,8 +471,7 @@
 
         <div class="floating-separator"></div>
 
-        <!-- Advanced Features -->
-        <div class="floating-btn" onclick="toggleAutoTracking()" title="Toggle Auto-Tracking" id="trackingToggleBtn">
+        <div class="floating-btn" onclick="toggleAutoTracking()" title="Auto-Tracking" id="trackingToggleBtn">
             <i class="fas fa-satellite-dish"></i>
         </div>
         <div class="floating-btn" onclick="toggleLayerControl()" title="Livelli Mappa">
@@ -611,652 +488,302 @@ let markersLayer;
 let pathLayer;
 let currentData = [];
 let allDevices = [];
-let isControlsPanelCollapsed = false;
-let autoHideTimeout;
-
-// Auto-tracking variables
-let isAutoTracking = false;
-let trackingDeviceId = null;
-let trackingMode = 'follow';
+let autoTrackingEnabled = false;
 let autoRefreshInterval = null;
-let trackingMarker = null;
-let trackingPath = null;
-let lastKnownPosition = null;
 
+// Inizializzazione quando la pagina è caricata
 document.addEventListener('DOMContentLoaded', function() {
-    initMap();
-    loadDevicesForMap();
-    setupEventListeners();
-    setupAutoHide();
+    console.log('Initializing map page...');
 
-    // Check URL parameters
-    const urlParams = new URLSearchParams(window.location.search);
-    const deviceParam = urlParams.get('device');
-    const latParam = urlParams.get('lat');
-    const lngParam = urlParams.get('lng');
-
-    if (deviceParam) {
-        setTimeout(() => {
-            document.getElementById('deviceSelect').value = deviceParam;
-            updateMap();
-        }, 1000);
+    // Verifica che Leaflet sia caricato
+    if (typeof L === 'undefined') {
+        console.error('Leaflet not loaded!');
+        alert('Errore: Leaflet non caricato. Controlla la connessione internet.');
+        return;
     }
 
-    if (latParam && lngParam) {
-        map.setView([parseFloat(latParam), parseFloat(lngParam)], 16);
-    }
+    initializeMap();
+    loadDevices();
+    initializeDateInputs();
 });
 
-function setupEventListeners() {
-    // Time range change
-    document.getElementById('timeRange').addEventListener('change', function() {
-        const customRange = document.getElementById('customTimeRange');
-        if (this.value === 'custom') {
-            customRange.style.display = 'block';
-            const now = new Date();
-            const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-            document.getElementById('toTime').value = formatDateTimeLocal(now);
-            document.getElementById('fromTime').value = formatDateTimeLocal(yesterday);
-        } else {
-            customRange.style.display = 'none';
-        }
-    });
+function initializeMap() {
+    console.log('Creating Leaflet map...');
 
-    // Show all devices toggle
-    document.getElementById('showAllDevices').addEventListener('change', function() {
-        const deviceSelect = document.getElementById('deviceSelect');
-        deviceSelect.disabled = this.checked;
-        if (!this.checked) deviceSelect.value = '';
+    try {
+        // Inizializza mappa Leaflet
+        map = L.map('map', {
+            center: [41.9028, 12.4964], // Roma, Italia
+            zoom: 6,
+            zoomControl: false // Rimuovi controlli default
+        });
 
-        // If auto-tracking is enabled and we switch to "all devices", disable tracking
-        if (this.checked && isAutoTracking) {
-            stopAutoTracking();
-        }
-    });
+        // Aggiungi layer tiles
+        const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        });
 
-    // Auto-tracking toggle
-    document.getElementById('autoTrackingEnabled').addEventListener('change', function() {
-        if (this.checked) {
-            startAutoTracking();
-        } else {
-            stopAutoTracking();
-        }
-    });
+        const satelliteLayer = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+            attribution: 'Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        });
 
-    // Tracking mode change
-    document.getElementById('trackingMode').addEventListener('change', function() {
-        trackingMode = this.value;
-        if (isAutoTracking) {
-            updateTrackingView();
-        }
-    });
+        // Aggiungi layer di default
+        osmLayer.addTo(map);
 
-    // Refresh interval change
-    document.getElementById('refreshInterval').addEventListener('change', function() {
-        if (isAutoTracking) {
-            startAutoRefresh();
-        }
-    });
+        // Crea controllo layers
+        window.layerControl = L.control.layers({
+            'OpenStreetMap': osmLayer,
+            'Topografica': satelliteLayer
+        }, {}, {
+            position: 'topright',
+            collapsed: true
+        });
 
-    // Device selection change
-    document.getElementById('deviceSelect').addEventListener('change', function() {
-        if (isAutoTracking && this.value) {
-            trackingDeviceId = this.value;
-            document.getElementById('trackedDeviceName').textContent = getDeviceName(this.value);
-        }
-    });
+        // Inizializza gruppi di layer
+        markersLayer = L.layerGroup().addTo(map);
+        pathLayer = L.layerGroup().addTo(map);
 
-    // Keyboard shortcuts
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') {
-            if (!isControlsPanelCollapsed) {
-                togglePanel();
-            }
-        } else if (e.ctrlKey && e.key === 'm') {
-            e.preventDefault();
-            togglePanel();
-        } else if (e.ctrlKey && e.key === 'u') {
-            e.preventDefault();
-            updateMap();
-        } else if (e.ctrlKey && e.key === 't') {
-            e.preventDefault();
-            toggleAutoTracking();
-        }
-    });
+        console.log('Map initialized successfully');
 
-    // Map interaction detection for auto-pause
-    map.on('dragstart', function() {
-        if (isAutoTracking) {
-            pauseAutoTracking();
-        }
-    });
+        // Aggiungi marker di test
+        L.marker([41.9028, 12.4964])
+            .addTo(map)
+            .bindPopup('<b>Roma</b><br>Centro Italia')
+            .openPopup();
 
-    map.on('zoomstart', function() {
-        if (isAutoTracking && trackingMode !== 'bounds') {
-            pauseAutoTracking();
-        }
-    });
-}
+        // Ridimensiona mappa dopo inizializzazione
+        setTimeout(() => {
+            map.invalidateSize();
+        }, 500);
 
-function setupAutoHide() {
-    const controlsPanel = document.getElementById('controlsPanel');
-
-    // Auto-hide after 5 seconds of inactivity
-    function resetAutoHide() {
-        clearTimeout(autoHideTimeout);
-        if (!isControlsPanelCollapsed) {
-            autoHideTimeout = setTimeout(() => {
-                if (!controlsPanel.matches(':hover')) {
-                    togglePanel();
-                }
-            }, 5000);
-        }
+    } catch (error) {
+        console.error('Error initializing map:', error);
+        alert('Errore nell\'inizializzazione della mappa: ' + error.message);
     }
-
-    // Reset auto-hide on mouse move over map
-    document.getElementById('map').addEventListener('mousemove', resetAutoHide);
-
-    // Cancel auto-hide when hovering over controls
-    controlsPanel.addEventListener('mouseenter', () => clearTimeout(autoHideTimeout));
-    controlsPanel.addEventListener('mouseleave', resetAutoHide);
-
-    resetAutoHide();
 }
 
-function togglePanel() {
-    const panel = document.getElementById('controlsPanel');
-    const toggleBtn = panel.querySelector('.toggle-btn i');
+function loadDevices() {
+    console.log('Loading devices...');
 
-    isControlsPanelCollapsed = !isControlsPanelCollapsed;
-
-    if (isControlsPanelCollapsed) {
-        panel.classList.add('collapsed');
-        toggleBtn.className = 'fas fa-chevron-right';
-    } else {
-        panel.classList.remove('collapsed');
-        toggleBtn.className = 'fas fa-chevron-left';
-    }
-
-    // Invalidate map size after transition
-    setTimeout(() => map.invalidateSize(), 300);
-}
-
-function initMap() {
-    map = L.map('map', {
-        zoomControl: false,
-        attributionControl: false
-    }).setView([41.9028, 12.4964], 6);
-
-    // Add tile layers
-    const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors'
-    });
-
-    const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-        attribution: '© Esri'
-    });
-
-    const darkLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        attribution: '© CartoDB'
-    });
-
-    const baseLayers = {
-        "Mappa Standard": osmLayer,
-        "Satellite": satelliteLayer,
-        "Modalità Scura": darkLayer
-    };
-
-    osmLayer.addTo(map);
-
-    // Custom layer control (hidden by default)
-    const layerControl = L.control.layers(baseLayers, null, {
-        position: 'topright',
-        collapsed: true
-    });
-
-    window.layerControl = layerControl; // Make it globally accessible
-
-    // Initialize layer groups
-    markersLayer = L.layerGroup().addTo(map);
-    pathLayer = L.layerGroup().addTo(map);
-
-    // Add scale control
-    L.control.scale({position: 'bottomleft'}).addTo(map);
-
-    // Add attribution
-    L.control.attribution({
-        position: 'bottomright',
-        prefix: false
-    }).addAttribution('Traccar GPS Dashboard').addTo(map);
-}
-
-function loadDevicesForMap() {
     fetch('/api/devices')
         .then(response => response.json())
         .then(devices => {
+            console.log('Devices loaded:', devices);
             allDevices = devices;
-            const select = document.getElementById('deviceSelect');
-            select.innerHTML = '<option value="">Tutti i dispositivi</option>';
+            const deviceSelect = document.getElementById('deviceSelect');
+            deviceSelect.innerHTML = '<option value="">Seleziona un dispositivo</option>';
 
             devices.forEach(device => {
                 const option = document.createElement('option');
                 option.value = device.id;
-                option.textContent = device.name;
-                select.appendChild(option);
+                option.textContent = `${device.name} (${device.uniqueId})`;
+                deviceSelect.appendChild(option);
             });
         })
         .catch(error => {
-            console.error('Errore nel caricamento dispositivi:', error);
-            showNotification('Errore nel caricamento dei dispositivi', 'error');
+            console.error('Error loading devices:', error);
+            const deviceSelect = document.getElementById('deviceSelect');
+            deviceSelect.innerHTML = '<option value="">Errore caricamento dispositivi</option>';
         });
+}
+
+function initializeDateInputs() {
+    const now = new Date();
+    const from = new Date(now.getTime() - 24 * 60 * 60 * 1000); // 24 ore fa
+
+    document.getElementById('fromDate').value = from.toISOString().slice(0, 16);
+    document.getElementById('toDate').value = now.toISOString().slice(0, 16);
+}
+
+function setTimeRange(hours) {
+    const now = new Date();
+    const from = new Date(now.getTime() - hours * 60 * 60 * 1000);
+
+    document.getElementById('fromDate').value = from.toISOString().slice(0, 16);
+    document.getElementById('toDate').value = now.toISOString().slice(0, 16);
+}
+
+function toggleControlsPanel() {
+    const panel = document.getElementById('controlsPanel');
+    panel.classList.toggle('collapsed');
 }
 
 function updateMap() {
-    const showAllDevices = document.getElementById('showAllDevices').checked;
     const deviceId = document.getElementById('deviceSelect').value;
-    const timeRange = document.getElementById('timeRange').value;
+    const fromDate = document.getElementById('fromDate').value;
+    const toDate = document.getElementById('toDate').value;
 
-    if (!showAllDevices && !deviceId) {
-        showNotification('Seleziona un dispositivo o abilita "Mostra tutti i dispositivi"', 'warning');
+    if (!deviceId || !fromDate || !toDate) {
+        alert('Seleziona dispositivo e periodo');
         return;
     }
 
+    console.log('Updating map for device:', deviceId);
     showLoading(true);
-    clearMapLayers();
 
-    let url = '/api/positions?';
+    const fromTime = new Date(fromDate).toISOString();
+    const toTime = new Date(toDate).toISOString();
 
-    if (timeRange === 'custom') {
-        const fromTime = document.getElementById('fromTime').value;
-        const toTime = document.getElementById('toTime').value;
-
-        if (!fromTime || !toTime) {
-            showNotification('Inserisci entrambe le date per il periodo personalizzato', 'warning');
-            showLoading(false);
-            return;
-        }
-
-        const from = new Date(fromTime);
-        const to = new Date(toTime);
-        const hours = Math.ceil((to - from) / (1000 * 60 * 60));
-        url += `hours=${hours}`;
-    } else {
-        url += `hours=${timeRange}`;
-    }
-
-    if (!showAllDevices && deviceId) {
-        url += `&deviceId=${deviceId}`;
-    }
-
-    fetch(url)
+    fetch(`/api/positions?deviceId=${deviceId}&from=${fromTime}&to=${toTime}`)
         .then(response => response.json())
         .then(positions => {
+            console.log('Positions loaded:', positions);
             currentData = positions;
-            if (positions.length === 0) {
-                showNotification('Nessuna posizione trovata per i parametri selezionati', 'info');
-                return;
-            }
-
-            try {
-                renderPositionsOnMap(positions);
-                calculateStatistics(positions);
-
-                // Fit bounds with delay to ensure all layers are rendered
-                setTimeout(() => {
-                    fitMapToBounds();
-                }, 100);
-
-                showNotification(`Caricate ${positions.length} posizioni`, 'success');
-            } catch (error) {
-                console.error('Errore nel rendering della mappa:', error);
-                showNotification('Errore nel rendering dei dati sulla mappa', 'error');
-            }
+            displayPositionsOnMap(positions);
+            calculateStatistics(positions);
+            showLoading(false);
         })
         .catch(error => {
-            console.error('Errore nel caricamento posizioni:', error);
-            showNotification('Errore nel caricamento delle posizioni', 'error');
-        })
-        .finally(() => {
+            console.error('Error loading positions:', error);
             showLoading(false);
+            alert('Errore nel caricamento delle posizioni: ' + error.message);
         });
 }
 
-function renderPositionsOnMap(positions) {
-    const deviceGroups = {};
+function displayPositionsOnMap(positions) {
+    console.log('Displaying positions on map:', positions.length);
+
+    // Pulisci layer esistenti
+    markersLayer.clearLayers();
+    pathLayer.clearLayers();
+
+    if (positions.length === 0) {
+        alert('Nessuna posizione trovata per il periodo selezionato');
+        return;
+    }
+
     const showPath = document.getElementById('showPath').checked;
     const showMarkers = document.getElementById('showMarkers').checked;
-    const showSpeed = document.getElementById('showSpeed').checked;
-    const animatePath = document.getElementById('animatePath').checked;
 
-    // Group positions by device
-    positions.forEach(pos => {
-        if (!deviceGroups[pos.deviceId]) {
-            deviceGroups[pos.deviceId] = [];
-        }
-        deviceGroups[pos.deviceId].push(pos);
-    });
-
-    const colors = ['#e74c3c', '#3498db', '#2ecc71', '#9b59b6', '#f39c12', '#1abc9c', '#34495e', '#e67e22'];
-    let colorIndex = 0;
-
-    Object.keys(deviceGroups).forEach(deviceId => {
-        const devicePositions = deviceGroups[deviceId].sort((a, b) =>
-            new Date(a.serverTime) - new Date(b.serverTime)
-        );
-        const color = colors[colorIndex % colors.length];
-        const deviceName = getDeviceName(deviceId);
-        colorIndex++;
-
-        // Create path
-        if (showPath && devicePositions.length > 1) {
-            if (showSpeed) {
-                renderSpeedColoredPath(devicePositions, deviceName);
-            } else {
-                const latlngs = devicePositions.map(pos => [pos.latitude, pos.longitude]);
-                const polyline = L.polyline(latlngs, {
-                    color: color,
-                    weight: 3,
-                    opacity: 0.8
-                }).addTo(pathLayer);
-
-                polyline.bindPopup(`<b>${deviceName}</b><br>Percorso completo`);
-
-                // Animate path if requested
-                if (animatePath) {
-                    animatePolyline(polyline, latlngs);
-                }
-            }
-        }
-
-        // Add markers
-        if (showMarkers) {
-            devicePositions.forEach((pos, index) => {
-                const isLast = index === devicePositions.length - 1;
-                const isFirst = index === 0;
-
-                let iconHtml = '';
-                let iconSize = [16, 16];
-
-                if (isFirst) {
-                    iconHtml = `<div style="background: green; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center;"><i class="fas fa-play" style="color: white; font-size: 10px;"></i></div>`;
-                    iconSize = [20, 20];
-                } else if (isLast) {
-                    iconHtml = `<div style="background: red; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center;"><i class="fas fa-stop" style="color: white; font-size: 10px;"></i></div>`;
-                    iconSize = [20, 20];
-                } else {
-                    iconHtml = `<div style="background: ${color}; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>`;
-                    iconSize = [12, 12];
-                }
-
-                const marker = L.marker([pos.latitude, pos.longitude], {
-                    icon: L.divIcon({
-                        html: iconHtml,
-                        iconSize: iconSize,
-                        className: 'custom-div-icon'
-                    })
-                }).addTo(markersLayer);
-
-                const popupContent = `
-                    <div style="min-width: 200px;">
-                        <h6><i class="fas fa-mobile-alt"></i> ${deviceName}</h6>
-                        <hr style="margin: 8px 0;">
-                        <p style="margin: 4px 0;"><strong>Posizione:</strong><br><small>${pos.latitude.toFixed(6)}, ${pos.longitude.toFixed(6)}</small></p>
-                        <p style="margin: 4px 0;"><strong>Velocità:</strong> <span class="badge ${pos.speed > 5 ? 'bg-warning' : 'bg-secondary'}">${Math.round(pos.speed || 0)} km/h</span></p>
-                        <p style="margin: 4px 0;"><strong>Data:</strong><br><small>${formatDateTime(pos.serverTime)}</small></p>
-                        ${pos.altitude ? `<p style="margin: 4px 0;"><strong>Altitudine:</strong> ${Math.round(pos.altitude)} m</p>` : ''}
-                    </div>
-                `;
-
-                marker.bindPopup(popupContent);
-            });
-        } else {
-            // Show only start and end markers
-            const firstPos = devicePositions[0];
-            const lastPos = devicePositions[devicePositions.length - 1];
-
-            // Start marker
-            const startMarker = L.marker([firstPos.latitude, firstPos.longitude], {
-                icon: L.divIcon({
-                    html: `<div style="background: green; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.3);"><i class="fas fa-play" style="color: white; font-size: 12px;"></i></div>`,
-                    iconSize: [24, 24],
-                    className: 'custom-div-icon'
-                })
-            }).addTo(markersLayer);
-
-            startMarker.bindPopup(`<h6><i class="fas fa-play"></i> ${deviceName}</h6><p>Inizio percorso<br><small>${formatDateTime(firstPos.serverTime)}</small></p>`);
-
-            // End marker (if different from start)
-            if (devicePositions.length > 1) {
-                const endMarker = L.marker([lastPos.latitude, lastPos.longitude], {
-                    icon: L.divIcon({
-                        html: `<div style="background: red; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.3);"><i class="fas fa-stop" style="color: white; font-size: 12px;"></i></div>`,
-                        iconSize: [24, 24],
-                        className: 'custom-div-icon'
-                    })
-                }).addTo(markersLayer);
-
-                endMarker.bindPopup(`<h6><i class="fas fa-stop"></i> ${deviceName}</h6><p>Fine percorso<br><small>${formatDateTime(lastPos.serverTime)}</small></p>`);
-            }
-        }
-    });
-}
-
-function renderSpeedColoredPath(positions, deviceName) {
-    for (let i = 0; i < positions.length - 1; i++) {
-        const pos1 = positions[i];
-        const pos2 = positions[i + 1];
-        const speed = pos1.speed || 0;
-
-        let color = '#2ecc71'; // Green for low speed
-        let weight = 3;
-
-        if (speed > 80) {
-            color = '#e74c3c'; // Red for high speed
-            weight = 5;
-        } else if (speed > 50) {
-            color = '#f39c12'; // Orange for medium speed
-            weight = 4;
-        } else if (speed < 5) {
-            color = '#95a5a6';  // Gray for stopped
-            weight = 2;
-        }
-
-        const segment = L.polyline([
-            [pos1.latitude, pos1.longitude],
-            [pos2.latitude, pos2.longitude]
-        ], {
-            color: color,
-            weight: weight,
+    // Crea percorso
+    if (showPath && positions.length > 1) {
+        const latlngs = positions.map(pos => [pos.latitude, pos.longitude]);
+        const polyline = L.polyline(latlngs, {
+            color: '#007bff',
+            weight: 3,
             opacity: 0.8
         }).addTo(pathLayer);
-
-        segment.bindPopup(`
-            <h6><i class="fas fa-tachometer-alt"></i> ${deviceName}</h6>
-            <p>Velocità: <span class="badge ${speed > 50 ? 'bg-warning' : 'bg-secondary'}">${Math.round(speed)} km/h</span><br>
-            <small>${formatDateTime(pos1.serverTime)}</small></p>
-        `);
-    }
-}
-
-function animatePolyline(polyline, latlngs) {
-    let index = 0;
-    const tempLine = L.polyline([], {
-        color: polyline.options.color,
-        weight: polyline.options.weight + 1,
-        opacity: 0.9,
-        dashArray: '10, 10'
-    }).addTo(pathLayer);
-
-    function addNextPoint() {
-        if (index < latlngs.length) {
-            tempLine.addLatLng(latlngs[index]);
-            index++;
-            setTimeout(addNextPoint, 50);
-        } else {
-            setTimeout(() => {
-                pathLayer.removeLayer(tempLine);
-            }, 2000);
-        }
     }
 
-    addNextPoint();
+    // Aggiungi markers
+    if (showMarkers) {
+        positions.forEach((position, index) => {
+            const isFirst = index === 0;
+            const isLast = index === positions.length - 1;
+
+            let markerColor = '#007bff';
+            let markerIcon = 'circle';
+
+            if (isFirst) {
+                markerColor = '#28a745';
+                markerIcon = 'play';
+            } else if (isLast) {
+                markerColor = '#dc3545';
+                markerIcon = 'stop';
+            }
+
+            const marker = L.marker([position.latitude, position.longitude], {
+                icon: L.divIcon({
+                    html: `<div style="background: ${markerColor}; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center;"><i class="fas fa-${markerIcon}" style="color: white; font-size: 8px;"></i></div>`,
+                    iconSize: [20, 20],
+                    className: 'custom-div-icon'
+                })
+            });
+
+            const popupContent = `
+                <div>
+                    <strong>${isFirst ? 'Inizio' : isLast ? 'Fine' : 'Posizione'}</strong><br>
+                    <small>
+                        Coordinate: ${position.latitude.toFixed(6)}, ${position.longitude.toFixed(6)}<br>
+                        Velocità: ${(position.speed || 0).toFixed(1)} km/h<br>
+                        Data: ${new Date(position.deviceTime).toLocaleString()}
+                    </small>
+                </div>
+            `;
+
+            marker.bindPopup(popupContent);
+            marker.addTo(markersLayer);
+        });
+    }
+
+    // Adatta vista alla mappa
+    fitMapToBounds();
 }
 
 function calculateStatistics(positions) {
-    if (positions.length === 0) return;
+    if (positions.length === 0) {
+        document.getElementById('totalDistance').textContent = '0 km';
+        document.getElementById('avgSpeed').textContent = '0 km/h';
+        document.getElementById('maxSpeed').textContent = '0 km/h';
+        document.getElementById('totalTime').textContent = '0h 0m';
+        return;
+    }
 
     let totalDistance = 0;
-    let totalTime = 0;
     let maxSpeed = 0;
-    let speedSum = 0;
+    let totalSpeed = 0;
     let speedCount = 0;
 
-    // Group by device to calculate statistics properly
-    const deviceGroups = {};
-    positions.forEach(pos => {
-        if (!deviceGroups[pos.deviceId]) {
-            deviceGroups[pos.deviceId] = [];
+    for (let i = 0; i < positions.length; i++) {
+        const pos = positions[i];
+
+        if (pos.speed !== null && pos.speed !== undefined) {
+            maxSpeed = Math.max(maxSpeed, pos.speed);
+            totalSpeed += pos.speed;
+            speedCount++;
         }
-        deviceGroups[pos.deviceId].push(pos);
-    });
 
-    Object.values(deviceGroups).forEach(devicePositions => {
-        devicePositions.sort((a, b) => new Date(a.serverTime) - new Date(b.serverTime));
-
-        for (let i = 0; i < devicePositions.length - 1; i++) {
-            const pos1 = devicePositions[i];
-            const pos2 = devicePositions[i + 1];
-
-            // Calculate distance
+        if (i > 0) {
+            const prevPos = positions[i - 1];
             const distance = calculateDistance(
-                pos1.latitude, pos1.longitude,
-                pos2.latitude, pos2.longitude
+                prevPos.latitude, prevPos.longitude,
+                pos.latitude, pos.longitude
             );
             totalDistance += distance;
-
-            // Calculate time difference
-            const timeDiff = new Date(pos2.serverTime) - new Date(pos1.serverTime);
-            totalTime += timeDiff;
-
-            // Track speeds
-            if (pos1.speed) {
-                maxSpeed = Math.max(maxSpeed, pos1.speed);
-                speedSum += pos1.speed;
-                speedCount++;
-            }
         }
-    });
+    }
 
-    const avgSpeed = speedCount > 0 ? speedSum / speedCount : 0;
+    const avgSpeed = speedCount > 0 ? totalSpeed / speedCount : 0;
+    const startTime = new Date(positions[0].deviceTime);
+    const endTime = new Date(positions[positions.length - 1].deviceTime);
+    const totalTimeMs = endTime - startTime;
+    const hours = Math.floor(totalTimeMs / (1000 * 60 * 60));
+    const minutes = Math.floor((totalTimeMs % (1000 * 60 * 60)) / (1000 * 60));
 
-    // Update statistics display with animation
-    animateStatUpdate('totalDistance', (totalDistance / 1000).toFixed(1) + ' km');
-    animateStatUpdate('avgSpeed', Math.round(avgSpeed) + ' km/h');
-    animateStatUpdate('maxSpeed', Math.round(maxSpeed) + ' km/h');
-
-    const hours = Math.floor(totalTime / (1000 * 60 * 60));
-    const minutes = Math.floor((totalTime % (1000 * 60 * 60)) / (1000 * 60));
-    animateStatUpdate('totalTime', `${hours}h ${minutes}m`);
-
-    document.getElementById('mapStats').style.display = 'block';
-}
-
-function animateStatUpdate(elementId, newValue) {
-    const element = document.getElementById(elementId);
-    element.style.transform = 'scale(1.1)';
-    element.style.transition = 'all 0.2s ease';
-
-    setTimeout(() => {
-        element.textContent = newValue;
-        element.style.transform = 'scale(1)';
-    }, 100);
+    document.getElementById('totalDistance').textContent = `${totalDistance.toFixed(2)} km`;
+    document.getElementById('avgSpeed').textContent = `${avgSpeed.toFixed(1)} km/h`;
+    document.getElementById('maxSpeed').textContent = `${maxSpeed.toFixed(1)} km/h`;
+    document.getElementById('totalTime').textContent = `${hours}h ${minutes}m`;
 }
 
 function calculateDistance(lat1, lon1, lat2, lon2) {
-    const R = 6371000; // Earth's radius in meters
-    const φ1 = lat1 * Math.PI / 180;
-    const φ2 = lat2 * Math.PI / 180;
-    const Δφ = (lat2 - lat1) * Math.PI / 180;
-    const Δλ = (lon2 - lon1) * Math.PI / 180;
-
-    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
-              Math.cos(φ1) * Math.cos(φ2) *
-              Math.sin(Δλ/2) * Math.sin(Δλ/2);
+    const R = 6371; // Raggio terrestre in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon/2) * Math.sin(dLon/2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-
     return R * c;
-}
-
-function clearMapLayers() {
-    try {
-        markersLayer.clearLayers();
-        pathLayer.clearLayers();
-        document.getElementById('mapStats').style.display = 'none';
-    } catch (error) {
-        console.error('Errore nella pulizia dei layer:', error);
-    }
-}
-
-function safeGetBounds(layers) {
-    let allLatLngs = [];
-
-    layers.forEach(layer => {
-        try {
-            if (layer.getLatLng) {
-                // Markers
-                allLatLngs.push(layer.getLatLng());
-            } else if (layer.getLatLngs) {
-                // Polylines
-                const latLngs = layer.getLatLngs();
-                if (Array.isArray(latLngs) && latLngs.length > 0) {
-                    allLatLngs = allLatLngs.concat(latLngs);
-                }
-            } else if (layer.getBounds && typeof layer.getBounds === 'function') {
-                // Other shapes with bounds
-                const bounds = layer.getBounds();
-                if (bounds.isValid()) {
-                    allLatLngs.push(bounds.getNorthEast());
-                    allLatLngs.push(bounds.getSouthWest());
-                }
-            }
-        } catch (error) {
-            console.warn('Errore nel processare layer per bounds:', error);
-        }
-    });
-
-    return allLatLngs;
 }
 
 function fitMapToBounds() {
     try {
-        const allLayers = [...markersLayer.getLayers(), ...pathLayer.getLayers()];
+        const allLayers = [];
 
-        if (allLayers.length === 0) {
-            return;
-        }
+        markersLayer.eachLayer(layer => allLayers.push(layer));
+        pathLayer.eachLayer(layer => allLayers.push(layer));
 
-        const allLatLngs = safeGetBounds(allLayers);
+        if (allLayers.length === 0) return;
 
-        if (allLatLngs.length === 0) {
-            console.warn('Nessuna coordinata valida trovata per i bounds');
-            return;
-        }
-
-        // Create bounds from all coordinates
-        const bounds = L.latLngBounds(allLatLngs);
+        const group = new L.featureGroup(allLayers);
+        const bounds = group.getBounds();
 
         if (bounds && bounds.isValid()) {
             map.fitBounds(bounds.pad(0.1));
-        } else {
-            console.warn('Bounds non validi calcolati');
         }
     } catch (error) {
-        console.error('Errore nel calcolo dei bounds:', error);
-        // Fallback: center on first valid position if available
-        if (currentData.length > 0) {
-            const firstPos = currentData[0];
-            map.setView([firstPos.latitude, firstPos.longitude], 10);
-        }
+        console.error('Error fitting bounds:', error);
     }
 }
 
@@ -1292,142 +819,31 @@ function locateUser() {
                         className: 'custom-div-icon'
                     })
                 }).addTo(markersLayer)
-                .bindPopup('<h6><i class="fas fa-map-marker-alt"></i> La tua posizione</h6>')
-                .openPopup();
-
-                showNotification('Posizione trovata', 'success');
+                  .bindPopup('La tua posizione')
+                  .openPopup();
             },
-            function() {
-                showNotification('Impossibile ottenere la posizione', 'error');
+            function(error) {
+                alert('Errore nella geolocalizzazione: ' + error.message);
             }
         );
     } else {
-        showNotification('Geolocalizzazione non supportata', 'error');
+        alert('Geolocalizzazione non supportata da questo browser');
     }
 }
 
-function exportData() {
-    if (currentData.length === 0) {
-        showNotification('Nessun dato da esportare', 'warning');
-        return;
-    }
-
-    let csvContent = 'Device ID,Device Name,Latitude,Longitude,Speed,Altitude,Date Time\n';
-
-    currentData.forEach(pos => {
-        const deviceName = getDeviceName(pos.deviceId);
-        csvContent += `${pos.deviceId},"${deviceName}",${pos.latitude},${pos.longitude},${pos.speed || 0},${pos.altitude || 0},"${formatDateTime(pos.serverTime)}"\n`;
-    });
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `traccar_export_${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    showNotification('Dati esportati con successo', 'success');
-}
-
-function showLoading(show) {
-    const overlay = document.getElementById('loadingOverlay');
-    overlay.style.display = show ? 'block' : 'none';
-}
-
-// Auto-tracking functions
 function toggleAutoTracking() {
-    const checkbox = document.getElementById('autoTrackingEnabled');
-    checkbox.checked = !checkbox.checked;
-    checkbox.dispatchEvent(new Event('change'));
-}
+    autoTrackingEnabled = !autoTrackingEnabled;
+    const autoRefreshCheckbox = document.getElementById('autoRefresh');
 
-function startAutoTracking() {
-    const deviceSelect = document.getElementById('deviceSelect');
-    const showAllDevices = document.getElementById('showAllDevices').checked;
-
-    if (showAllDevices) {
-        showNotification('Seleziona un dispositivo specifico per il tracking automatico', 'warning');
-        document.getElementById('autoTrackingEnabled').checked = false;
-        return;
+    if (autoTrackingEnabled) {
+        document.body.classList.add('tracking-active');
+        autoRefreshCheckbox.checked = true;
+        startAutoRefresh();
+    } else {
+        document.body.classList.remove('tracking-active');
+        autoRefreshCheckbox.checked = false;
+        stopAutoRefresh();
     }
-
-    if (!deviceSelect.value) {
-        showNotification('Seleziona un dispositivo per iniziare il tracking', 'warning');
-        document.getElementById('autoTrackingEnabled').checked = false;
-        return;
-    }
-
-    isAutoTracking = true;
-    trackingDeviceId = deviceSelect.value;
-    trackingMode = document.getElementById('trackingMode').value;
-
-    // Show tracking options and status
-    document.getElementById('trackingOptions').style.display = 'block';
-    document.getElementById('trackingStatus').style.display = 'block';
-    document.getElementById('trackedDeviceName').textContent = getDeviceName(trackingDeviceId);
-
-    // Add tracking class to body
-    document.body.classList.add('tracking-active');
-
-    // Start auto refresh
-    startAutoRefresh();
-
-    // Initial tracking update
-    updateTrackingData();
-
-    showNotification(`Tracking attivato per ${getDeviceName(trackingDeviceId)}`, 'success');
-}
-
-function stopAutoTracking() {
-    isAutoTracking = false;
-    trackingDeviceId = null;
-
-    // Hide tracking options and status
-    document.getElementById('trackingOptions').style.display = 'none';
-    document.getElementById('trackingStatus').style.display = 'none';
-
-    // Remove tracking class
-    document.body.classList.remove('tracking-active');
-
-    // Stop auto refresh
-    if (autoRefreshInterval) {
-        clearInterval(autoRefreshInterval);
-        autoRefreshInterval = null;
-    }
-
-    // Remove tracking markers
-    if (trackingMarker) {
-        markersLayer.removeLayer(trackingMarker);
-        trackingMarker = null;
-    }
-
-    if (trackingPath) {
-        pathLayer.removeLayer(trackingPath);
-        trackingPath = null;
-    }
-
-    showNotification('Tracking automatico disattivato', 'info');
-}
-
-function pauseAutoTracking() {
-    if (!isAutoTracking) return;
-
-    // Show pause notification
-    showNotification('Tracking in pausa - clicca per riattivare', 'warning');
-
-    // Add click handler to resume
-    const resumeHandler = function() {
-        updateTrackingView();
-        showNotification('Tracking riattivato', 'success');
-        map.off('click', resumeHandler);
-    };
-
-    setTimeout(() => {
-        map.on('click', resumeHandler);
-    }, 1000);
 }
 
 function startAutoRefresh() {
@@ -1435,229 +851,85 @@ function startAutoRefresh() {
         clearInterval(autoRefreshInterval);
     }
 
-    const interval = parseInt(document.getElementById('refreshInterval').value) * 1000;
-
     autoRefreshInterval = setInterval(() => {
-        if (isAutoTracking) {
-            updateTrackingData();
+        const deviceId = document.getElementById('deviceSelect').value;
+        if (deviceId) {
+            console.log('Auto-refreshing map...');
+            updateMap();
         }
-    }, interval);
+    }, 30000); // Aggiorna ogni 30 secondi
 }
 
-function updateTrackingData() {
-    if (!isAutoTracking || !trackingDeviceId) return;
-
-    // Get latest position for tracked device
-    fetch(`/api/device/${trackingDeviceId}/status`)
-        .then(response => response.json())
-        .then(position => {
-            if (position && position.latitude && position.longitude) {
-                updateTrackingMarker(position);
-                updateTrackingView();
-                updateTrackingStatus(position);
-
-                // Update path if enabled
-                if (document.getElementById('showPath').checked) {
-                    updateTrackingPath(position);
-                }
-            }
-        })
-        .catch(error => {
-            console.error('Errore nel tracking:', error);
-        });
-}
-
-function updateTrackingMarker(position) {
-    // Remove existing tracking marker
-    if (trackingMarker) {
-        markersLayer.removeLayer(trackingMarker);
-    }
-
-    // Create new tracking marker
-    const speed = position.speed || 0;
-    const isMoving = speed > 5;
-
-    trackingMarker = L.marker([position.latitude, position.longitude], {
-        icon: L.divIcon({
-            html: `
-                <div class="tracking-marker">
-                    <i class="fas fa-${isMoving ? 'car' : 'stop'}" style="color: white; font-size: 10px;"></i>
-                </div>
-            `,
-            iconSize: [24, 24],
-            className: 'custom-div-icon'
-        }),
-        zIndexOffset: 1000
-    }).addTo(markersLayer);
-
-    // Add detailed popup
-    const popupContent = `
-        <div style="min-width: 250px;">
-            <h6><i class="fas fa-crosshairs"></i> ${getDeviceName(trackingDeviceId)} (TRACKING)</h6>
-            <hr style="margin: 8px 0;">
-            <p style="margin: 4px 0;"><strong>Posizione:</strong><br><small>${position.latitude.toFixed(6)}, ${position.longitude.toFixed(6)}</small></p>
-            <p style="margin: 4px 0;"><strong>Velocità:</strong>
-                <span class="badge ${isMoving ? 'bg-success' : 'bg-secondary'}">${Math.round(speed)} km/h</span>
-                ${isMoving ? '<i class="fas fa-car ms-1"></i>' : '<i class="fas fa-stop ms-1"></i>'}
-            </p>
-            <p style="margin: 4px 0;"><strong>Ultimo aggiornamento:</strong><br><small>${formatDateTime(position.serverTime)}</small></p>
-            ${position.altitude ? `<p style="margin: 4px 0;"><strong>Altitudine:</strong> ${Math.round(position.altitude)} m</p>` : ''}
-        </div>
-    `;
-
-    trackingMarker.bindPopup(popupContent);
-    lastKnownPosition = position;
-}
-
-function updateTrackingView() {
-    if (!lastKnownPosition) return;
-
-    const lat = lastKnownPosition.latitude;
-    const lng = lastKnownPosition.longitude;
-
-    switch (trackingMode) {
-        case 'follow':
-            // Smooth pan to position
-            map.panTo([lat, lng], {
-                animate: true,
-                duration: 1
-            });
-            break;
-
-        case 'center':
-            // Center and maintain zoom
-            map.setView([lat, lng], map.getZoom(), {
-                animate: true
-            });
-            break;
-
-        case 'bounds':
-            // Fit all tracking data to view
-            if (currentData.length > 0) {
-                setTimeout(() => {
-                    fitMapToBounds();
-                }, 100);
-            }
-            break;
-    }
-}
-
-function updateTrackingPath(newPosition) {
-    // Update the regular path display with latest data
-    const timeRange = document.getElementById('timeRange').value;
-
-    fetch(`/api/positions?deviceId=${trackingDeviceId}&hours=${timeRange}`)
-        .then(response => response.json())
-        .then(positions => {
-            if (positions.length > 1) {
-                // Remove old path
-                if (trackingPath) {
-                    pathLayer.removeLayer(trackingPath);
-                }
-
-                // Create new path with special tracking style
-                const latlngs = positions.map(pos => [pos.latitude, pos.longitude]);
-                trackingPath = L.polyline(latlngs, {
-                    color: '#28a745',
-                    weight: 4,
-                    opacity: 0.8,
-                    dashArray: '10, 5'
-                }).addTo(pathLayer);
-
-                trackingPath.bindPopup(`
-                    <h6><i class="fas fa-route"></i> Percorso Tracking</h6>
-                    <p>Dispositivo: ${getDeviceName(trackingDeviceId)}<br>
-                    Punti: ${positions.length}</p>
-                `);
-            }
-        });
-}
-
-function updateTrackingStatus(position) {
-    document.getElementById('lastTrackingUpdate').textContent = new Date().toLocaleTimeString('it-IT');
-
-    // Update tracking info in status panel
-    const statusPanel = document.getElementById('trackingStatus');
-    const speed = Math.round(position.speed || 0);
-    const isMoving = speed > 5;
-
-    statusPanel.style.background = isMoving ?
-        'rgba(40, 167, 69, 0.1)' :
-        'rgba(108, 117, 125, 0.1)';
-    statusPanel.style.borderColor = isMoving ?
-        'rgba(40, 167, 69, 0.2)' :
-        'rgba(108, 117, 125, 0.2)';
-}
-
-function showNotification(message, type = 'info') {
-    // Create notification element
-    const notification = document.createElement('div');
-    notification.className = `alert alert-${type === 'error' ? 'danger' : type} position-fixed fade-in`;
-    notification.style.cssText = `
-        top: 80px; right: 20px; z-index: 2000; min-width: 300px;
-        background: rgba(255,255,255,0.95); backdrop-filter: blur(10px);
-        border: 1px solid rgba(255,255,255,0.2); border-radius: 12px;
-        box-shadow: 0 8px 32px rgba(0,0,0,0.15);
-    `;
-
-    const iconMap = {
-        success: 'check-circle',
-        error: 'exclamation-triangle',
-        warning: 'exclamation-circle',
-        info: 'info-circle'
-    };
-
-    notification.innerHTML = `
-        <i class="fas fa-${iconMap[type] || 'info-circle'}"></i> ${message}
-        <button type="button" class="btn-close ms-2" onclick="this.parentElement.remove()"></button>
-    `;
-
-    document.body.appendChild(notification);
-
-    // Auto-remove after 4 seconds
-    setTimeout(() => {
-        if (notification.parentElement) {
-            notification.remove();
-        }
-    }, 4000);
-}
-
-// Utility functions
-function getDeviceName(deviceId) {
-    const device = allDevices.find(d => d.id == deviceId);
-    return device ? device.name : `Dispositivo ${deviceId}`;
-}
-
-function formatDateTime(dateTimeString) {
-    return new Date(dateTimeString).toLocaleString('it-IT');
-}
-
-function formatDateTimeLocal(date) {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    return `${year}-${month}-${day}T${hours}:${minutes}`;
-}
-
-// Handle window resize
-window.addEventListener('resize', function() {
-    setTimeout(() => map.invalidateSize(), 100);
-});
-
-// Handle fullscreen changes
-document.addEventListener('fullscreenchange', function() {
-    setTimeout(() => map.invalidateSize(), 100);
-});
-
-// Cleanup on page unload
-window.addEventListener('beforeunload', function() {
+function stopAutoRefresh() {
     if (autoRefreshInterval) {
         clearInterval(autoRefreshInterval);
+        autoRefreshInterval = null;
     }
-    if (isAutoTracking) {
-        stopAutoTracking();
+}
+
+function exportData() {
+    if (currentData.length === 0) {
+        alert('Nessun dato da esportare. Carica prima i dati della mappa.');
+        return;
+    }
+
+    const deviceId = document.getElementById('deviceSelect').value;
+    const deviceName = document.getElementById('deviceSelect').selectedOptions[0].textContent;
+    const csvContent = generateCSV(currentData, deviceName);
+    downloadCSV(csvContent, `traccar_export_${deviceId}_${new Date().toISOString().slice(0,10)}.csv`);
+}
+
+function generateCSV(positions, deviceName) {
+    const headers = ['Device', 'DateTime', 'Latitude', 'Longitude', 'Speed', 'Course', 'Altitude'];
+    let csv = headers.join(',') + '\n';
+
+    positions.forEach(pos => {
+        const row = [
+            `"${deviceName}"`,
+            `"${new Date(pos.deviceTime).toISOString()}"`,
+            pos.latitude.toFixed(6),
+            pos.longitude.toFixed(6),
+            (pos.speed || 0).toFixed(1),
+            (pos.course || 0).toFixed(1),
+            (pos.altitude || 0).toFixed(1)
+        ];
+        csv += row.join(',') + '\n';
+    });
+
+    return csv;
+}
+
+function downloadCSV(csvContent, filename) {
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+
+    if (link.download !== undefined) {
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', filename);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+}
+
+function showLoading(show) {
+    const overlay = document.getElementById('loadingOverlay');
+    overlay.style.display = show ? 'block' : 'none';
+}
+
+// Event listener per checkbox auto-refresh
+document.addEventListener('DOMContentLoaded', function() {
+    const autoRefreshCheckbox = document.getElementById('autoRefresh');
+    if (autoRefreshCheckbox) {
+        autoRefreshCheckbox.addEventListener('change', function() {
+            if (this.checked) {
+                startAutoRefresh();
+            } else {
+                stopAutoRefresh();
+            }
+        });
     }
 });
 </script>

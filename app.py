@@ -84,20 +84,26 @@ class TraccarAPI:
         return self.current_user
 
     def get_user_permissions(self):
-        """Analizza e restituisce i permessi dell'utente corrente"""
+        """Ottiene i permessi dell'utente corrente"""
         user = self.get_current_user()
         if not user:
             return {}
 
-        return {
+        # Mappa i permessi Traccar ai permessi interni
+        permissions = {
             'admin': user.get('administrator', False),
+            'administrator': user.get('administrator', False),  # Alias
             'manager': user.get('manager', False),
             'readonly': user.get('readonly', False),
             'deviceReadonly': user.get('deviceReadonly', False),
-            'limitCommands': user.get('limitCommands', False),
             'disableReports': user.get('disableReports', False),
+            'limitCommands': user.get('limitCommands', False),
+            'expirationTime': user.get('expirationTime'),
             'disabled': user.get('disabled', False)
         }
+
+        print(f"TraccarAPI.get_user_permissions() returning: {permissions}")
+        return permissions
 
     def can_access_device(self, device_id):
         """Verifica se l'utente può accedere a un dispositivo specifico"""
@@ -538,15 +544,54 @@ def dashboard():
 @login_required
 def devices_management():
     """Pagina gestione dispositivi"""
+
+    # DEBUG: Stampa informazioni di sessione
+    print("=== DEBUG PERMESSI DISPOSITIVI ===")
+    print(f"Session user_admin: {session.get('user_admin', False)}")
+    print(f"Session user_manager: {session.get('user_manager', False)}")
+    print(f"Session user_readonly: {session.get('user_readonly', False)}")
+
+    # Ottieni anche i permessi via API
     permissions = traccar_api.get_user_permissions()
+    print(f"API permissions: {permissions}")
+
+    # CONTROLLO PERMESSI AGGIORNATO
+    # Controlla sia la sessione Flask che i permessi API
+    is_admin = session.get('user_admin', False) or permissions.get('admin', False) or permissions.get('administrator',
+                                                                                                      False)
+    is_manager = session.get('user_manager', False) or permissions.get('manager', False)
+    is_readonly = session.get('user_readonly', False) or permissions.get('readonly', False)
+
+    print(f"Final permissions - Admin: {is_admin}, Manager: {is_manager}, Readonly: {is_readonly}")
 
     # Solo admin e manager possono gestire dispositivi
-    if not (permissions.get('admin') or permissions.get('manager')):
+    if not (is_admin or is_manager):
+        print("ACCESSO NEGATO - Permessi insufficienti")
         flash('Permessi insufficienti per gestire i dispositivi', 'error')
         return redirect(url_for('dashboard'))
 
+    print("ACCESSO CONSENTITO - Caricamento pagina dispositivi")
     return render_template('devices_management.html', permissions=permissions)
 
+
+@app.route('/debug/permissions')
+@login_required
+def debug_permissions():
+    """Endpoint di debug per controllare i permessi (RIMUOVERE IN PRODUZIONE)"""
+
+    user_info = {
+        'session': {
+            'user_id': session.get('user_id'),
+            'username': session.get('username'),
+            'user_admin': session.get('user_admin', False),
+            'user_manager': session.get('user_manager', False),
+            'user_readonly': session.get('user_readonly', False)
+        },
+        'api_user': traccar_api.get_current_user(),
+        'api_permissions': traccar_api.get_user_permissions()
+    }
+
+    return jsonify(user_info)
 
 @app.route('/users')
 @login_required
@@ -927,6 +972,65 @@ def api_reports_route():
     reports = traccar_api.get_reports_route(device_ids, from_time, to_time)
     return jsonify(reports)
 
+
+# AGGIUNGI QUESTO ENDPOINT nel tuo app.py (prima degli error handlers)
+
+@app.route('/api/server/status')
+@login_required
+def api_server_status():
+    """API per verificare lo status del server Traccar"""
+    try:
+        # Test della connessione a Traccar
+        response = requests.get(f"{TRACCAR_SERVER}/api/server", timeout=5)
+        if response.status_code == 200:
+            server_info = response.json()
+            return jsonify({
+                'status': 'online',
+                'server': server_info,
+                'timestamp': datetime.utcnow().isoformat()
+            })
+        else:
+            return jsonify({
+                'status': 'error',
+                'message': f'Server risponde con status {response.status_code}',
+                'timestamp': datetime.utcnow().isoformat()
+            })
+    except requests.exceptions.ConnectionError:
+        return jsonify({
+            'status': 'offline',
+            'message': 'Server Traccar non raggiungibile',
+            'timestamp': datetime.utcnow().isoformat()
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e),
+            'timestamp': datetime.utcnow().isoformat()
+        })
+
+
+# OPZIONALE: Aggiungi anche questo endpoint per i dispositivi
+@app.route('/api/devices/status')
+@login_required
+def api_devices_status():
+    """API per ottenere lo status di tutti i dispositivi dell'utente"""
+    try:
+        devices = traccar_api.get_devices()
+        device_status = []
+
+        for device in devices:
+            status = traccar_api.get_device_status(device['id'])
+            device_status.append({
+                'device': device,
+                'status': status,
+                'online': status is not None and (
+                        datetime.utcnow() - datetime.fromisoformat(status['serverTime'].replace('Z', '+00:00'))
+                ).total_seconds() < 300  # Online se ultimo aggiornamento < 5 minuti
+            })
+
+        return jsonify(device_status)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
