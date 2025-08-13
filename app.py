@@ -1384,7 +1384,7 @@ def api_server_status():
         return jsonify({
             'status': 'error',
             'message': str(e),
-            'timestamp': datetime.now(datetime.timezone.utc).isoformat()
+            'timestamp': datetime.now(timezone.utc).isoformat()
         })
 
 
@@ -1777,6 +1777,274 @@ def cleanup_all_simulators():
                 logger.error(f"Errore nella pulizia del simulatore {imei}: {e}")
 
         simulator_processes.clear()
+
+
+# Aggiunte per app.py - Sistema Geocoding con Cache
+
+# Importare all'inizio del file app.py
+from geocoding_cache import get_geocoding_cache
+
+
+# Aggiungere queste route all'app Flask
+
+@app.route('/api/geocoding/reverse')
+@login_required
+def api_reverse_geocode():
+    """API per reverse geocoding con cache"""
+    try:
+        lat = float(request.args.get('lat'))
+        lng = float(request.args.get('lng'))
+        precision = int(request.args.get('precision', 4))
+        force_refresh = request.args.get('force_refresh', 'false').lower() == 'true'
+
+        cache = get_geocoding_cache()
+        result = cache.reverse_geocode(lat, lng, precision, force_refresh=force_refresh)
+
+        if result:
+            return jsonify(result)
+        else:
+            return jsonify({'error': 'Indirizzo non trovato'}), 404
+
+    except (ValueError, TypeError) as e:
+        return jsonify({'error': 'Parametri non validi'}), 400
+    except Exception as e:
+        logger.error(f"Error in reverse geocoding: {e}")
+        return jsonify({'error': 'Errore interno del server'}), 500
+
+
+@app.route('/api/geocoding/forward')
+@login_required
+def api_geocode():
+    """API per geocoding normale con cache"""
+    try:
+        address = request.args.get('address')
+        if not address:
+            return jsonify({'error': 'Parametro address richiesto'}), 400
+
+        force_refresh = request.args.get('force_refresh', 'false').lower() == 'true'
+
+        cache = get_geocoding_cache()
+        result = cache.geocode(address, force_refresh=force_refresh)
+
+        if result:
+            return jsonify(result)
+        else:
+            return jsonify({'error': 'Coordinate non trovate'}), 404
+
+    except Exception as e:
+        logger.error(f"Error in geocoding: {e}")
+        return jsonify({'error': 'Errore interno del server'}), 500
+
+
+@app.route('/api/geocoding/batch-reverse', methods=['POST'])
+@login_required
+def api_batch_reverse_geocode():
+    """API per reverse geocoding in batch (multiple coordinate)"""
+    try:
+        data = request.get_json()
+        coordinates = data.get('coordinates', [])
+        precision = data.get('precision', 4)
+
+        if not coordinates or not isinstance(coordinates, list):
+            return jsonify({'error': 'Array coordinates richiesto'}), 400
+
+        cache = get_geocoding_cache()
+        results = []
+
+        for coord in coordinates:
+            try:
+                if isinstance(coord, dict):
+                    lat, lng = coord.get('lat'), coord.get('lng')
+                elif isinstance(coord, (list, tuple)) and len(coord) >= 2:
+                    lat, lng = coord[0], coord[1]
+                else:
+                    continue
+
+                if lat is None or lng is None:
+                    continue
+
+                result = cache.reverse_geocode(float(lat), float(lng), precision)
+                if result:
+                    results.append({
+                        'lat': lat,
+                        'lng': lng,
+                        'address': result.get('formatted_address', ''),
+                        'details': result,
+                        'cached': result.get('cached', False)
+                    })
+                else:
+                    results.append({
+                        'lat': lat,
+                        'lng': lng,
+                        'error': 'Indirizzo non trovato'
+                    })
+
+            except (ValueError, TypeError):
+                continue
+
+        return jsonify({
+            'results': results,
+            'total_processed': len(results),
+            'total_requested': len(coordinates)
+        })
+
+    except Exception as e:
+        logger.error(f"Error in batch reverse geocoding: {e}")
+        return jsonify({'error': 'Errore interno del server'}), 500
+
+
+@app.route('/api/geocoding/cache/stats')
+@login_required
+def api_geocoding_cache_stats():
+    """API per ottenere statistiche della cache"""
+    try:
+        cache = get_geocoding_cache()
+        stats = cache.get_cache_stats()
+        return jsonify(stats)
+    except Exception as e:
+        logger.error(f"Error getting cache stats: {e}")
+        return jsonify({'error': 'Errore nell\'ottenere statistiche'}), 500
+
+
+@app.route('/api/geocoding/cache/clear', methods=['POST'])
+@login_required
+def api_clear_geocoding_cache():
+    """API per pulire la cache"""
+    try:
+        # Verifica permessi admin
+        permissions = traccar_api.get_user_permissions()
+        if not (permissions.get('admin') or permissions.get('administrator')):
+            return jsonify({'error': 'Permessi insufficienti'}), 403
+
+        data = request.get_json() or {}
+        expired_only = data.get('expired_only', False)
+
+        cache = get_geocoding_cache()
+        result = cache.clear_cache(expired_only=expired_only)
+
+        return jsonify({
+            'success': True,
+            'message': f"Cache pulita: {result['total_deleted']} voci rimosse",
+            'details': result
+        })
+
+    except Exception as e:
+        logger.error(f"Error clearing cache: {e}")
+        return jsonify({'error': 'Errore nella pulizia della cache'}), 500
+
+
+# Funzione helper per aggiungere indirizzi alle posizioni
+def enrich_positions_with_addresses(positions, precision=3):
+    """
+    Arricchisce una lista di posizioni con gli indirizzi usando la cache
+
+    Args:
+        positions: Lista di posizioni con lat/lng
+        precision: Precisione per il raggruppamento delle coordinate
+
+    Returns:
+        Lista di posizioni arricchite con campo 'address'
+    """
+    if not positions:
+        return positions
+
+    cache = get_geocoding_cache()
+
+    # Raggruppa posizioni simili per ridurre le chiamate API
+    coordinate_groups = {}
+
+    for i, pos in enumerate(positions):
+        if 'latitude' in pos and 'longitude' in pos:
+            lat = pos['latitude']
+            lng = pos['longitude']
+
+            # Raggruppa per coordinate approssimate
+            coord_key = cache._coordinate_hash(lat, lng, precision)
+
+            if coord_key not in coordinate_groups:
+                coordinate_groups[coord_key] = {
+                    'lat': lat,
+                    'lng': lng,
+                    'positions': []
+                }
+            coordinate_groups[coord_key]['positions'].append(i)
+
+    # Ottieni indirizzi per ogni gruppo
+    for coord_key, group in coordinate_groups.items():
+        address_data = cache.reverse_geocode(
+            group['lat'], group['lng'], precision
+        )
+
+        # Applica l'indirizzo a tutte le posizioni del gruppo
+        for pos_index in group['positions']:
+            if address_data:
+                positions[pos_index]['address'] = address_data.get('formatted_address', '')
+                positions[pos_index]['city'] = address_data.get('city', '')
+                positions[pos_index]['country'] = address_data.get('country', '')
+                positions[pos_index]['cached'] = address_data.get('cached', False)
+            else:
+                positions[pos_index]['address'] = 'Indirizzo non disponibile'
+                positions[pos_index]['cached'] = False
+
+    return positions
+
+
+# Modifica la route esistente /api/positions per includere gli indirizzi
+@app.route('/api/positions-with-addresses')
+@login_required
+def api_positions_with_addresses():
+    """API per ottenere le posizioni con indirizzi inclusi"""
+    device_id = request.args.get('deviceId')
+    hours = int(request.args.get('hours', 24))
+    include_addresses = request.args.get('addresses', 'true').lower() == 'true'
+    precision = int(request.args.get('precision', 3))
+
+    # USA TIMEZONE LOCALE invece di UTC
+    to_time = datetime.now()
+    from_time = to_time - timedelta(hours=hours)
+
+    positions = traccar_api.get_positions(device_id, from_time, to_time)
+
+    if include_addresses and positions:
+        positions = enrich_positions_with_addresses(positions, precision)
+
+    return jsonify(positions)
+
+
+# Aggiungi anche questa route per la configurazione del geocoding
+@app.route('/api/geocoding/config')
+@login_required
+def api_geocoding_config():
+    """API per ottenere la configurazione del geocoding"""
+    try:
+        cache = get_geocoding_cache()
+
+        config = {
+            'services': list(cache.geocoding_services.keys()),
+            'default_ttl_hours': cache.default_ttl / 3600,
+            'db_path': cache.db_path,
+            'precision_levels': {
+                1: '~11 km',
+                2: '~1.1 km',
+                3: '~110 m',
+                4: '~11 m',
+                5: '~1.1 m'
+            }
+        }
+
+        return jsonify(config)
+
+    except Exception as e:
+        logger.error(f"Error getting geocoding config: {e}")
+        return jsonify({'error': 'Errore nella configurazione'}), 500
+
+
+# Route per testare il geocoding
+@app.route('/geocoding-test')
+@login_required
+def geocoding_test_page():
+    """Pagina di test per il sistema di geocoding"""
+    return render_template('test.html')
 
 
 if __name__ == '__main__':

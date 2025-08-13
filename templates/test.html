@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Sistema Geocoding - Traccar Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .test-card {
+            border-left: 4px solid #0d6efd;
+        }
+        .result-box {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 0.375rem;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+        .cache-hit {
+            color: #198754;
+        }
+        .cache-miss {
+            color: #dc3545;
+        }
+        .stats-card {
+            transition: all 0.3s ease;
+        }
+        .stats-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/dashboard">
+                <i class="fas fa-satellite-dish"></i> Traccar Dashboard
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="/dashboard">
+                    <i class="fas fa-tachometer-alt"></i> Dashboard
+                </a>
+                <a class="nav-link" href="/settings">
+                    <i class="fas fa-cog"></i> Impostazioni
+                </a>
+                <a class="nav-link" href="/logout">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <!-- Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <h2><i class="fas fa-map-marked-alt"></i> Test Sistema Geocoding</h2>
+                <p class="text-muted">Sistema di cache per conversione coordinate ↔ indirizzi con SQLite</p>
+            </div>
+        </div>
+
+        <!-- Statistiche Cache -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0"><i class="fas fa-chart-bar"></i> Statistiche Cache</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row" id="cacheStats">
+                            <div class="col-12 text-center">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Caricamento statistiche...</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <button class="btn btn-outline-primary btn-sm" onclick="loadCacheStats()">
+                                <i class="fas fa-sync"></i> Aggiorna
+                            </button>
+                            <button class="btn btn-outline-warning btn-sm" onclick="clearExpiredCache()">
+                                <i class="fas fa-broom"></i> Pulisci Scaduti
+                            </button>
+                            <button class="btn btn-outline-danger btn-sm" onclick="clearAllCache()">
+                                <i class="fas fa-trash"></i> Pulisci Tutto
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Test Reverse Geocoding -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card test-card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-search-location"></i> Reverse Geocoding</h5>
+                        <small class="text-muted">Coordinate → Indirizzo</small>
+                    </div>
+                    <div class="card-body">
+                        <form onsubmit="testReverseGeocode(event)">
+                            <div class="row mb-3">
+                                <div class="col-6">
+                                    <label class="form-label">Latitudine</label>
+                                    <input type="number" class="form-control" id="reverseLat"
+                                           value="45.4642" step="0.000001" required>
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label">Longitudine</label>
+                                    <input type="number" class="form-control" id="reverseLng"
+                                           value="9.1900" step="0.000001" required>
+                                </div>
+                            </div>
+
+                            <div class="row mb-3">
+                                <div class="col-6">
+                                    <label class="form-label">Precisione</label>
+                                    <select class="form-select" id="reversePrecision">
+                                        <option value="1">1 decimale (~11 km)</option>
+                                        <option value="2">2 decimali (~1.1 km)</option>
+                                        <option value="3" selected>3 decimali (~110 m)</option>
+                                        <option value="4">4 decimali (~11 m)</option>
+                                        <option value="5">5 decimali (~1.1 m)</option>
+                                    </select>
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label">Opzioni</label>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="reverseForceRefresh">
+                                        <label class="form-check-label" for="reverseForceRefresh">
+                                            Ignora cache
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary" id="reverseBtn">
+                                <i class="fas fa-search"></i> Trova Indirizzo
+                            </button>
+                        </form>
+
+                        <div id="reverseResult"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Test Forward Geocoding -->
+            <div class="col-md-6">
+                <div class="card test-card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-map-marker-alt"></i> Forward Geocoding</h5>
+                        <small class="text-muted">Indirizzo → Coordinate</small>
+                    </div>
+                    <div class="card-body">
+                        <form onsubmit="testForwardGeocode(event)">
+                            <div class="mb-3">
+                                <label class="form-label">Indirizzo</label>
+                                <input type="text" class="form-control" id="forwardAddress"
+                                       value="Milano, Italia" required
+                                       placeholder="Es: Via Roma 1, Milano">
+                            </div>
+
+                            <div class="mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="forwardForceRefresh">
+                                    <label class="form-check-label" for="forwardForceRefresh">
+                                        Ignora cache
+                                    </label>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary" id="forwardBtn">
+                                <i class="fas fa-search"></i> Trova Coordinate
+                            </button>
+                        </form>
+
+                        <div id="forwardResult"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Test Batch Reverse Geocoding -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card test-card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-layer-group"></i> Batch Reverse Geocoding</h5>
+                        <small class="text-muted">Multiple coordinate → Indirizzi</small>
+                    </div>
+                    <div class="card-body">
+                        <form onsubmit="testBatchReverseGeocode(event)">
+                            <div class="mb-3">
+                                <label class="form-label">Coordinate (JSON)</label>
+                                <textarea class="form-control" id="batchCoordinates" rows="6"
+                                          placeholder='[{"lat": 45.4642, "lng": 9.1900}, {"lat": 41.9028, "lng": 12.4964}]'>
+[
+  {"lat": 45.4642, "lng": 9.1900},
+  {"lat": 41.9028, "lng": 12.4964},
+  {"lat": 40.8518, "lng": 14.2681}
+]</textarea>
+                                <div class="form-text">Array JSON di oggetti con lat/lng</div>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary" id="batchBtn">
+                                <i class="fas fa-search"></i> Processa Batch
+                            </button>
+                        </form>
+
+                        <div id="batchResult"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Configurazione Sistema -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-cogs"></i> Configurazione Sistema</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="systemConfig">
+                            <div class="text-center">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Caricamento configurazione...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Carica dati iniziali
+        document.addEventListener('DOMContentLoaded', function() {
+            loadCacheStats();
+            loadSystemConfig();
+        });
+
+        function showAlert(message, type = 'info') {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+            alertDiv.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            document.body.insertBefore(alertDiv, document.body.firstChild);
+
+            setTimeout(() => {
+                alertDiv.remove();
+            }, 5000);
+        }
+
+        function loadCacheStats() {
+            fetch('/api/geocoding/cache/stats')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        document.getElementById('cacheStats').innerHTML = `
+                            <div class="col-12">
+                                <div class="alert alert-danger">Errore: ${data.error}</div>
+                            </div>
+                        `;
+                        return;
+                    }
+
+                    const totalEntries = data.reverse_geocoding.total_entries + data.geocoding.total_entries;
+                    const validEntries = data.reverse_geocoding.valid_entries + data.geocoding.valid_entries;
+                    const totalHits = data.reverse_geocoding.total_hits + data.geocoding.total_hits;
+
+                    document.getElementById('cacheStats').innerHTML = `
+                        <div class="col-md-3">
+                            <div class="card stats-card h-100">
+                                <div class="card-body text-center">
+                                    <h3 class="text-primary">${totalEntries}</h3>
+                                    <p class="mb-0">Voci Totali</p>
+                                    <small class="text-muted">${validEntries} valide</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card stats-card h-100">
+                                <div class="card-body text-center">
+                                    <h3 class="text-success">${data.reverse_geocoding.valid_entries}</h3>
+                                    <p class="mb-0">Reverse Cache</p>
+                                    <small class="text-muted">${data.reverse_geocoding.total_hits} hits</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card stats-card h-100">
+                                <div class="card-body text-center">
+                                    <h3 class="text-info">${data.geocoding.valid_entries}</h3>
+                                    <p class="mb-0">Forward Cache</p>
+                                    <small class="text-muted">${data.geocoding.total_hits} hits</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card stats-card h-100">
+                                <div class="card-body text-center">
+                                    <h3 class="text-warning">${data.database_size_mb} MB</h3>
+                                    <p class="mb-0">Dimensione DB</p>
+                                    <small class="text-muted">TTL: ${data.default_ttl_hours}h</small>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                })
+                .catch(error => {
+                    console.error('Error loading cache stats:', error);
+                    document.getElementById('cacheStats').innerHTML = `
+                        <div class="col-12">
+                            <div class="alert alert-danger">Errore nel caricamento delle statistiche</div>
+                        </div>
+                    `;
+                });
+        }
+
+        function loadSystemConfig() {
+            fetch('/api/geocoding/config')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        document.getElementById('systemConfig').innerHTML = `
+                            <div class="alert alert-danger">Errore: ${data.error}</div>
+                        `;
+                        return;
+                    }
+
+                    document.getElementById('systemConfig').innerHTML = `
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6>Servizi Disponibili</h6>
+                                <ul class="list-group list-group-flush">
+                                    ${data.services.map(service => `
+                                        <li class="list-group-item">${service}</li>
+                                    `).join('')}
+                                </ul>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>Livelli di Precisione</h6>
+                                <ul class="list-group list-group-flush">
+                                    ${Object.entries(data.precision_levels).map(([level, desc]) => `
+                                        <li class="list-group-item">${level} decimali: ${desc}</li>
+                                    `).join('')}
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <small class="text-muted">
+                                Database: ${data.db_path} | TTL Predefinito: ${data.default_ttl_hours} ore
+                            </small>
+                        </div>
+                    `;
+                })
+                .catch(error => {
+                    console.error('Error loading system config:', error);
+                    document.getElementById('systemConfig').innerHTML = `
+                        <div class="alert alert-danger">Errore nel caricamento della configurazione</div>
+                    `;
+                });
+        }
+
+        function testReverseGeocode(event) {
+            event.preventDefault();
+
+            const lat = parseFloat(document.getElementById('reverseLat').value);
+            const lng = parseFloat(document.getElementById('reverseLng').value);
+            const precision = parseInt(document.getElementById('reversePrecision').value);
+            const forceRefresh = document.getElementById('reverseForceRefresh').checked;
+
+            const btn = document.getElementById('reverseBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Ricerca...';
+
+            const params = new URLSearchParams({
+                lat: lat,
+                lng: lng,
+                precision: precision,
+                force_refresh: forceRefresh
+            });
+
+            fetch(`/api/geocoding/reverse?${params}`)
+                .then(response => response.json())
+                .then(data => {
+                    const resultDiv = document.getElementById('reverseResult');
+
+                    if (data.error) {
+                        resultDiv.innerHTML = `
+                            <div class="result-box">
+                                <div class="alert alert-danger mb-0">
+                                    <i class="fas fa-exclamation-triangle"></i> ${data.error}
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        const cacheStatus = data.cached ?
+                            '<span class="cache-hit"><i class="fas fa-check-circle"></i> Cache HIT</span>' :
+                            '<span class="cache-miss"><i class="fas fa-times-circle"></i> Cache MISS</span>';
+
+                        resultDiv.innerHTML = `
+                            <div class="result-box">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <strong>Risultato:</strong>
+                                    ${cacheStatus}
+                                </div>
+                                <p class="mb-2"><strong>Indirizzo:</strong> ${data.formatted_address}</p>
+                                <div class="row small">
+                                    <div class="col-6">
+                                        <strong>Città:</strong> ${data.city || 'N/A'}<br>
+                                        <strong>Stato:</strong> ${data.state || 'N/A'}
+                                    </div>
+                                    <div class="col-6">
+                                        <strong>Paese:</strong> ${data.country || 'N/A'}<br>
+                                        <strong>Servizio:</strong> ${data.service_used}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    document.getElementById('reverseResult').innerHTML = `
+                        <div class="result-box">
+                            <div class="alert alert-danger mb-0">Errore di connessione</div>
+                        </div>
+                    `;
+                })
+                .finally(() => {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-search"></i> Trova Indirizzo';
+                    loadCacheStats(); // Aggiorna le statistiche
+                });
+        }
+
+        function testForwardGeocode(event) {
+            event.preventDefault();
+
+            const address = document.getElementById('forwardAddress').value;
+            const forceRefresh = document.getElementById('forwardForceRefresh').checked;
+
+            const btn = document.getElementById('forwardBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Ricerca...';
+
+            const params = new URLSearchParams({
+                address: address,
+                force_refresh: forceRefresh
+            });
+
+            fetch(`/api/geocoding/forward?${params}`)
+                .then(response => response.json())
+                .then(data => {
+                    const resultDiv = document.getElementById('forwardResult');
+
+                    if (data.error) {
+                        resultDiv.innerHTML = `
+                            <div class="result-box">
+                                <div class="alert alert-danger mb-0">
+                                    <i class="fas fa-exclamation-triangle"></i> ${data.error}
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        const cacheStatus = data.cached ?
+                            '<span class="cache-hit"><i class="fas fa-check-circle"></i> Cache HIT</span>' :
+                            '<span class="cache-miss"><i class="fas fa-times-circle"></i> Cache MISS</span>';
+
+                        resultDiv.innerHTML = `
+                            <div class="result-box">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <strong>Risultato:</strong>
+                                    ${cacheStatus}
+                                </div>
+                                <p class="mb-2"><strong>Coordinate:</strong> ${data.lat}, ${data.lng}</p>
+                                <p class="mb-2"><strong>Indirizzo:</strong> ${data.formatted_address}</p>
+                                <div class="row small">
+                                    <div class="col-6">
+                                        <strong>Confidenza:</strong> ${data.confidence || 'N/A'}<br>
+                                        <strong>Servizio:</strong> ${data.service_used}
+                                    </div>
+                                    <div class="col-6">
+                                        <strong>Paese:</strong> ${data.country || 'N/A'}<br>
+                                        <strong>Città:</strong> ${data.city || 'N/A'}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    document.getElementById('forwardResult').innerHTML = `
+                        <div class="result-box">
+                            <div class="alert alert-danger mb-0">Errore di connessione</div>
+                        </div>
+                    `;
+                })
+                .finally(() => {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-search"></i> Trova Coordinate';
+                    loadCacheStats(); // Aggiorna le statistiche
+                });
+        }
+
+        function testBatchReverseGeocode(event) {
+            event.preventDefault();
+
+            const coordinatesText = document.getElementById('batchCoordinates').value;
+
+            let coordinates;
+            try {
+                coordinates = JSON.parse(coordinatesText);
+            } catch (e) {
+                document.getElementById('batchResult').innerHTML = `
+                    <div class="result-box">
+                        <div class="alert alert-danger mb-0">JSON non valido</div>
+                    </div>
+                `;
+                return;
+            }
+
+            const btn = document.getElementById('batchBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processando...';
+
+            fetch('/api/geocoding/batch-reverse', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    coordinates: coordinates,
+                    precision: 3
+                })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    const resultDiv = document.getElementById('batchResult');
+
+                    if (data.error) {
+                        resultDiv.innerHTML = `
+                            <div class="result-box">
+                                <div class="alert alert-danger mb-0">
+                                    <i class="fas fa-exclamation-triangle"></i> ${data.error}
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        const resultsHtml = data.results.map((result, index) => {
+                            if (result.error) {
+                                return `
+                                    <tr>
+                                        <td>${index + 1}</td>
+                                        <td>${result.lat}, ${result.lng}</td>
+                                        <td><span class="text-danger">${result.error}</span></td>
+                                        <td>-</td>
+                                    </tr>
+                                `;
+                            } else {
+                                const cacheIcon = result.cached ?
+                                    '<i class="fas fa-check-circle text-success"></i>' :
+                                    '<i class="fas fa-times-circle text-danger"></i>';
+
+                                return `
+                                    <tr>
+                                        <td>${index + 1}</td>
+                                        <td>${result.lat}, ${result.lng}</td>
+                                        <td>${result.address}</td>
+                                        <td>${cacheIcon}</td>
+                                    </tr>
+                                `;
+                            }
+                        }).join('');
+
+                        resultDiv.innerHTML = `
+                            <div class="result-box">
+                                <div class="mb-3">
+                                    <strong>Processati:</strong> ${data.total_processed}/${data.total_requested}
+                                </div>
+                                <div class="table-responsive">
+                                    <table class="table table-sm">
+                                        <thead>
+                                            <tr>
+                                                <th>#</th>
+                                                <th>Coordinate</th>
+                                                <th>Indirizzo</th>
+                                                <th>Cache</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            ${resultsHtml}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    document.getElementById('batchResult').innerHTML = `
+                        <div class="result-box">
+                            <div class="alert alert-danger mb-0">Errore di connessione</div>
+                        </div>
+                    `;
+                })
+                .finally(() => {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-search"></i> Processa Batch';
+                    loadCacheStats(); // Aggiorna le statistiche
+                });
+        }
+
+        function clearExpiredCache() {
+            if (!confirm('Eliminare tutte le voci scadute dalla cache?')) {
+                return;
+            }
+
+            fetch('/api/geocoding/cache/clear', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    expired_only: true
+                })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showAlert(`Cache pulita: ${data.details.total_deleted} voci scadute rimosse`, 'success');
+                        loadCacheStats();
+                    } else {
+                        showAlert(`Errore: ${data.error}`, 'danger');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showAlert('Errore di connessione', 'danger');
+                });
+        }
+
+        function clearAllCache() {
+            if (!confirm('ATTENZIONE: Questa operazione eliminerà TUTTA la cache!\n\nContinuare?')) {
+                return;
+            }
+
+            fetch('/api/geocoding/cache/clear', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    expired_only: false
+                })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showAlert(`Cache completamente pulita: ${data.details.total_deleted} voci rimosse`, 'success');
+                        loadCacheStats();
+                    } else {
+                        showAlert(`Errore: ${data.error}`, 'danger');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showAlert('Errore di connessione', 'danger');
+                });
+        }
+    </script>
+</body>
+</html>

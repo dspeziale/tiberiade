@@ -1,5 +1,5 @@
 {
-  "traccar_server": "http://192.168.30.159",
+  "traccar_server": "http://torraccia.iliadboxos.it",
   "devices": [
     {
       "device_id": "4",

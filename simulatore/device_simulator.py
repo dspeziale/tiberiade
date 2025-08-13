@@ -217,7 +217,7 @@ class GPSSimulator:
             # URL per il protocollo Osmand (porta 5055 di default)
             # Rimuovi http:// se presente nel server URL
             server_base = self.traccar_server.replace('http://', '').replace('https://', '')
-            url = f"http://{server_base}:5055"
+            url = f"http://{server_base}:57355"
 
             # Debug: mostra URL e parametri
             logger.debug(f"Sending to URL: {url}")

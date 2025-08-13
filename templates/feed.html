@@ -1,0 +1,652 @@
+<!-- Template per gestione alimentazione cache: templates/cache_management.html -->
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestione Cache Geocoding - Traccar Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .feeding-card {
+            border-left: 4px solid #28a745;
+            transition: all 0.3s ease;
+        }
+        .feeding-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        .progress-container {
+            display: none;
+        }
+        .log-output {
+            background: #1e1e1e;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            height: 300px;
+            overflow-y: auto;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .method-icon {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/dashboard">
+                <i class="fas fa-satellite-dish"></i> Traccar Dashboard
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="/dashboard">Dashboard</a>
+                <a class="nav-link" href="/geocoding-test">Test Geocoding</a>
+                <a class="nav-link" href="/settings">Impostazioni</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <!-- Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <h2><i class="fas fa-database"></i> Gestione Cache Geocoding</h2>
+                <p class="text-muted">Alimenta e gestisci la cache degli indirizzi per migliorare le performance</p>
+            </div>
+        </div>
+
+        <!-- Statistiche Rapide -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-chart-pie"></i> Stato Cache</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row" id="quickStats">
+                            <div class="col-12 text-center">
+                                <div class="spinner-border text-primary" role="status"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Metodi di Alimentazione -->
+        <div class="row">
+            <!-- Storico Posizioni -->
+            <div class="col-lg-6 mb-4">
+                <div class="card feeding-card h-100">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0"><i class="fas fa-history"></i> Storico Posizioni</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="text-center method-icon">
+                            <i class="fas fa-route text-success"></i>
+                        </div>
+                        <p>Analizza lo storico delle posizioni dei dispositivi e popola la cache con gli indirizzi delle zone frequentate.</p>
+
+                        <div class="mb-3">
+                            <label class="form-label">Periodo di analisi</label>
+                            <select class="form-select" id="historyHours">
+                                <option value="24">Ultime 24 ore</option>
+                                <option value="168" selected>Ultima settimana</option>
+                                <option value="720">Ultimo mese</option>
+                                <option value="2160">Ultimi 3 mesi</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="onlyActiveDevices" checked>
+                                <label class="form-check-label" for="onlyActiveDevices">
+                                    Solo dispositivi attivi
+                                </label>
+                            </div>
+                        </div>
+
+                        <button class="btn btn-success w-100" onclick="feedFromHistory()">
+                            <i class="fas fa-play"></i> Avvia Analisi Storico
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Aree di Interesse -->
+            <div class="col-lg-6 mb-4">
+                <div class="card feeding-card h-100">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0"><i class="fas fa-map-marked-alt"></i> Aree di Interesse</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="text-center method-icon">
+                            <i class="fas fa-bullseye text-info"></i>
+                        </div>
+                        <p>Pre-popola la cache per città o aree specifiche dove operi frequentemente.</p>
+
+                        <div class="mb-3">
+                            <label class="form-label">Nome città/area</label>
+                            <input type="text" class="form-control" id="cityName" placeholder="Es: Milano, Roma, Torino">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Raggio di copertura</label>
+                            <select class="form-select" id="cityRadius">
+                                <option value="5">5 km (centro città)</option>
+                                <option value="10" selected>10 km (area metropolitana)</option>
+                                <option value="20">20 km (provincia)</option>
+                                <option value="50">50 km (regione)</option>
+                            </select>
+                        </div>
+
+                        <button class="btn btn-info w-100" onclick="feedFromCity()">
+                            <i class="fas fa-play"></i> Alimenta Area
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Upload File -->
+            <div class="col-lg-6 mb-4">
+                <div class="card feeding-card h-100">
+                    <div class="card-header bg-warning text-dark">
+                        <h5 class="mb-0"><i class="fas fa-file-upload"></i> Upload File</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="text-center method-icon">
+                            <i class="fas fa-file-csv text-warning"></i>
+                        </div>
+                        <p>Carica file CSV o GeoJSON con coordinate da aggiungere alla cache.</p>
+
+                        <div class="mb-3">
+                            <label class="form-label">File di coordinate</label>
+                            <input type="file" class="form-control" id="coordinatesFile" accept=".csv,.json,.geojson">
+                            <div class="form-text">Supportato: CSV (lat,lng), GeoJSON</div>
+                        </div>
+
+                        <div class="mb-3" id="csvColumns" style="display: none;">
+                            <div class="row">
+                                <div class="col-6">
+                                    <label class="form-label">Colonna Latitudine</label>
+                                    <input type="text" class="form-control" id="latColumn" value="latitude">
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label">Colonna Longitudine</label>
+                                    <input type="text" class="form-control" id="lngColumn" value="longitude">
+                                </div>
+                            </div>
+                        </div>
+
+                        <button class="btn btn-warning w-100" onclick="feedFromFile()" disabled id="uploadBtn">
+                            <i class="fas fa-upload"></i> Carica e Processa
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Coordinate Manuali -->
+            <div class="col-lg-6 mb-4">
+                <div class="card feeding-card h-100">
+                    <div class="card-header bg-secondary text-white">
+                        <h5 class="mb-0"><i class="fas fa-edit"></i> Inserimento Manuale</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="text-center method-icon">
+                            <i class="fas fa-keyboard text-secondary"></i>
+                        </div>
+                        <p>Inserisci manualmente coordinate specifiche da aggiungere alla cache.</p>
+
+                        <div class="mb-3">
+                            <label class="form-label">Coordinate (una per riga)</label>
+                            <textarea class="form-control" id="manualCoords" rows="6"
+                                      placeholder="45.4642,9.1900&#10;41.9028,12.4964&#10;40.8518,14.2681"></textarea>
+                            <div class="form-text">Formato: latitudine,longitudine</div>
+                        </div>
+
+                        <button class="btn btn-secondary w-100" onclick="feedFromManual()">
+                            <i class="fas fa-play"></i> Processa Coordinate
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Progress e Log -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card" id="progressCard" style="display: none;">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-tasks"></i> Avanzamento Operazione</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between">
+                                <span id="progressLabel">Inizializzazione...</span>
+                                <span id="progressPercent">0%</span>
+                            </div>
+                            <div class="progress">
+                                <div class="progress-bar" id="progressBar" role="progressbar" style="width: 0%"></div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <strong>Log Operazione:</strong>
+                            <div class="log-output" id="logOutput"></div>
+                        </div>
+
+                        <button class="btn btn-outline-danger" onclick="stopOperation()" id="stopBtn">
+                            <i class="fas fa-stop"></i> Interrompi
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Alimentazione Automatica -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-clock"></i> Alimentazione Automatica</h5>
+                    </div>
+                    <div class="card-body">
+                        <p>Configura l'alimentazione automatica della cache a intervalli regolari.</p>
+
+                        <div class="row">
+                            <div class="col-md-4">
+                                <label class="form-label">Intervallo</label>
+                                <select class="form-select" id="autoInterval">
+                                    <option value="0">Disabilitato</option>
+                                    <option value="6">Ogni 6 ore</option>
+                                    <option value="12">Ogni 12 ore</option>
+                                    <option value="24" selected>Ogni giorno</option>
+                                    <option value="168">Ogni settimana</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Ore storico</label>
+                                <select class="form-select" id="autoHistoryHours">
+                                    <option value="24" selected>24 ore</option>
+                                    <option value="48">48 ore</option>
+                                    <option value="168">1 settimana</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Azione</label>
+                                <button class="btn btn-primary w-100" onclick="configureAutoFeeding()">
+                                    <i class="fas fa-cog"></i> Configura
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="mt-3" id="autoStatus">
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle"></i> Alimentazione automatica non configurata
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let currentOperation = null;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            loadQuickStats();
+            setupFileHandler();
+        });
+
+        function loadQuickStats() {
+            fetch('/api/geocoding/cache/stats')
+                .then(response => response.json())
+                .then(data => {
+                    const total = data.reverse_geocoding.valid_entries + data.geocoding.valid_entries;
+                    const hits = data.reverse_geocoding.total_hits + data.geocoding.total_hits;
+
+                    document.getElementById('quickStats').innerHTML = `
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <h4 class="text-primary">${total}</h4>
+                                <small>Indirizzi in Cache</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <h4 class="text-success">${hits}</h4>
+                                <small>Cache Hits Totali</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <h4 class="text-info">${data.database_size_mb}</h4>
+                                <small>MB Database</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <h4 class="text-warning">${data.default_ttl_hours}h</h4>
+                                <small>TTL Predefinito</small>
+                            </div>
+                        </div>
+                    `;
+                })
+                .catch(error => {
+                    console.error('Error loading stats:', error);
+                });
+        }
+
+        function setupFileHandler() {
+            const fileInput = document.getElementById('coordinatesFile');
+            const uploadBtn = document.getElementById('uploadBtn');
+            const csvColumns = document.getElementById('csvColumns');
+
+            fileInput.addEventListener('change', function() {
+                const file = this.files[0];
+                if (file) {
+                    uploadBtn.disabled = false;
+
+                    // Mostra opzioni CSV se necessario
+                    if (file.name.toLowerCase().endsWith('.csv')) {
+                        csvColumns.style.display = 'block';
+                    } else {
+                        csvColumns.style.display = 'none';
+                    }
+                } else {
+                    uploadBtn.disabled = true;
+                    csvColumns.style.display = 'none';
+                }
+            });
+        }
+
+        function showProgress(title) {
+            const card = document.getElementById('progressCard');
+            card.style.display = 'block';
+            document.getElementById('progressLabel').textContent = title;
+            document.getElementById('progressPercent').textContent = '0%';
+            document.getElementById('progressBar').style.width = '0%';
+            document.getElementById('logOutput').innerHTML = '';
+            card.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function updateProgress(percent, label, logMessage) {
+            document.getElementById('progressPercent').textContent = percent + '%';
+            document.getElementById('progressBar').style.width = percent + '%';
+            if (label) document.getElementById('progressLabel').textContent = label;
+
+            if (logMessage) {
+                const logOutput = document.getElementById('logOutput');
+                const timestamp = new Date().toLocaleTimeString();
+                logOutput.innerHTML += `[${timestamp}] ${logMessage}\n`;
+                logOutput.scrollTop = logOutput.scrollHeight;
+            }
+        }
+
+        function hideProgress() {
+            document.getElementById('progressCard').style.display = 'none';
+        }
+
+        async function feedFromHistory() {
+            const hours = document.getElementById('historyHours').value;
+            const onlyActive = document.getElementById('onlyActiveDevices').checked;
+
+            showProgress('Analisi storico posizioni');
+            updateProgress(10, 'Avvio analisi...', 'Iniziando analisi storico posizioni');
+
+            try {
+                const response = await fetch('/api/geocoding/feed/history', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        hours_back: parseInt(hours),
+                        only_active: onlyActive
+                    })
+                });
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    const chunk = decoder.decode(value);
+                    const lines = chunk.split('\n');
+
+                    for (const line of lines) {
+                        if (line.trim()) {
+                            try {
+                                const data = JSON.parse(line);
+                                if (data.progress !== undefined) {
+                                    updateProgress(data.progress, data.status, data.message);
+                                }
+                            } catch (e) {
+                                updateProgress(null, null, line);
+                            }
+                        }
+                    }
+                }
+
+                updateProgress(100, 'Completato!', 'Alimentazione storico completata');
+                loadQuickStats();
+
+            } catch (error) {
+                updateProgress(null, 'Errore', `Errore durante l'operazione: ${error.message}`);
+            }
+        }
+
+        async function feedFromCity() {
+            const cityName = document.getElementById('cityName').value.trim();
+            const radius = document.getElementById('cityRadius').value;
+
+            if (!cityName) {
+                alert('Inserisci il nome della città');
+                return;
+            }
+
+            showProgress('Alimentazione area geografica');
+            updateProgress(10, 'Geocodifica città...', `Ricerca coordinate per: ${cityName}`);
+
+            try {
+                const response = await fetch('/api/geocoding/feed/area', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        area_name: cityName,
+                        radius_km: parseInt(radius)
+                    })
+                });
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    const chunk = decoder.decode(value);
+                    const lines = chunk.split('\n');
+
+                    for (const line of lines) {
+                        if (line.trim()) {
+                            try {
+                                const data = JSON.parse(line);
+                                if (data.progress !== undefined) {
+                                    updateProgress(data.progress, data.status, data.message);
+                                }
+                            } catch (e) {
+                                updateProgress(null, null, line);
+                            }
+                        }
+                    }
+                }
+
+                updateProgress(100, 'Completato!', `Alimentazione area ${cityName} completata`);
+                loadQuickStats();
+
+            } catch (error) {
+                updateProgress(null, 'Errore', `Errore durante l'operazione: ${error.message}`);
+            }
+        }
+
+        function feedFromFile() {
+            const fileInput = document.getElementById('coordinatesFile');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                alert('Seleziona un file');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            if (file.name.toLowerCase().endsWith('.csv')) {
+                formData.append('lat_column', document.getElementById('latColumn').value);
+                formData.append('lng_column', document.getElementById('lngColumn').value);
+            }
+
+            showProgress('Caricamento file coordinate');
+            updateProgress(10, 'Upload file...', `Caricamento: ${file.name}`);
+
+            fetch('/api/geocoding/feed/file', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    updateProgress(100, 'Completato!', `File processato: ${data.message}`);
+                    loadQuickStats();
+                } else {
+                    updateProgress(null, 'Errore', `Errore: ${data.error}`);
+                }
+            })
+            .catch(error => {
+                updateProgress(null, 'Errore', `Errore caricamento: ${error.message}`);
+            });
+        }
+
+        function feedFromManual() {
+            const coordsText = document.getElementById('manualCoords').value.trim();
+
+            if (!coordsText) {
+                alert('Inserisci delle coordinate');
+                return;
+            }
+
+            const lines = coordsText.split('\n').filter(line => line.trim());
+            const coordinates = [];
+
+            for (const line of lines) {
+                const parts = line.trim().split(',');
+                if (parts.length === 2) {
+                    const lat = parseFloat(parts[0]);
+                    const lng = parseFloat(parts[1]);
+                    if (!isNaN(lat) && !isNaN(lng)) {
+                        coordinates.push({lat: lat, lng: lng});
+                    }
+                }
+            }
+
+            if (coordinates.length === 0) {
+                alert('Nessuna coordinata valida trovata');
+                return;
+            }
+
+            showProgress('Elaborazione coordinate manuali');
+            updateProgress(10, 'Elaborazione...', `Processando ${coordinates.length} coordinate`);
+
+            fetch('/api/geocoding/feed/manual', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    coordinates: coordinates
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    updateProgress(100, 'Completato!', `Processate ${data.processed} coordinate`);
+                    loadQuickStats();
+                } else {
+                    updateProgress(null, 'Errore', `Errore: ${data.error}`);
+                }
+            })
+            .catch(error => {
+                updateProgress(null, 'Errore', `Errore elaborazione: ${error.message}`);
+            });
+        }
+
+        function stopOperation() {
+            if (currentOperation) {
+                currentOperation.abort();
+                currentOperation = null;
+            }
+            hideProgress();
+        }
+
+        function configureAutoFeeding() {
+            const interval = document.getElementById('autoInterval').value;
+            const historyHours = document.getElementById('autoHistoryHours').value;
+
+            const config = {
+                enabled: interval !== '0',
+                interval_hours: parseInt(interval),
+                history_hours: parseInt(historyHours)
+            };
+
+            fetch('/api/geocoding/feed/auto-config', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(config)
+            })
+            .then(response => response.json())
+            .then(data => {
+                const statusDiv = document.getElementById('autoStatus');
+                if (data.success) {
+                    if (config.enabled) {
+                        statusDiv.innerHTML = `
+                            <div class="alert alert-success">
+                                <i class="fas fa-check-circle"></i>
+                                Alimentazione automatica configurata: ogni ${config.interval_hours} ore
+                            </div>
+                        `;
+                    } else {
+                        statusDiv.innerHTML = `
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle"></i>
+                                Alimentazione automatica disabilitata
+                            </div>
+                        `;
+                    }
+                } else {
+                    statusDiv.innerHTML = `
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            Errore configurazione: ${data.error}
+                        </div>
+                    `;
+                }
+            })
+            .catch(error => {
+                console.error('Configuration error:', error);
+            });
+        }
+    </script>
+</body>
+</html>
