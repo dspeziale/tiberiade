@@ -595,164 +595,181 @@
 <body>
     <!-- Mobile Overlay -->
     <div class="mobile-overlay" id="mobileOverlay" onclick="toggleSidebar()"></div>
-
     <!-- Sidebar -->
     <nav class="sidebar" id="sidebar">
-        <div class="sidebar-brand">
-            <h4><i class="fas fa-map-marked-alt"></i> <span>Tracker</span></h4>
-            <small>GPS Tracking System</small>
-        </div>
+    <div class="sidebar-header">
+        <h4><i class="fas fa-location-arrow"></i> Tracker</h4>
+    </div>
 
-        <div class="sidebar-nav">
-            {% if session.logged_in %}
-                <div class="nav-item">
-                    <a class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}"
-                       href="{{ url_for('dashboard') }}">
-                        <i class="fas fa-tachometer-alt"></i>
-                        <span>Dashboard</span>
-                    </a>
-                </div>
+    <div class="sidebar-menu" id="sidebarMenu">
+        {% if session.logged_in %}
+            <!-- Dashboard -->
+            <div class="nav-item">
+                <a class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}"
+                   href="{{ url_for('dashboard') }}">
+                    <i class="fas fa-tachometer-alt"></i>
+                    <span>Dashboard</span>
+                </a>
+            </div>
 
-                <div class="nav-item">
-                    <a class="nav-link {% if request.endpoint == 'map_view' %}active{% endif %}"
-                       href="{{ url_for('map_view') }}">
-                        <i class="fas fa-map"></i>
-                        <span>Mappa Live</span>
-                    </a>
-                </div>
+            <!-- Mappa Live -->
+            <div class="nav-item">
+                <a class="nav-link {% if request.endpoint == 'map_view' %}active{% endif %}"
+                   href="{{ url_for('map_view') }}">
+                    <i class="fas fa-map"></i>
+                    <span>Mappa Live</span>
+                </a>
+            </div>
 
-                <div class="nav-item">
+            <!-- Reports Section - RIORGANIZZATO -->
+            <div class="nav-item">
+                <a class="nav-link" href="#" data-bs-toggle="collapse" data-bs-target="#reportsSubmenu">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Reports</span>
+                    <i class="fas fa-chevron-down ms-auto" style="font-size: 12px;"></i>
+                </a>
+                <div class="collapse nav-submenu" id="reportsSubmenu">
                     <a class="nav-link {% if request.endpoint == 'reports' %}active{% endif %}"
                        href="{{ url_for('reports') }}">
-                        <i class="fas fa-chart-line"></i>
-                        <span>Reports</span>
+                        <i class="fas fa-chart-bar"></i>
+                        <span>Genera Report</span>
                     </a>
-                    <a href="{{ url_for('reports_repository') }}">Repository</a>
-                </div>
-
-                <div class="nav-item">
-                    <a class="nav-link" href="#" data-bs-toggle="collapse" data-bs-target="#devicesSubmenu">
-                        <i class="fas fa-mobile-alt"></i>
-                        <span>Dispositivi</span>
-                        <i class="fas fa-chevron-down ms-auto" style="font-size: 12px;"></i>
-                    </a>
-                    <div class="collapse nav-submenu" id="devicesSubmenu">
-                        <a class="nav-link" href="#" onclick="showMyDevices()">
-                            <i class="fas fa-list"></i>
-                            <span>I Miei Dispositivi</span>
-                        </a>
-                        {% if session.user_admin or session.user_manager %}
-                        <a class="nav-link {% if request.endpoint == 'devices_management' %}active{% endif %}"
-                           href="{{ url_for('devices_management') }}">
-                            <i class="fas fa-cogs"></i>
-                            <span>Gestione</span>
-                        </a>
-                        {% endif %}
-                    </div>
-                </div>
-
-                {% if session.user_admin %}
-                <div class="nav-item">
-                    <a class="nav-link" href="#" data-bs-toggle="collapse" data-bs-target="#adminSubmenu">
-                        <i class="fas fa-shield-alt"></i>
-                        <span>Amministrazione</span>
-                        <i class="fas fa-chevron-down ms-auto" style="font-size: 12px;"></i>
-                    </a>
-                    <div class="collapse nav-submenu" id="adminSubmenu">
-                        <a class="nav-link {% if request.endpoint == 'user_management' %}active{% endif %}"
-                           href="{{ url_for('user_management') }}">
-                            <i class="fas fa-users"></i>
-                            <span>Gestione Utenti</span>
-                        </a>
-                        <a class="nav-link" href="#" onclick="showServerInfo()">
-                            <i class="fas fa-server"></i>
-                            <span>Info Server</span>
-                        </a>
-                    </div>
-                </div>
-                {% endif %}
-
-                <div class="nav-item">
-                    <a class="nav-link" href="#" data-bs-toggle="collapse" data-bs-target="#toolsSubmenu">
-                        <i class="fas fa-tools"></i>
-                        <span>Strumenti</span>
-                        <i class="fas fa-chevron-down ms-auto" style="font-size: 12px;"></i>
-                    </a>
-                    <div class="collapse nav-submenu" id="toolsSubmenu">
-                        <a class="nav-link" href="#" onclick="exportAllData()">
-                            <i class="fas fa-download"></i>
-                            <span>Esporta Dati</span>
-                        </a>
-                        <a class="nav-link" href="/settings" onclick="showSettings()">
-                            <i class="fas fa-cog"></i>
-                            <span>Impostazioni</span>
-                        </a>
-                        {% if session.user_admin or session.user_manager %}
-                            <a class="nav-link {% if request.endpoint == 'simulator_dashboard' %}active{% endif %}"
-                               href="{{ url_for('simulator_dashboard') }}">
-                                <i class="fas fa-play-circle"></i>
-                                <span>Simulatore GPS</span>
-                            </a>
-                            {% endif %}
-                    </div>
-                </div>
-            {% else %}
-                <div class="nav-item">
-                    <a class="nav-link" href="{{ url_for('login') }}">
-                        <i class="fas fa-sign-in-alt"></i>
-                        <span>Login</span>
+                    <a class="nav-link {% if request.endpoint == 'reports_repository' %}active{% endif %}"
+                       href="{{ url_for('reports_repository') }}">
+                        <i class="fas fa-archive"></i>
+                        <span>Repository</span>
                     </a>
                 </div>
-            {% endif %}
-        </div>
-
-        {% if session.logged_in %}
-        <div class="user-info">
-            <div class="dropdown">
-                <button class="user-dropdown dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                    <div class="d-flex align-items-center">
-                        <i class="fas fa-user-circle me-2"></i>
-                        <div>
-                            <div style="font-size: 0.9rem; font-weight: 500;">
-                                <span>{{ session.username }}</span>
-                            </div>
-                            <div style="font-size: 0.75rem; opacity: 0.8;">
-                                {% if session.user_admin %}
-                                    <span class="user-badge bg-danger">ADMIN</span>
-                                {% elif session.user_manager %}
-                                    <span class="user-badge bg-warning">MANAGER</span>
-                                {% elif session.user_readonly %}
-                                    <span class="user-badge bg-info">READONLY</span>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-                </button>
-                <ul class="dropdown-menu dropdown-menu-dark">
-                    <li>
-                        <div class="dropdown-header">
-                            <small>{{ session.user_email }}</small>
-                        </div>
-                    </li>
-                    <li><hr class="dropdown-divider"></li>
-                    <li><a class="dropdown-item" href="#" onclick="showProfile()">
-                        <i class="fas fa-user"></i> Profilo
-                    </a></li>
-                    <li><a class="dropdown-item" href="#" onclick="showUserInfo()">
-                        <i class="fas fa-info-circle"></i> Info Account
-                    </a></li>
-                    <li><a class="dropdown-item" href="#" onclick="showSettings()">
-                        <i class="fas fa-cog"></i> Impostazioni
-                    </a></li>
-                    <li><hr class="dropdown-divider"></li>
-                    <li><a class="dropdown-item" href="{{ url_for('logout') }}">
-                        <i class="fas fa-sign-out-alt"></i> Logout
-                    </a></li>
-                </ul>
             </div>
-        </div>
+
+            <!-- Dispositivi -->
+            <div class="nav-item">
+                <a class="nav-link" href="#" data-bs-toggle="collapse" data-bs-target="#devicesSubmenu">
+                    <i class="fas fa-mobile-alt"></i>
+                    <span>Dispositivi</span>
+                    <i class="fas fa-chevron-down ms-auto" style="font-size: 12px;"></i>
+                </a>
+                <div class="collapse nav-submenu" id="devicesSubmenu">
+                    <a class="nav-link" href="#" onclick="showMyDevices()">
+                        <i class="fas fa-list"></i>
+                        <span>I Miei Dispositivi</span>
+                    </a>
+                    {% if session.user_admin or session.user_manager %}
+                    <a class="nav-link {% if request.endpoint == 'devices_management' %}active{% endif %}"
+                       href="{{ url_for('devices_management') }}">
+                        <i class="fas fa-cogs"></i>
+                        <span>Gestione</span>
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Amministrazione -->
+            {% if session.user_admin %}
+            <div class="nav-item">
+                <a class="nav-link" href="#" data-bs-toggle="collapse" data-bs-target="#adminSubmenu">
+                    <i class="fas fa-shield-alt"></i>
+                    <span>Amministrazione</span>
+                    <i class="fas fa-chevron-down ms-auto" style="font-size: 12px;"></i>
+                </a>
+                <div class="collapse nav-submenu" id="adminSubmenu">
+                    <a class="nav-link {% if request.endpoint == 'user_management' %}active{% endif %}"
+                       href="{{ url_for('user_management') }}">
+                        <i class="fas fa-users"></i>
+                        <span>Gestione Utenti</span>
+                    </a>
+                    <a class="nav-link" href="#" onclick="showServerInfo()">
+                        <i class="fas fa-server"></i>
+                        <span>Info Server</span>
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Strumenti -->
+            <div class="nav-item">
+                <a class="nav-link" href="#" data-bs-toggle="collapse" data-bs-target="#toolsSubmenu">
+                    <i class="fas fa-tools"></i>
+                    <span>Strumenti</span>
+                    <i class="fas fa-chevron-down ms-auto" style="font-size: 12px;"></i>
+                </a>
+                <div class="collapse nav-submenu" id="toolsSubmenu">
+                    <a class="nav-link" href="#" onclick="exportAllData()">
+                        <i class="fas fa-download"></i>
+                        <span>Esporta Dati</span>
+                    </a>
+                    <a class="nav-link" href="/settings" onclick="showSettings()">
+                        <i class="fas fa-cog"></i>
+                        <span>Impostazioni</span>
+                    </a>
+                    {% if session.user_admin or session.user_manager %}
+                        <a class="nav-link {% if request.endpoint == 'simulator_dashboard' %}active{% endif %}"
+                           href="{{ url_for('simulator_dashboard') }}">
+                            <i class="fas fa-play-circle"></i>
+                            <span>Simulatore GPS</span>
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        {% else %}
+            <!-- Login -->
+            <div class="nav-item">
+                <a class="nav-link" href="{{ url_for('login') }}">
+                    <i class="fas fa-sign-in-alt"></i>
+                    <span>Login</span>
+                </a>
+            </div>
         {% endif %}
-    </nav>
+    </div>
+
+    <!-- User Info -->
+    {% if session.logged_in %}
+    <div class="user-info">
+        <div class="dropdown">
+            <button class="user-dropdown dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-user-circle me-2"></i>
+                    <div>
+                        <div style="font-size: 0.9rem; font-weight: 500;">
+                            <span>{{ session.username }}</span>
+                        </div>
+                        <div style="font-size: 0.75rem; opacity: 0.8;">
+                            {% if session.user_admin %}
+                                <span class="user-badge bg-danger">ADMIN</span>
+                            {% elif session.user_manager %}
+                                <span class="user-badge bg-warning">MANAGER</span>
+                            {% elif session.user_readonly %}
+                                <span class="user-badge bg-info">READONLY</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-dark">
+                <li>
+                    <div class="dropdown-header">
+                        <small>{{ session.user_email }}</small>
+                    </div>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="#" onclick="showProfile()">
+                    <i class="fas fa-user"></i> Profilo
+                </a></li>
+                <li><a class="dropdown-item" href="#" onclick="showUserInfo()">
+                    <i class="fas fa-info-circle"></i> Info Account
+                </a></li>
+                <li><a class="dropdown-item" href="#" onclick="showSettings()">
+                    <i class="fas fa-cog"></i> Impostazioni
+                </a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="{{ url_for('logout') }}">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </a></li>
+            </ul>
+        </div>
+    </div>
+    {% endif %}
+</nav>
 
     <!-- Main Content -->
     <div class="main-content" id="mainContent">
@@ -976,7 +993,7 @@
                     if (data.status === 'online') {
                         if (status) {
                             status.className = 'badge bg-success';
-                            status.textContent = 'Connesso a Traccar';
+                            status.textContent = 'Connesso a Tracker';
                         }
                         if (indicator) {
                             indicator.style.background = '#28a745';
