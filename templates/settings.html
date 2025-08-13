@@ -24,8 +24,11 @@
                     <p class="text-muted mb-0">Gestisci configurazioni e parametri del sistema</p>
                 </div>
                 <div>
-                    <button class="btn btn-primary" onclick="saveAllSettings()">
+                    <button class="btn btn-primary" onclick="saveAllSettings()" id="saveBtn">
                         <i class="fas fa-save"></i> Salva Impostazioni
+                    </button>
+                    <button class="btn btn-outline-secondary ms-2" onclick="resetSettings()">
+                        <i class="fas fa-undo"></i> Ripristina Default
                     </button>
                 </div>
             </div>
@@ -78,13 +81,13 @@
                                     <div class="col-md-6">
                                         <label class="form-label">Nome Applicazione</label>
                                         <input type="text" class="form-control" id="appName"
-                                               value="Traccar Dashboard" name="appName">
+                                               name="appName" placeholder="Traccar Dashboard">
                                         <div class="form-text">Nome visualizzato nell'header</div>
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label">Versione</label>
                                         <input type="text" class="form-control" id="appVersion"
-                                               value="2.1.0" name="appVersion" readonly>
+                                               name="appVersion" readonly>
                                         <div class="form-text">Versione corrente dell'applicazione</div>
                                     </div>
                                 </div>
@@ -97,7 +100,7 @@
                                     <div class="col-md-6">
                                         <label class="form-label">Lingua</label>
                                         <select class="form-select" id="language" name="language">
-                                            <option value="it" selected>Italiano</option>
+                                            <option value="it">Italiano</option>
                                             <option value="en">English</option>
                                             <option value="es">Español</option>
                                             <option value="fr">Français</option>
@@ -106,7 +109,7 @@
                                     <div class="col-md-6">
                                         <label class="form-label">Fuso Orario</label>
                                         <select class="form-select" id="timezone" name="timezone">
-                                            <option value="Europe/Rome" selected>Europe/Rome (GMT+1)</option>
+                                            <option value="Europe/Rome">Europe/Rome (GMT+1)</option>
                                             <option value="Europe/London">Europe/London (GMT+0)</option>
                                             <option value="America/New_York">America/New_York (GMT-5)</option>
                                             <option value="America/Los_Angeles">America/Los_Angeles (GMT-8)</option>
@@ -122,7 +125,7 @@
                                     <div class="col-md-6">
                                         <label class="form-label">Mappa Predefinita</label>
                                         <select class="form-select" id="defaultMapType" name="defaultMapType">
-                                            <option value="osm" selected>OpenStreetMap</option>
+                                            <option value="osm">OpenStreetMap</option>
                                             <option value="satellite">Satellite</option>
                                             <option value="dark">Modalità Scura</option>
                                         </select>
@@ -130,7 +133,7 @@
                                     <div class="col-md-6">
                                         <label class="form-label">Zoom Predefinito</label>
                                         <input type="number" class="form-control" id="defaultZoom"
-                                               value="10" min="1" max="20" name="defaultZoom">
+                                               min="1" max="20" name="defaultZoom">
                                     </div>
                                 </div>
 
@@ -142,12 +145,12 @@
                                     <div class="col-md-6">
                                         <label class="form-label">Intervallo Aggiornamento Automatico (secondi)</label>
                                         <input type="number" class="form-control" id="autoRefreshInterval"
-                                               value="30" min="5" max="300" name="autoRefreshInterval">
+                                               min="5" max="300" name="autoRefreshInterval">
                                     </div>
                                     <div class="col-md-6">
                                         <div class="form-check form-switch mt-4">
                                             <input class="form-check-input" type="checkbox"
-                                                   id="enableAutoRefresh" name="enableAutoRefresh" checked>
+                                                   id="enableAutoRefresh" name="enableAutoRefresh">
                                             <label class="form-check-label" for="enableAutoRefresh">
                                                 Abilita Aggiornamento Automatico
                                             </label>
@@ -168,9 +171,8 @@
                                     <div class="col-md-8">
                                         <label class="form-label">URL Server Traccar</label>
                                         <input type="url" class="form-control" id="traccarServer"
-                                               value="{{ traccar_server or 'http://localhost:8082' }}"
-                                               name="traccarServer">
-                                        <div class="form-text">URL completo del server Traccar (es: http://demo.traccar.org)</div>
+                                               name="traccarServer" placeholder="http://localhost:8082">
+                                        <div class="form-text">URL completo del server Traccar</div>
                                     </div>
                                     <div class="col-md-4">
                                         <label class="form-label">Stato Connessione</label>
@@ -193,12 +195,12 @@
                                     <div class="col-md-6">
                                         <label class="form-label">Timeout Connessione (secondi)</label>
                                         <input type="number" class="form-control" id="connectionTimeout"
-                                               value="30" min="5" max="300" name="connectionTimeout">
+                                               min="5" max="300" name="connectionTimeout">
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label">Cache TTL (secondi)</label>
                                         <input type="number" class="form-control" id="cacheTtl"
-                                               value="60" min="10" max="3600" name="cacheTtl">
+                                               min="10" max="3600" name="cacheTtl">
                                     </div>
                                 </div>
 
@@ -220,7 +222,7 @@
                                     <div class="col-md-6">
                                         <div class="form-check form-switch">
                                             <input class="form-check-input" type="checkbox"
-                                                   id="enableCors" name="enableCors" checked>
+                                                   id="enableCors" name="enableCors">
                                             <label class="form-check-label" for="enableCors">
                                                 Abilita CORS
                                             </label>
@@ -251,7 +253,7 @@
                                     <div class="col-md-6">
                                         <div class="form-check form-switch mb-3">
                                             <input class="form-check-input" type="checkbox"
-                                                   id="enableNotifications" name="enableNotifications" checked>
+                                                   id="enableNotifications" name="enableNotifications">
                                             <label class="form-check-label" for="enableNotifications">
                                                 Abilita Notifiche
                                             </label>
@@ -274,11 +276,11 @@
                                     <div class="col-md-6">
                                         <label class="form-label">Durata Notifica (millisecondi)</label>
                                         <input type="number" class="form-control mb-3" id="notificationDuration"
-                                               value="5000" min="1000" max="30000" name="notificationDuration">
+                                               min="1000" max="30000" name="notificationDuration">
 
                                         <label class="form-label">Posizione Notifiche</label>
                                         <select class="form-select mb-3" id="notificationPosition" name="notificationPosition">
-                                            <option value="top-right" selected>Alto Destra</option>
+                                            <option value="top-right">Alto Destra</option>
                                             <option value="top-left">Alto Sinistra</option>
                                             <option value="bottom-right">Basso Destra</option>
                                             <option value="bottom-left">Basso Sinistra</option>
@@ -294,7 +296,7 @@
                                     <div class="col-md-4">
                                         <div class="form-check form-switch mb-3">
                                             <input class="form-check-input" type="checkbox"
-                                                   id="offlineAlerts" name="offlineAlerts" checked>
+                                                   id="offlineAlerts" name="offlineAlerts">
                                             <label class="form-check-label" for="offlineAlerts">
                                                 Allarmi Dispositivi Offline
                                             </label>
@@ -303,7 +305,7 @@
                                     <div class="col-md-4">
                                         <div class="form-check form-switch mb-3">
                                             <input class="form-check-input" type="checkbox"
-                                                   id="speedingAlerts" name="speedingAlerts" checked>
+                                                   id="speedingAlerts" name="speedingAlerts">
                                             <label class="form-check-label" for="speedingAlerts">
                                                 Allarmi Velocità Eccessiva
                                             </label>
@@ -324,13 +326,13 @@
                                     <div class="col-md-6">
                                         <label class="form-label">Soglia Offline (minuti)</label>
                                         <input type="number" class="form-control" id="offlineThreshold"
-                                               value="5" min="1" max="60" name="offlineThreshold">
+                                               min="1" max="60" name="offlineThreshold">
                                         <div class="form-text">Minuti di inattività prima di considerare un dispositivo offline</div>
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label">Velocità Massima (km/h)</label>
                                         <input type="number" class="form-control" id="speedLimit"
-                                               value="130" min="10" max="300" name="speedLimit">
+                                               min="10" max="300" name="speedLimit">
                                         <div class="form-text">Velocità oltre la quale attivare l'allarme</div>
                                     </div>
                                 </div>
@@ -349,7 +351,7 @@
                                         <label class="form-label">Tema Applicazione</label>
                                         <div class="form-check mb-2">
                                             <input class="form-check-input" type="radio" name="theme"
-                                                   id="themeLight" value="light" checked>
+                                                   id="themeLight" value="light">
                                             <label class="form-check-label" for="themeLight">
                                                 <i class="fas fa-sun text-warning"></i> Chiaro
                                             </label>
@@ -372,7 +374,7 @@
                                     <div class="col-md-6">
                                         <label class="form-label">Colore Accent</label>
                                         <div class="d-flex flex-wrap gap-2">
-                                            <button type="button" class="btn btn-primary btn-sm accent-color active"
+                                            <button type="button" class="btn btn-primary btn-sm accent-color"
                                                     data-color="primary" style="width: 40px; height: 40px;"></button>
                                             <button type="button" class="btn btn-success btn-sm accent-color"
                                                     data-color="success" style="width: 40px; height: 40px;"></button>
@@ -412,7 +414,7 @@
                                         <label class="form-label">Dimensione Font</label>
                                         <select class="form-select mb-3" id="fontSize" name="fontSize">
                                             <option value="small">Piccolo</option>
-                                            <option value="normal" selected>Normale</option>
+                                            <option value="normal">Normale</option>
                                             <option value="large">Grande</option>
                                         </select>
 
@@ -420,7 +422,7 @@
                                         <select class="form-select" id="animations" name="animations">
                                             <option value="none">Nessuna</option>
                                             <option value="reduced">Ridotte</option>
-                                            <option value="full" selected>Complete</option>
+                                            <option value="full">Complete</option>
                                         </select>
                                     </div>
                                 </div>
@@ -448,7 +450,7 @@
 
                                         <div class="row mb-3">
                                             <div class="col-sm-3"><strong>Versione:</strong></div>
-                                            <div class="col-sm-9">2.1.0</div>
+                                            <div class="col-sm-9" id="aboutVersion">Caricamento...</div>
                                         </div>
                                         <div class="row mb-3">
                                             <div class="col-sm-3"><strong>Build:</strong></div>
@@ -459,12 +461,8 @@
                                             <div class="col-sm-9">Flask 2.3, Bootstrap 5.3</div>
                                         </div>
                                         <div class="row mb-3">
-                                            <div class="col-sm-3"><strong>Licenza:</strong></div>
-                                            <div class="col-sm-9">MIT License</div>
-                                        </div>
-                                        <div class="row mb-3">
-                                            <div class="col-sm-3"><strong>Autore:</strong></div>
-                                            <div class="col-sm-9">Sistema GPS Team</div>
+                                            <div class="col-sm-3"><strong>Ultimo Aggiornamento:</strong></div>
+                                            <div class="col-sm-9" id="lastUpdated">Caricamento...</div>
                                         </div>
                                     </div>
 
@@ -477,44 +475,16 @@
                                                     <td id="traccarServerInfo">Caricamento...</td>
                                                 </tr>
                                                 <tr>
-                                                    <td><strong>Versione Traccar:</strong></td>
-                                                    <td id="traccarVersionInfo">Caricamento...</td>
+                                                    <td><strong>File Configurazione:</strong></td>
+                                                    <td id="configFileInfo">config/settings.json</td>
                                                 </tr>
                                                 <tr>
-                                                    <td><strong>Dispositivi Totali:</strong></td>
-                                                    <td id="totalDevicesInfo">Caricamento...</td>
-                                                </tr>
-                                                <tr>
-                                                    <td><strong>Utenti Attivi:</strong></td>
-                                                    <td id="activeUsersInfo">Caricamento...</td>
-                                                </tr>
-                                                <tr>
-                                                    <td><strong>Uptime Sistema:</strong></td>
-                                                    <td id="systemUptimeInfo">Caricamento...</td>
+                                                    <td><strong>Stato Configurazione:</strong></td>
+                                                    <td id="configStatusInfo">
+                                                        <span class="badge bg-success">Attivo</span>
+                                                    </td>
                                                 </tr>
                                             </table>
-                                        </div>
-                                    </div>
-
-                                    <div class="mb-4">
-                                        <h5><i class="fas fa-link"></i> Collegamenti Utili</h5>
-                                        <div class="list-group">
-                                            <a href="https://www.traccar.org/" target="_blank"
-                                               class="list-group-item list-group-item-action">
-                                                <i class="fas fa-external-link-alt"></i> Sito Ufficiale Traccar
-                                            </a>
-                                            <a href="https://www.traccar.org/documentation/" target="_blank"
-                                               class="list-group-item list-group-item-action">
-                                                <i class="fas fa-book"></i> Documentazione
-                                            </a>
-                                            <a href="https://github.com/traccar/traccar" target="_blank"
-                                               class="list-group-item list-group-item-action">
-                                                <i class="fab fa-github"></i> Repository GitHub
-                                            </a>
-                                            <a href="mailto:support@traccar.org"
-                                               class="list-group-item list-group-item-action">
-                                                <i class="fas fa-envelope"></i> Supporto Tecnico
-                                            </a>
                                         </div>
                                     </div>
                                 </div>
@@ -522,71 +492,19 @@
                                 <div class="col-md-4">
                                     <div class="card">
                                         <div class="card-header">
-                                            <h6 class="mb-0"><i class="fas fa-chart-pie"></i> Statistiche Utilizzo</h6>
+                                            <h6 class="mb-0"><i class="fas fa-cog"></i> Configurazione JSON</h6>
                                         </div>
                                         <div class="card-body">
-                                            <div class="mb-3">
-                                                <div class="d-flex justify-content-between">
-                                                    <span>Storage Utilizzato</span>
-                                                    <span id="storageUsed">65%</span>
-                                                </div>
-                                                <div class="progress">
-                                                    <div class="progress-bar bg-warning" style="width: 65%"></div>
-                                                </div>
-                                            </div>
-
-                                            <div class="mb-3">
-                                                <div class="d-flex justify-content-between">
-                                                    <span>Memoria RAM</span>
-                                                    <span id="memoryUsed">42%</span>
-                                                </div>
-                                                <div class="progress">
-                                                    <div class="progress-bar bg-info" style="width: 42%"></div>
-                                                </div>
-                                            </div>
-
-                                            <div class="mb-3">
-                                                <div class="d-flex justify-content-between">
-                                                    <span>CPU</span>
-                                                    <span id="cpuUsed">28%</span>
-                                                </div>
-                                                <div class="progress">
-                                                    <div class="progress-bar bg-success" style="width: 28%"></div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div class="card mt-3">
-                                        <div class="card-header">
-                                            <h6 class="mb-0"><i class="fas fa-history"></i> Changelog</h6>
-                                        </div>
-                                        <div class="card-body">
-                                            <div class="timeline-item mb-3">
-                                                <div class="timeline-marker bg-primary"></div>
-                                                <div class="timeline-content">
-                                                    <h6 class="mb-1">v2.1.0</h6>
-                                                    <small class="text-muted">15 Gen 2024</small>
-                                                    <p class="mb-0 small">Aggiunta gestione utenti e gruppi</p>
-                                                </div>
-                                            </div>
-
-                                            <div class="timeline-item mb-3">
-                                                <div class="timeline-marker bg-success"></div>
-                                                <div class="timeline-content">
-                                                    <h6 class="mb-1">v2.0.5</h6>
-                                                    <small class="text-muted">10 Gen 2024</small>
-                                                    <p class="mb-0 small">Miglioramenti UI e correzioni bug</p>
-                                                </div>
-                                            </div>
-
-                                            <div class="timeline-item">
-                                                <div class="timeline-marker bg-info"></div>
-                                                <div class="timeline-content">
-                                                    <h6 class="mb-1">v2.0.0</h6>
-                                                    <small class="text-muted">01 Gen 2024</small>
-                                                    <p class="mb-0 small">Nuovo design e funzionalità</p>
-                                                </div>
+                                            <p class="small text-muted">
+                                                Le impostazioni sono salvate nel file JSON e vengono caricate automaticamente all'avvio dell'applicazione.
+                                            </p>
+                                            <div class="d-grid gap-2">
+                                                <button class="btn btn-outline-primary btn-sm" onclick="exportSettings()">
+                                                    <i class="fas fa-download"></i> Esporta Configurazione
+                                                </button>
+                                                <button class="btn btn-outline-secondary btn-sm" onclick="importSettings()">
+                                                    <i class="fas fa-upload"></i> Importa Configurazione
+                                                </button>
                                             </div>
                                         </div>
                                     </div>
@@ -595,6 +513,32 @@
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal per importazione configurazione -->
+<div class="modal fade" id="importModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Importa Configurazione</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="importFile" class="form-label">Seleziona file JSON</label>
+                    <input class="form-control" type="file" id="importFile" accept=".json">
+                </div>
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>Attenzione:</strong> L'importazione sovrascriverà tutte le impostazioni attuali.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                <button type="button" class="btn btn-primary" onclick="processImport()">Importa</button>
             </div>
         </div>
     </div>
@@ -609,6 +553,10 @@
 .accent-color.active {
     border-color: #000 !important;
     transform: scale(1.1);
+}
+
+.progress {
+    height: 8px;
 }
 
 .timeline-item {
@@ -630,17 +578,23 @@
     padding-left: 15px;
 }
 
-.progress {
-    height: 8px;
+.btn:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+}
+
+.loading-spinner {
+    width: 1rem;
+    height: 1rem;
+    border-width: 0.1em;
 }
 </style>
-{% endblock %}
 
-{% block scripts %}
 <script>
+let currentSettings = {};
+
 document.addEventListener('DOMContentLoaded', function() {
     loadSettings();
-    loadSystemInfo();
     setupEventListeners();
 });
 
@@ -658,73 +612,119 @@ function setupEventListeners() {
     document.querySelectorAll('input[name="theme"]').forEach(input => {
         input.addEventListener('change', previewTheme);
     });
+
+    // Auto-save on change (debounced)
+    let saveTimeout;
+    document.querySelectorAll('input, select').forEach(element => {
+        element.addEventListener('change', function() {
+            clearTimeout(saveTimeout);
+            saveTimeout = setTimeout(() => {
+                autoSave();
+            }, 2000); // Auto-save after 2 seconds of inactivity
+        });
+    });
 }
 
-function loadSettings() {
-    // Carica le impostazioni salvate dal localStorage o dal server
-    const saved = localStorage.getItem('appSettings');
-    if (saved) {
-        const settings = JSON.parse(saved);
+async function loadSettings() {
+    try {
+        showLoading(true);
+        const response = await fetch('/api/settings');
+        const data = await response.json();
 
-        // Popola i form con le impostazioni salvate
-        Object.keys(settings).forEach(key => {
-            const element = document.getElementById(key);
-            if (element) {
-                if (element.type === 'checkbox') {
-                    element.checked = settings[key];
-                } else if (element.type === 'radio') {
-                    if (element.value === settings[key]) {
-                        element.checked = true;
-                    }
-                } else {
-                    element.value = settings[key];
-                }
-            }
-        });
+        if (data.success) {
+            currentSettings = data.settings;
+            populateForm(data.settings);
+            applySettings(data.settings);
+            updateAboutInfo(data.settings);
+        } else {
+            showAlert('Errore nel caricamento delle impostazioni', 'danger');
+        }
+    } catch (error) {
+        console.error('Errore nel caricamento:', error);
+        showAlert('Errore di connessione al server', 'danger');
+    } finally {
+        showLoading(false);
+        testConnection();
     }
-
-    // Verifica la connessione
-    testConnection();
 }
 
-function loadSystemInfo() {
-    // Carica informazioni sistema
-    fetch('/api/system/info')
-        .then(response => response.json())
-        .then(data => {
-            document.getElementById('traccarServerInfo').textContent = data.traccarServer || 'Non configurato';
-            document.getElementById('traccarVersionInfo').textContent = data.traccarVersion || 'N/A';
-            document.getElementById('totalDevicesInfo').textContent = data.totalDevices || '0';
-            document.getElementById('activeUsersInfo').textContent = data.activeUsers || '1';
-            document.getElementById('systemUptimeInfo').textContent = data.uptime || 'N/A';
-        })
-        .catch(error => {
-            console.error('Errore nel caricamento info sistema:', error);
-        });
-}
-
-function testConnection() {
-    const statusElement = document.getElementById('connectionStatus');
-    statusElement.innerHTML = '<span class="badge bg-warning"><i class="fas fa-spinner fa-spin"></i> Test...</span>';
-
-    fetch('/api/test-connection')
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                statusElement.innerHTML = '<span class="badge bg-success"><i class="fas fa-check"></i> Connesso</span>';
+function populateForm(settings) {
+    Object.keys(settings).forEach(key => {
+        const element = document.getElementById(key);
+        if (element) {
+            if (element.type === 'checkbox') {
+                element.checked = settings[key];
+            } else if (element.type === 'radio') {
+                if (element.value === settings[key]) {
+                    element.checked = true;
+                }
             } else {
-                statusElement.innerHTML = '<span class="badge bg-danger"><i class="fas fa-times"></i> Errore</span>';
+                element.value = settings[key];
             }
-        })
-        .catch(error => {
-            statusElement.innerHTML = '<span class="badge bg-danger"><i class="fas fa-times"></i> Offline</span>';
-        });
+        }
+    });
+
+    // Special handling for accent color
+    if (settings.accentColor) {
+        document.querySelectorAll('.accent-color').forEach(btn => btn.classList.remove('active'));
+        const accentBtn = document.querySelector(`[data-color="${settings.accentColor}"]`);
+        if (accentBtn) {
+            accentBtn.classList.add('active');
+        }
+    }
 }
 
-function saveAllSettings() {
-    const settings = {};
+function updateAboutInfo(settings) {
+    if (settings.appVersion) {
+        document.getElementById('aboutVersion').textContent = settings.appVersion;
+    }
+    if (settings.lastUpdated) {
+        const date = new Date(settings.lastUpdated);
+        document.getElementById('lastUpdated').textContent = date.toLocaleString('it-IT');
+    }
+    if (settings.traccarServer) {
+        document.getElementById('traccarServerInfo').textContent = settings.traccarServer;
+    }
+}
 
-    // Raccoglie tutti i valori dei form
+async function saveAllSettings() {
+    try {
+        showLoading(true, 'Salvataggio in corso...');
+
+        const settings = collectFormData();
+
+        const response = await fetch('/api/settings', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(settings)
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showAlert('Impostazioni salvate con successo', 'success');
+            currentSettings = { ...currentSettings, ...settings };
+            applySettings(settings);
+            updateAboutInfo(settings);
+        } else {
+            if (data.errors) {
+                showAlert('Errori di validazione: ' + data.errors.join(', '), 'warning');
+            } else {
+                showAlert(data.error || 'Errore nel salvataggio', 'danger');
+            }
+        }
+    } catch (error) {
+        console.error('Errore nel salvataggio:', error);
+        showAlert('Errore di connessione al server', 'danger');
+    } finally {
+        showLoading(false);
+    }
+}
+
+function collectFormData() {
+    const settings = {};
     const forms = ['generalSettingsForm', 'serverSettingsForm', 'notificationSettingsForm', 'appearanceSettingsForm'];
 
     forms.forEach(formId => {
@@ -733,42 +733,100 @@ function saveAllSettings() {
             const formData = new FormData(form);
             for (let [key, value] of formData.entries()) {
                 const element = form.querySelector(`[name="${key}"]`);
-                if (element && element.type === 'checkbox') {
-                    settings[key] = element.checked;
-                } else {
-                    settings[key] = value;
+                if (element) {
+                    if (element.type === 'checkbox') {
+                        settings[key] = element.checked;
+                    } else if (element.type === 'number') {
+                        settings[key] = parseInt(value) || 0;
+                    } else {
+                        settings[key] = value;
+                    }
                 }
             }
         }
     });
 
-    // Salva nel localStorage
-    localStorage.setItem('appSettings', JSON.stringify(settings));
+    return settings;
+}
 
-    // Invia al server
-    fetch('/api/settings', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(settings)
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showAlert('Impostazioni salvate con successo', 'success');
-            applySettings(settings);
-        } else {
-            showAlert('Errore nel salvataggio delle impostazioni', 'danger');
+async function autoSave() {
+    try {
+        const settings = collectFormData();
+        const changedSettings = {};
+
+        // Only save changed settings
+        Object.keys(settings).forEach(key => {
+            if (currentSettings[key] !== settings[key]) {
+                changedSettings[key] = settings[key];
+            }
+        });
+
+        if (Object.keys(changedSettings).length > 0) {
+            const response = await fetch('/api/settings', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(changedSettings)
+            });
+
+            if (response.ok) {
+                currentSettings = { ...currentSettings, ...changedSettings };
+                showAlert('Impostazioni salvate automaticamente', 'info', 2000);
+            }
         }
-    })
-    .catch(error => {
-        showAlert('Errore nella comunicazione con il server', 'danger');
-    });
+    } catch (error) {
+        console.error('Errore nell\'auto-salvataggio:', error);
+    }
+}
+
+async function resetSettings() {
+    if (!confirm('Sei sicuro di voler ripristinare tutte le impostazioni ai valori di default?')) {
+        return;
+    }
+
+    try {
+        showLoading(true, 'Ripristino in corso...');
+
+        const response = await fetch('/api/settings/reset', {
+            method: 'POST'
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showAlert('Impostazioni ripristinate ai valori di default', 'success');
+            await loadSettings(); // Reload settings
+        } else {
+            showAlert(data.error || 'Errore nel ripristino', 'danger');
+        }
+    } catch (error) {
+        console.error('Errore nel ripristino:', error);
+        showAlert('Errore di connessione al server', 'danger');
+    } finally {
+        showLoading(false);
+    }
+}
+
+async function testConnection() {
+    const statusElement = document.getElementById('connectionStatus');
+    statusElement.innerHTML = '<span class="badge bg-warning"><i class="fas fa-spinner fa-spin"></i> Test...</span>';
+
+    try {
+        const response = await fetch('/api/test-connection');
+        const data = await response.json();
+
+        if (data.success) {
+            statusElement.innerHTML = '<span class="badge bg-success"><i class="fas fa-check"></i> Connesso</span>';
+        } else {
+            statusElement.innerHTML = '<span class="badge bg-danger"><i class="fas fa-times"></i> Errore</span>';
+        }
+    } catch (error) {
+        statusElement.innerHTML = '<span class="badge bg-danger"><i class="fas fa-times"></i> Offline</span>';
+    }
 }
 
 function applySettings(settings) {
-    // Applica le impostazioni dell'aspetto
     if (settings.theme) {
         document.documentElement.setAttribute('data-theme', settings.theme);
     }
@@ -787,7 +845,7 @@ function applySettings(settings) {
 }
 
 function previewTheme() {
-    const theme = document.querySelector('input[name="theme"]:checked').value;
+    const theme = document.querySelector('input[name="theme"]:checked')?.value || 'light';
     const accentColor = document.getElementById('accentColor').value;
     const fontSize = document.getElementById('fontSize').value;
 
@@ -795,7 +853,7 @@ function previewTheme() {
     document.documentElement.setAttribute('data-accent', accentColor);
     document.documentElement.setAttribute('data-font-size', fontSize);
 
-    showAlert('Anteprima tema applicata', 'info');
+    showAlert('Anteprima tema applicata', 'info', 2000);
 }
 
 function resetTheme() {
@@ -811,7 +869,84 @@ function resetTheme() {
     showAlert('Tema ripristinato ai valori di default', 'success');
 }
 
-function showAlert(message, type = 'info') {
+async function exportSettings() {
+    try {
+        const response = await fetch('/api/settings');
+        const data = await response.json();
+
+        if (data.success) {
+            const blob = new Blob([JSON.stringify(data.settings, null, 2)], {
+                type: 'application/json'
+            });
+
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `traccar-settings-${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            showAlert('Configurazione esportata con successo', 'success');
+        }
+    } catch (error) {
+        showAlert('Errore nell\'esportazione', 'danger');
+    }
+}
+
+function importSettings() {
+    const modal = new bootstrap.Modal(document.getElementById('importModal'));
+    modal.show();
+}
+
+async function processImport() {
+    const fileInput = document.getElementById('importFile');
+    const file = fileInput.files[0];
+
+    if (!file) {
+        showAlert('Seleziona un file JSON', 'warning');
+        return;
+    }
+
+    try {
+        const text = await file.text();
+        const settings = JSON.parse(text);
+
+        const response = await fetch('/api/settings', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(settings)
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showAlert('Configurazione importata con successo', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('importModal')).hide();
+            await loadSettings();
+        } else {
+            showAlert('Errore nell\'importazione: ' + (data.error || 'File non valido'), 'danger');
+        }
+    } catch (error) {
+        showAlert('File JSON non valido', 'danger');
+    }
+}
+
+function showLoading(show, message = 'Caricamento...') {
+    const saveBtn = document.getElementById('saveBtn');
+    if (show) {
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${message}`;
+    } else {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = '<i class="fas fa-save"></i> Salva Impostazioni';
+    }
+}
+
+function showAlert(message, type = 'info', duration = 5000) {
     const alertHtml = `
         <div class="alert alert-${type} alert-dismissible fade show position-fixed"
              style="top: 80px; right: 20px; z-index: 2000; min-width: 300px;" role="alert">
@@ -827,7 +962,7 @@ function showAlert(message, type = 'info') {
         if (alert) {
             alert.remove();
         }
-    }, 5000);
+    }, duration);
 }
 
 function getAlertIcon(type) {

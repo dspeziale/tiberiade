@@ -32,6 +32,14 @@ simulator_processes = {}  # Dizionario per tracciare i processi di simulazione a
 simulator_manager = None
 
 
+from settings_manager import SettingsManager, setup_settings_routes
+
+# Inizializza il gestore
+settings_manager = SettingsManager()
+
+# Configura le route API
+setup_settings_routes(app)
+
 
 def login_required(f):
     """Decorator per richiedere l'autenticazione"""
