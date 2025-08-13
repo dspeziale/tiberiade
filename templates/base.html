@@ -12,6 +12,7 @@
             --sidebar-width: 260px;
             --sidebar-collapsed-width: 70px;
             --topbar-height: 60px;
+            --footer-height: 60px;
         }
 
         body {
@@ -193,9 +194,11 @@
         /* MAIN CONTENT */
         .main-content {
             margin-left: var(--sidebar-width);
-            min-height: 100vh;
+            min-height: calc(100vh - var(--footer-height));
             transition: all 0.3s ease;
             background: #f8f9fa;
+            display: flex;
+            flex-direction: column;
         }
 
         .main-content.sidebar-collapsed {
@@ -274,6 +277,74 @@
         /* CONTENT AREA */
         .content-area {
             padding: 1.5rem;
+            flex: 1;
+        }
+
+        /* FOOTER */
+        .footer {
+            background: linear-gradient(135deg, #1a2332 0%, #2d3748 100%);
+            color: rgba(255,255,255,0.9);
+            padding: 1rem 1.5rem;
+            border-top: 1px solid #e9ecef;
+            margin-left: var(--sidebar-width);
+            transition: all 0.3s ease;
+            font-size: 0.85rem;
+            min-height: var(--footer-height);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 -2px 8px rgba(0,0,0,0.1);
+        }
+
+        .footer.sidebar-collapsed {
+            margin-left: var(--sidebar-collapsed-width);
+        }
+
+        .footer-left {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .footer-right {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .footer-links {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .footer-links a {
+            color: rgba(255,255,255,0.7);
+            text-decoration: none;
+            font-size: 0.8rem;
+            transition: all 0.2s ease;
+        }
+
+        .footer-links a:hover {
+            color: #4299e1;
+            transform: translateY(-1px);
+        }
+
+        .footer-divider {
+            width: 1px;
+            height: 20px;
+            background: rgba(255,255,255,0.2);
+        }
+
+        .copyright {
+            color: rgba(255,255,255,0.8);
+            font-size: 0.8rem;
+        }
+
+        .version-info {
+            color: rgba(255,255,255,0.6);
+            font-size: 0.75rem;
+            font-weight: 500;
         }
 
         /* MOBILE OVERLAY */
@@ -404,6 +475,32 @@
                 margin-left: 0;
             }
 
+            .footer {
+                margin-left: 0;
+                padding: 0.75rem 1rem;
+                flex-direction: column;
+                gap: 0.5rem;
+                text-align: center;
+                min-height: auto;
+            }
+
+            .footer.sidebar-collapsed {
+                margin-left: 0;
+            }
+
+            .footer-left,
+            .footer-right {
+                justify-content: center;
+            }
+
+            .footer-links {
+                gap: 0.75rem;
+            }
+
+            .footer-divider {
+                display: none;
+            }
+
             .topbar {
                 padding: 0 1rem;
             }
@@ -438,12 +535,29 @@
                 padding: 0.75rem;
             }
 
+            .footer {
+                padding: 0.5rem;
+                font-size: 0.8rem;
+            }
+
             .page-title {
                 font-size: 1rem;
             }
 
             .connection-status {
                 font-size: 0.8rem;
+            }
+
+            .footer-links a {
+                font-size: 0.75rem;
+            }
+
+            .copyright {
+                font-size: 0.75rem;
+            }
+
+            .version-info {
+                font-size: 0.7rem;
             }
         }
 
@@ -595,47 +709,47 @@
         <div class="user-info">
             <div class="dropdown">
                 <button class="user-dropdown dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                                            <div class="d-flex align-items-center">
-                            <i class="fas fa-user-circle me-2"></i>
-                            <div>
-                                <div style="font-size: 0.9rem; font-weight: 500;">
-                                    <span>{{ session.username }}</span>
-                                </div>
-                                <div style="font-size: 0.75rem; opacity: 0.8;">
-                                    {% if session.user_admin %}
-                                        <span class="user-badge bg-danger">ADMIN</span>
-                                    {% elif session.user_manager %}
-                                        <span class="user-badge bg-warning">MANAGER</span>
-                                    {% elif session.user_readonly %}
-                                        <span class="user-badge bg-info">READONLY</span>
-                                    {% endif %}
-                                </div>
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-user-circle me-2"></i>
+                        <div>
+                            <div style="font-size: 0.9rem; font-weight: 500;">
+                                <span>{{ session.username }}</span>
+                            </div>
+                            <div style="font-size: 0.75rem; opacity: 0.8;">
+                                {% if session.user_admin %}
+                                    <span class="user-badge bg-danger">ADMIN</span>
+                                {% elif session.user_manager %}
+                                    <span class="user-badge bg-warning">MANAGER</span>
+                                {% elif session.user_readonly %}
+                                    <span class="user-badge bg-info">READONLY</span>
+                                {% endif %}
                             </div>
                         </div>
-                    </button>
-                    <ul class="dropdown-menu dropdown-menu-dark">
-                        <li>
-                            <div class="dropdown-header">
-                                <small>{{ session.user_email }}</small>
-                            </div>
-                        </li>
-                        <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item" href="#" onclick="showProfile()">
-                            <i class="fas fa-user"></i> Profilo
-                        </a></li>
-                        <li><a class="dropdown-item" href="#" onclick="showUserInfo()">
-                            <i class="fas fa-info-circle"></i> Info Account
-                        </a></li>
-                        <li><a class="dropdown-item" href="#" onclick="showSettings()">
-                            <i class="fas fa-cog"></i> Impostazioni
-                        </a></li>
-                        <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item" href="{{ url_for('logout') }}">
-                            <i class="fas fa-sign-out-alt"></i> Logout
-                        </a></li>
-                    </ul>
-                </div>
+                    </div>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-dark">
+                    <li>
+                        <div class="dropdown-header">
+                            <small>{{ session.user_email }}</small>
+                        </div>
+                    </li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="#" onclick="showProfile()">
+                        <i class="fas fa-user"></i> Profilo
+                    </a></li>
+                    <li><a class="dropdown-item" href="#" onclick="showUserInfo()">
+                        <i class="fas fa-info-circle"></i> Info Account
+                    </a></li>
+                    <li><a class="dropdown-item" href="#" onclick="showSettings()">
+                        <i class="fas fa-cog"></i> Impostazioni
+                    </a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="{{ url_for('logout') }}">
+                        <i class="fas fa-sign-out-alt"></i> Logout
+                    </a></li>
+                </ul>
             </div>
+        </div>
         {% endif %}
     </nav>
 
@@ -691,6 +805,39 @@
         </div>
     </div>
 
+    <!-- Footer -->
+    <footer class="footer" id="footer">
+        <div class="footer-left">
+            <div class="copyright">
+                <i class="fas fa-copyright me-1"></i>
+                {{ moment().format('YYYY') if moment else '2024' }} Traccar Dashboard. Tutti i diritti riservati.
+            </div>
+        </div>
+
+        <div class="footer-right">
+            <div class="footer-links">
+                <a href="#" onclick="showPrivacyPolicy()">
+                    <i class="fas fa-shield-alt me-1"></i>Privacy
+                </a>
+                <div class="footer-divider"></div>
+                <a href="#" onclick="showTermsOfService()">
+                    <i class="fas fa-file-contract me-1"></i>Termini
+                </a>
+                <div class="footer-divider"></div>
+                <a href="#" onclick="showSupport()">
+                    <i class="fas fa-life-ring me-1"></i>Supporto
+                </a>
+                <div class="footer-divider"></div>
+                <a href="https://www.traccar.org" target="_blank" rel="noopener noreferrer">
+                    <i class="fas fa-external-link-alt me-1"></i>Traccar.org
+                </a>
+            </div>
+            <div class="version-info">
+                <i class="fas fa-code-branch me-1"></i>v2.1.0
+            </div>
+        </div>
+    </footer>
+
     <!-- Toast Container -->
     <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 2000;">
         <!-- Toast notifications will be inserted here -->
@@ -731,12 +878,16 @@
             tooltipTriggerList.map(function (tooltipTriggerEl) {
                 return new bootstrap.Tooltip(tooltipTriggerEl);
             });
+
+            // Update footer year dynamically
+            updateFooterYear();
         });
 
         // Sidebar toggle functionality
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
             const mainContent = document.getElementById('mainContent');
+            const footer = document.getElementById('footer');
             const overlay = document.getElementById('mobileOverlay');
 
             if (isMobile) {
@@ -747,6 +898,7 @@
                 // Desktop behavior
                 sidebar.classList.toggle('collapsed');
                 mainContent.classList.toggle('sidebar-collapsed');
+                footer.classList.toggle('sidebar-collapsed');
                 sidebarCollapsed = !sidebarCollapsed;
 
                 // Save preference
@@ -759,6 +911,7 @@
             const newIsMobile = window.innerWidth <= 768;
             const sidebar = document.getElementById('sidebar');
             const mainContent = document.getElementById('mainContent');
+            const footer = document.getElementById('footer');
             const overlay = document.getElementById('mobileOverlay');
 
             if (newIsMobile !== isMobile) {
@@ -768,6 +921,7 @@
                     // Switch to mobile mode
                     sidebar.classList.remove('collapsed', 'show');
                     mainContent.classList.remove('sidebar-collapsed');
+                    footer.classList.remove('sidebar-collapsed');
                     overlay.classList.remove('show');
                 } else {
                     // Switch to desktop mode
@@ -779,6 +933,7 @@
                     if (saved) {
                         sidebar.classList.add('collapsed');
                         mainContent.classList.add('sidebar-collapsed');
+                        footer.classList.add('sidebar-collapsed');
                         sidebarCollapsed = true;
                     }
                 }
@@ -892,6 +1047,28 @@
             toastEl.addEventListener('hidden.bs.toast', () => {
                 toastEl.remove();
             });
+        }
+
+        // Update footer year
+        function updateFooterYear() {
+            const copyrightEl = document.querySelector('.copyright');
+            if (copyrightEl) {
+                const currentYear = new Date().getFullYear();
+                copyrightEl.innerHTML = `<i class="fas fa-copyright me-1"></i>${currentYear} Traccar Dashboard. Tutti i diritti riservati.`;
+            }
+        }
+
+        // Footer link functions
+        function showPrivacyPolicy() {
+            showToast('Informativa sulla privacy in sviluppo', 'info');
+        }
+
+        function showTermsOfService() {
+            showToast('Termini di servizio in sviluppo', 'info');
+        }
+
+        function showSupport() {
+            showToast('Pagina di supporto in sviluppo', 'info');
         }
 
         // Placeholder functions for modal interactions

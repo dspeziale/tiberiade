@@ -38,7 +38,7 @@
         border: none;
     }
 
-    /* Pannello controlli flottante */
+    /* Pannello controlli flottante - MODIFICATO per chiusura verso l'alto */
     .controls-panel {
         position: fixed;
         top: 80px;
@@ -54,6 +54,7 @@
         z-index: 1000;
         backdrop-filter: blur(10px);
         background: rgba(255, 255, 255, 0.95);
+        transform-origin: top center;
     }
 
     /* Quando la sidebar è collassata */
@@ -61,16 +62,17 @@
         left: 80px; /* 60px sidebar collassata + 20px margin */
     }
 
+    /* MODIFICATO: pannello collassato verso l'alto invece che verso sinistra */
     .controls-panel.collapsed {
-        transform: translateX(-100%);
+        transform: translateY(-100%) scaleY(0);
         opacity: 0;
     }
 
-    /* Toggle button migliorato */
+    /* Toggle button migliorato - MODIFICATO per indicare direzione verticale */
     .collapse-toggle {
         position: fixed;
-        top: 100px;
-        left: 600px; /* 270px pannello + 320px larghezza + 10px margin */
+        top: 50px; /* Posizionato sopra il pannello */
+        left: 430px; /* Centro del pannello (270px + 160px metà larghezza) */
         background: #0d6efd;
         color: white;
         border: none;
@@ -89,7 +91,7 @@
 
     /* Quando la sidebar è collassata */
     body.sidebar-collapsed .collapse-toggle {
-        left: 410px; /* 80px + 320px + 10px */
+        left: 240px; /* 80px + 160px */
     }
 
     .collapse-toggle:hover {
@@ -98,16 +100,16 @@
         box-shadow: 0 6px 20px rgba(13, 110, 253, 0.4);
     }
 
-    /* Quando il pannello è collassato */
+    /* Quando il pannello è collassato - torna alla posizione originale */
     .collapse-toggle.collapsed {
-        left: 270px; /* Torna alla posizione base */
+        top: 80px; /* Stessa posizione del pannello quando aperto */
         background: #28a745;
         animation: pulse 2s infinite;
     }
 
     /* Quando sia sidebar che pannello sono collassati */
     body.sidebar-collapsed .collapse-toggle.collapsed {
-        left: 80px;
+        left: 240px;
     }
 
     .collapse-toggle.collapsed:hover {
@@ -128,7 +130,7 @@
         }
     }
 
-    /* Icona che ruota */
+    /* Icona che ruota - MODIFICATO per frecce verticali */
     .collapse-toggle .fas {
         transition: transform 0.3s ease;
     }
@@ -251,6 +253,31 @@
         margin: 4px 0;
     }
 
+    /* Indicatore visivo per il pannello collassato - MODIFICATO */
+    .panel-collapsed-indicator {
+        position: fixed;
+        top: 50px; /* Posizionato sopra dove appare il toggle button */
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(40, 167, 69, 0.9);
+        color: white;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 500;
+        z-index: 999;
+        opacity: 0;
+        transform: translateX(-50%) translateY(-20px);
+        transition: all 0.3s ease;
+        backdrop-filter: blur(5px);
+        white-space: nowrap;
+    }
+
+    .panel-collapsed-indicator.show {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+
     /* Responsive design */
     @media (max-width: 768px) {
         .controls-panel {
@@ -262,14 +289,13 @@
         }
 
         .collapse-toggle {
-            top: 80px;
-            left: auto;
-            right: 20px;
+            top: 40px;
+            left: 50%;
+            transform: translateX(-50%);
         }
 
         .collapse-toggle.collapsed {
-            left: auto;
-            right: 20px;
+            top: 70px;
         }
 
         .floating-controls {
@@ -284,6 +310,10 @@
 
         .map-container {
             top: 50px;
+        }
+
+        .panel-collapsed-indicator {
+            top: 30px;
         }
     }
 
@@ -304,27 +334,6 @@
 
     .controls-panel::-webkit-scrollbar-thumb:hover {
         background: #a1a1a1;
-    }
-
-    /* Indicatore visivo per il pannello collassato */
-    .panel-collapsed-indicator {
-        position: fixed;
-        top: 160px;
-        left: 20px;
-        background: rgba(40, 167, 69, 0.9);
-        color: white;
-        padding: 8px 12px;
-        border-radius: 20px;
-        font-size: 12px;
-        font-weight: 500;
-        z-index: 999;
-        transform: translateX(-100%);
-        transition: all 0.3s ease;
-        backdrop-filter: blur(5px);
-    }
-
-    .panel-collapsed-indicator.show {
-        transform: translateX(0);
     }
 </style>
 {% endblock %}
@@ -347,7 +356,7 @@
 
 <!-- Toggle button -->
 <button class="collapse-toggle" id="toggleBtn" onclick="toggleControlsPanel()" title="Nascondi/Mostra Pannello">
-    <i class="fas fa-chevron-left"></i>
+    <i class="fas fa-chevron-up"></i>
 </button>
 
 <!-- Indicatore pannello collassato -->
@@ -676,6 +685,7 @@ function initializeMap() {
     }
 }
 
+// FUNZIONE MODIFICATA: toggleControlsPanel ora gestisce l'animazione verso l'alto
 function toggleControlsPanel() {
     const panel = document.getElementById('controlsPanel');
     const toggleBtn = document.getElementById('toggleBtn');
@@ -688,7 +698,7 @@ function toggleControlsPanel() {
         panel.classList.remove('collapsed');
         toggleBtn.classList.remove('collapsed');
         indicator.classList.remove('show');
-        toggleBtn.innerHTML = '<i class="fas fa-chevron-left"></i>';
+        toggleBtn.innerHTML = '<i class="fas fa-chevron-up"></i>';
         toggleBtn.title = 'Nascondi Pannello';
 
         // Cambia colore del bottone
@@ -701,7 +711,7 @@ function toggleControlsPanel() {
         panel.classList.add('collapsed');
         toggleBtn.classList.add('collapsed');
         indicator.classList.add('show');
-        toggleBtn.innerHTML = '<i class="fas fa-chevron-right"></i>';
+        toggleBtn.innerHTML = '<i class="fas fa-chevron-down"></i>';
         toggleBtn.title = 'Mostra Pannello';
 
         // Mostra indicatore dopo un delay
