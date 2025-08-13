@@ -40,6 +40,16 @@ settings_manager = SettingsManager()
 # Configura le route API
 setup_settings_routes(app)
 
+from reports_repository import init_reports_repository
+repository = init_reports_repository(app)
+# + la nuova route per /reports/repository
+
+@app.route('/reports/repository')
+def reports_repository():
+    """Route principale per la pagina repository"""
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+    return render_template('reports_repository.html')
 
 def login_required(f):
     """Decorator per richiedere l'autenticazione"""

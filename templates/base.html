@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Traccar Dashboard{% endblock %}</title>
+    <title>{% block title %}Tracker Dashboard{% endblock %}</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -599,7 +599,7 @@
     <!-- Sidebar -->
     <nav class="sidebar" id="sidebar">
         <div class="sidebar-brand">
-            <h4><i class="fas fa-map-marked-alt"></i> <span>Traccar</span></h4>
+            <h4><i class="fas fa-map-marked-alt"></i> <span>Tracker</span></h4>
             <small>GPS Tracking System</small>
         </div>
 
@@ -627,6 +627,7 @@
                         <i class="fas fa-chart-line"></i>
                         <span>Reports</span>
                     </a>
+                    <a href="{{ url_for('reports_repository') }}">Repository</a>
                 </div>
 
                 <div class="nav-item">
@@ -772,7 +773,7 @@
                     <div class="connection-status d-none d-md-flex">
                         <div class="status-indicator" id="connectionIndicator"></div>
                         <span class="badge bg-success" id="connectionStatus">
-                            Connesso a Traccar
+                            Connesso a Tracker
                         </span>
                     </div>
                     <div class="d-none d-md-flex">
@@ -810,7 +811,7 @@
         <div class="footer-left">
             <div class="copyright">
                 <i class="fas fa-copyright me-1"></i>
-                {{ moment().format('YYYY') if moment else '2024' }} Traccar Dashboard. Tutti i diritti riservati.
+                {{ moment().format('YYYY') if moment else '2024' }} Tracker Dashboard. Tutti i diritti riservati.
             </div>
         </div>
 
@@ -828,12 +829,12 @@
                     <i class="fas fa-life-ring me-1"></i>Supporto
                 </a>
                 <div class="footer-divider"></div>
-                <a href="https://www.traccar.org" target="_blank" rel="noopener noreferrer">
-                    <i class="fas fa-external-link-alt me-1"></i>Traccar.org
+                <a href="https://dsc.altervista.org" target="_blank" rel="noopener noreferrer">
+                    <i class="fas fa-external-link-alt me-1"></i>dsc.altervista.org
                 </a>
             </div>
             <div class="version-info">
-                <i class="fas fa-code-branch me-1"></i>v2.1.0
+                <i class="fas fa-code-branch me-1"></i>v3.4.11
             </div>
         </div>
     </footer>
@@ -1054,7 +1055,7 @@
             const copyrightEl = document.querySelector('.copyright');
             if (copyrightEl) {
                 const currentYear = new Date().getFullYear();
-                copyrightEl.innerHTML = `<i class="fas fa-copyright me-1"></i>${currentYear} Traccar Dashboard. Tutti i diritti riservati.`;
+                copyrightEl.innerHTML = `<i class="fas fa-copyright me-1"></i>2019-${currentYear % 100} Tracker Dashboard. Tutti i diritti riservati.`;
             }
         }
 

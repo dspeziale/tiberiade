@@ -1,0 +1,345 @@
+{% extends "base.html" %}
+
+{% block title %}Repository Reports - Traccar Dashboard{% endblock %}
+
+{% block extra_css %}
+<style>
+    .repository-container {
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    .stats-overview {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 8px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+    }
+
+    .report-card {
+        border: 1px solid #e3e6f0;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+        margin-bottom: 1rem;
+    }
+
+    .report-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        border-color: #0d6efd;
+    }
+
+    .report-header {
+        background: #f8f9fa;
+        border-bottom: 1px solid #e3e6f0;
+        padding: 1rem;
+        border-radius: 8px 8px 0 0;
+    }
+
+    .report-body {
+        padding: 1rem;
+    }
+
+    .report-actions {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+    }
+
+    .report-type-badge {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+    }
+
+    .file-size {
+        color: #6c757d;
+        font-size: 0.85rem;
+    }
+
+    .search-box {
+        background: white;
+        border: 2px solid #e3e6f0;
+        border-radius: 25px;
+        padding: 0.5rem 1rem;
+        transition: all 0.3s ease;
+    }
+
+    .search-box:focus {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+    }
+
+    .filter-buttons {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        margin: 1rem 0;
+    }
+
+    .filter-btn {
+        border: 1px solid #dee2e6;
+        background: white;
+        color: #495057;
+        border-radius: 20px;
+        padding: 0.375rem 0.75rem;
+        font-size: 0.875rem;
+        transition: all 0.3s ease;
+    }
+
+    .filter-btn.active {
+        background: #0d6efd;
+        color: white;
+        border-color: #0d6efd;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 3rem;
+        color: #6c757d;
+    }
+
+    .loading-spinner {
+        display: none;
+        text-align: center;
+        padding: 2rem;
+    }
+
+    .bulk-actions {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        display: none;
+    }
+
+    @media (max-width: 768px) {
+        .report-actions {
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .filter-buttons {
+            justify-content: center;
+        }
+
+        .stats-overview {
+            padding: 1rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header mb-4">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h2 class="page-title mb-1">
+                <i class="fas fa-archive text-primary"></i> Repository Reports
+            </h2>
+            <p class="text-muted mb-0">Gestisci e scarica i reports salvati nel sistema</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-primary" onclick="refreshRepository()">
+                <i class="fas fa-sync-alt" id="refreshIcon"></i> Aggiorna
+            </button>
+            <button class="btn btn-success" onclick="exportAllReports()">
+                <i class="fas fa-download"></i> Esporta Tutti
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Statistics Overview -->
+<div class="stats-overview">
+    <div class="row">
+        <div class="col-md-3">
+            <div class="text-center">
+                <h3 class="fw-bold mb-1" id="totalReports">0</h3>
+                <p class="mb-0">Reports Totali</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="text-center">
+                <h3 class="fw-bold mb-1" id="totalSize">0 MB</h3>
+                <p class="mb-0">Spazio Utilizzato</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="text-center">
+                <h3 class="fw-bold mb-1" id="recentReports">0</h3>
+                <p class="mb-0">Ultimi 7 Giorni</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="text-center">
+                <h3 class="fw-bold mb-1" id="lastCleanup">Mai</h3>
+                <p class="mb-0">Ultima Pulizia</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Search and Filters -->
+<div class="card repository-container mb-4">
+    <div class="card-body">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <div class="position-relative">
+                    <i class="fas fa-search position-absolute" style="left: 1rem; top: 50%; transform: translateY(-50%); color: #6c757d;"></i>
+                    <input type="text" class="form-control search-box" id="searchInput"
+                           placeholder="Cerca reports per nome, tipo o descrizione..."
+                           style="padding-left: 2.5rem;">
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="filter-buttons">
+                    <button class="btn filter-btn active" data-type="all">
+                        <i class="fas fa-list"></i> Tutti
+                    </button>
+                    <button class="btn filter-btn" data-type="summary">
+                        <i class="fas fa-chart-bar"></i> Riepilogo
+                    </button>
+                    <button class="btn filter-btn" data-type="routes">
+                        <i class="fas fa-route"></i> Percorsi
+                    </button>
+                    <button class="btn filter-btn" data-type="stops">
+                        <i class="fas fa-stop-circle"></i> Soste
+                    </button>
+                    <button class="btn filter-btn" data-type="trips">
+                        <i class="fas fa-road"></i> Viaggi
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bulk Actions -->
+<div class="bulk-actions" id="bulkActions">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <span id="selectedCount">0</span> reports selezionati
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-danger btn-sm" onclick="deleteSelectedReports()">
+                <i class="fas fa-trash"></i> Elimina Selezionati
+            </button>
+            <button class="btn btn-outline-info btn-sm" onclick="exportSelectedReports()">
+                <i class="fas fa-download"></i> Scarica Selezionati
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Reports List -->
+<div class="repository-container">
+    <div class="card-header bg-light">
+        <div class="d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+                <i class="fas fa-folder-open"></i> Reports Salvati
+            </h5>
+            <div class="d-flex gap-2 align-items-center">
+                <label class="form-label mb-0 me-2">Ordina per:</label>
+                <select class="form-select form-select-sm" id="sortSelect" style="width: auto;">
+                    <option value="created_desc">Data (Più Recenti)</option>
+                    <option value="created_asc">Data (Più Vecchi)</option>
+                    <option value="name_asc">Nome (A-Z)</option>
+                    <option value="name_desc">Nome (Z-A)</option>
+                    <option value="size_desc">Dimensione (Maggiore)</option>
+                    <option value="size_asc">Dimensione (Minore)</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <div class="card-body">
+        <!-- Loading Spinner -->
+        <div class="loading-spinner" id="loadingSpinner">
+            <div class="spinner-border text-primary mb-3"></div>
+            <p>Caricamento reports...</p>
+        </div>
+
+        <!-- Reports Container -->
+        <div id="reportsContainer">
+            <!-- Reports will be loaded here -->
+        </div>
+
+        <!-- Empty State -->
+        <div class="empty-state" id="emptyState" style="display: none;">
+            <i class="fas fa-folder-open fa-3x mb-3"></i>
+            <h5>Nessun Report Trovato</h5>
+            <p>Non ci sono reports salvati nel repository.</p>
+            <a href="{{ url_for('reports') }}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Crea Nuovo Report
+            </a>
+        </div>
+
+        <!-- Load More Button -->
+        <div class="text-center mt-4" id="loadMoreContainer" style="display: none;">
+            <button class="btn btn-outline-primary" onclick="loadMoreReports()">
+                <i class="fas fa-chevron-down"></i> Carica Altri Reports
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Cleanup Modal -->
+<div class="modal fade" id="cleanupModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-broom text-warning"></i> Pulizia Repository
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Elimina automaticamente i reports più vecchi per liberare spazio.</p>
+                <div class="mb-3">
+                    <label class="form-label">Elimina reports più vecchi di:</label>
+                    <select class="form-select" id="cleanupDays">
+                        <option value="7">7 giorni</option>
+                        <option value="15">15 giorni</option>
+                        <option value="30" selected>30 giorni</option>
+                        <option value="60">60 giorni</option>
+                        <option value="90">90 giorni</option>
+                    </select>
+                </div>
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>Attenzione:</strong> Questa operazione è irreversibile!
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                <button type="button" class="btn btn-warning" onclick="performCleanup()">
+                    <i class="fas fa-broom"></i> Avvia Pulizia
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Context Menu -->
+<div class="dropdown-menu" id="contextMenu" style="position: absolute; z-index: 1000; display: none;">
+    <a class="dropdown-item" href="#" onclick="viewReport(contextMenuReportId)">
+        <i class="fas fa-eye"></i> Visualizza
+    </a>
+    <a class="dropdown-item" href="#" onclick="downloadReport(contextMenuReportId)">
+        <i class="fas fa-download"></i> Scarica
+    </a>
+    <a class="dropdown-item" href="#" onclick="duplicateReport(contextMenuReportId)">
+        <i class="fas fa-copy"></i> Duplica
+    </a>
+    <div class="dropdown-divider"></div>
+    <a class="dropdown-item text-danger" href="#" onclick="deleteReport(contextMenuReportId)">
+        <i class="fas fa-trash"></i> Elimina
+    </a>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/reports_repository.js') }}"></script>
+{% endblock %}
