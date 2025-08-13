@@ -16,9 +16,9 @@ app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'your-secret-key-here')
 
 # Configurazione Traccar
-TRACCAR_SERVER = os.environ.get('TRACCAR_SERVER', 'http://localhost:8082')
-TRACCAR_USERNAME = os.environ.get('TRACCAR_USERNAME', '')
-TRACCAR_PASSWORD = os.environ.get('TRACCAR_PASSWORD', '')
+TRACCAR_SERVER = os.environ.get('TRACCAR_SERVER', 'http://torraccia.iliadboxos.it:58082')
+TRACCAR_USERNAME = os.environ.get('TRACCAR_USERNAME', 'dspeziale@gmail.com')
+TRACCAR_PASSWORD = os.environ.get('TRACCAR_PASSWORD', 'Elisa2025!')
 
 import subprocess
 import threading
@@ -1694,7 +1694,7 @@ def create_simulator_config(data: Dict, device: Dict) -> Dict:
 
     # Configurazione base
     config = {
-        'traccar_server': f'http://localhost:8082',  # Usa la configurazione del tuo server
+        'traccar_server': f'http://torraccia.iliadboxos.it:58082',  # Usa la configurazione del tuo server
         'devices': [{
             'device_id': device['id'],
             'imei': data['imei'],
@@ -2050,4 +2050,4 @@ def geocoding_test_page():
 if __name__ == '__main__':
     # Registra la funzione di cleanup
     atexit.register(cleanup_all_simulators)
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=False, host='0.0.0.0', port=59000)

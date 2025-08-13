@@ -6,6 +6,6 @@ load_dotenv()
 
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-key-change-in-production'
-    TRACCAR_SERVER = os.environ.get('TRACCAR_SERVER') or 'http://localhost:8082'
-    TRACCAR_USERNAME = os.environ.get('TRACCAR_USERNAME') or ''
-    TRACCAR_PASSWORD = os.environ.get('TRACCAR_PASSWORD') or ''
+    TRACCAR_SERVER = os.environ.get('TRACCAR_SERVER') or 'http://torraccia.iliadboxos.it:58082'
+    TRACCAR_USERNAME = os.environ.get('TRACCAR_USERNAME') or 'dspeziale@gmail.com'
+    TRACCAR_PASSWORD = os.environ.get('TRACCAR_PASSWORD') or 'Elisa2025!'

@@ -425,7 +425,7 @@ def load_config(config_file: str) -> Dict:
 def create_default_config():
     """Crea un file di configurazione di esempio"""
     config = {
-        "traccar_server": "http://localhost:8082",
+        "traccar_server": "http://torraccia.iliadboxos.it:58082",
         "devices": [
             {
                 "device_id": "001",
@@ -500,7 +500,7 @@ def main():
     manager = SimulatorManager()
 
     # Crea simulatori
-    traccar_server = config.get('traccar_server', 'http://localhost:8082')
+    traccar_server = config.get('traccar_server', 'http://torraccia.iliadboxos.it:58082')
 
     for device_config in config.get('devices', []):
         device_config['traccar_server'] = traccar_server
