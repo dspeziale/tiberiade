@@ -1,4 +1,4 @@
-# reports_repository.py - Sistema di gestione repository reports
+# reports_repository.py - Sistema di gestione repository reports (AGGIORNATO CON SUPPORTO PDF)
 
 import os
 import json
@@ -9,13 +9,18 @@ from werkzeug.utils import secure_filename
 import uuid
 import zipfile
 import io
+import mimetypes
 
 # Configurazione
 REPORTS_DIR = Path("reports")
+PDF_REPORTS_DIR = REPORTS_DIR / "pdfs"
+JSON_REPORTS_DIR = REPORTS_DIR / "json"
 METADATA_FILE = REPORTS_DIR / "metadata.json"
 
-# Crea directory se non esiste
+# Crea directory se non esistono
 REPORTS_DIR.mkdir(exist_ok=True)
+PDF_REPORTS_DIR.mkdir(exist_ok=True)
+JSON_REPORTS_DIR.mkdir(exist_ok=True)
 
 # Blueprint per le route
 reports_repo_bp = Blueprint('reports_repo', __name__)
@@ -25,6 +30,8 @@ class ReportsRepository:
     def __init__(self):
         self.metadata_file = METADATA_FILE
         self.reports_dir = REPORTS_DIR
+        self.pdf_dir = PDF_REPORTS_DIR
+        self.json_dir = JSON_REPORTS_DIR
         self._ensure_metadata_exists()
 
     def _ensure_metadata_exists(self):
@@ -34,12 +41,49 @@ class ReportsRepository:
                 "reports": [],
                 "stats": {
                     "total_reports": 0,
+                    "total_json_reports": 0,
+                    "total_pdf_reports": 0,
                     "total_size_mb": 0,
                     "last_cleanup": None
                 },
                 "created_at": datetime.datetime.now().isoformat()
             }
             self._save_metadata(initial_data)
+        else:
+            # Migrazione automatica del metadata esistente
+            self._migrate_metadata_if_needed()
+
+    def _migrate_metadata_if_needed(self):
+        """Migra il metadata esistente per supportare PDF"""
+        try:
+            metadata = self._load_metadata()
+
+            # Controlla se mancano le nuove chiavi
+            needs_migration = False
+
+            if 'total_json_reports' not in metadata['stats']:
+                metadata['stats']['total_json_reports'] = len(
+                    [r for r in metadata['reports'] if r.get('format', 'json') == 'json'])
+                needs_migration = True
+
+            if 'total_pdf_reports' not in metadata['stats']:
+                metadata['stats']['total_pdf_reports'] = len(
+                    [r for r in metadata['reports'] if r.get('format') == 'pdf'])
+                needs_migration = True
+
+            # Aggiungi formato ai report esistenti se mancante
+            for report in metadata['reports']:
+                if 'format' not in report:
+                    report['format'] = 'json'
+                    needs_migration = True
+
+            if needs_migration:
+                print("🔄 Migrazione metadata reports per supporto PDF...")
+                self._save_metadata(metadata)
+                print("✅ Migrazione completata")
+
+        except Exception as e:
+            print(f"⚠️ Errore migrazione metadata: {e}")
 
     def _load_metadata(self):
         """Carica metadata dal file JSON"""
@@ -55,67 +99,134 @@ class ReportsRepository:
         with open(self.metadata_file, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=2, ensure_ascii=False, default=str)
 
-    def save_report(self, report_data, filename=None):
-        """Salva un report nel repository"""
+    def _get_file_directory(self, file_format):
+        """Restituisce la directory appropriata in base al formato"""
+        if file_format == 'pdf':
+            return self.pdf_dir
+        else:
+            return self.json_dir
+
+    def _get_file_extension(self, file_format):
+        """Restituisce l'estensione appropriata in base al formato"""
+        if file_format == 'pdf':
+            return '.pdf'
+        else:
+            return '.json'
+
+    def _get_mimetype(self, file_format):
+        """Restituisce il mimetype appropriato in base al formato"""
+        if file_format == 'pdf':
+            return 'application/pdf'
+        else:
+            return 'application/json'
+
+    def save_report(self, report_data, filename=None, file_format='json'):
+        """
+        Salva un report nel repository
+
+        Args:
+            report_data: Dati del report (dict per JSON, bytes per PDF)
+            filename: Nome del file (opzionale)
+            file_format: 'json' o 'pdf'
+        """
         try:
+            # Valida il formato
+            if file_format not in ['json', 'pdf']:
+                return {
+                    "success": False,
+                    "error": "Formato non supportato. Usa 'json' o 'pdf'"
+                }
+
             # Genera filename se non fornito
             if not filename:
                 timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-                report_type = report_data.get('type', 'unknown')
-                filename = f"report_{report_type}_{timestamp}.json"
+                if file_format == 'json':
+                    report_type = report_data.get('type', 'unknown')
+                    filename = f"report_{report_type}_{timestamp}"
+                else:
+                    filename = f"report_pdf_{timestamp}"
 
-            # Assicura che il filename sia sicuro
+            # Assicura che il filename sia sicuro e abbia l'estensione corretta
             filename = secure_filename(filename)
-            if not filename.endswith('.json'):
-                filename += '.json'
+            extension = self._get_file_extension(file_format)
+            if not filename.endswith(extension):
+                filename += extension
 
-            # Percorso completo del file
-            filepath = self.reports_dir / filename
+            # Percorso completo del file nella directory appropriata
+            file_dir = self._get_file_directory(file_format)
+            filepath = file_dir / filename
 
             # Genera ID univoco per il report
             report_id = str(uuid.uuid4())
 
-            # Prepara i dati del report con metadata
-            report_with_metadata = {
+            # Prepara i metadati base
+            report_metadata = {
                 "id": report_id,
                 "filename": filename,
+                "format": file_format,
                 "created_at": datetime.datetime.now().isoformat(),
-                "type": report_data.get('type', 'unknown'),
-                "title": report_data.get('title', f"Report {report_data.get('type', 'Unknown')}"),
-                "description": report_data.get('description', ''),
-                "devices_count": len(report_data.get('data', [])),
-                "period": report_data.get('period', {}),
-                "totals": report_data.get('totals', {}),
-                "data": report_data.get('data', []),
-                "generated_by": report_data.get('generated_by', 'System'),
                 "file_size": 0  # Sarà calcolato dopo il salvataggio
             }
 
-            # Salva il file del report
-            with open(filepath, 'w', encoding='utf-8') as f:
-                json.dump(report_with_metadata, f, indent=2, ensure_ascii=False, default=str)
+            # Salva il file in base al formato
+            if file_format == 'json':
+                # Per JSON, aggiungi metadata completi ai dati
+                report_with_metadata = {
+                    **report_metadata,
+                    "type": report_data.get('type', 'unknown'),
+                    "title": report_data.get('title', f"Report {report_data.get('type', 'Unknown')}"),
+                    "description": report_data.get('description', ''),
+                    "devices_count": len(report_data.get('data', [])),
+                    "period": report_data.get('period', {}),
+                    "totals": report_data.get('totals', {}),
+                    "data": report_data.get('data', []),
+                    "generated_by": report_data.get('generated_by', 'System')
+                }
+
+                with open(filepath, 'w', encoding='utf-8') as f:
+                    json.dump(report_with_metadata, f, indent=2, ensure_ascii=False, default=str)
+
+                # Aggiorna metadata per l'indice
+                report_metadata.update({
+                    "type": report_with_metadata['type'],
+                    "title": report_with_metadata['title'],
+                    "description": report_with_metadata['description'],
+                    "devices_count": report_with_metadata['devices_count']
+                })
+
+            else:  # PDF
+                # Per PDF, salva i bytes direttamente
+                if isinstance(report_data, dict):
+                    return {
+                        "success": False,
+                        "error": "Per salvare PDF, fornire i dati come bytes"
+                    }
+
+                with open(filepath, 'wb') as f:
+                    f.write(report_data)
+
+                # Per PDF, usa metadati minimi
+                report_metadata.update({
+                    "type": "pdf_report",
+                    "title": f"Report PDF {datetime.datetime.now().strftime('%d/%m/%Y %H:%M')}",
+                    "description": "Report esportato in formato PDF",
+                    "devices_count": 0  # Non disponibile per PDF
+                })
 
             # Calcola la dimensione del file
             file_size = filepath.stat().st_size
-            report_with_metadata['file_size'] = file_size
+            report_metadata['file_size'] = file_size
 
-            # Aggiorna metadata
+            # Aggiorna metadata generale
             metadata = self._load_metadata()
-
-            # Crea entry per l'indice
-            report_entry = {
-                "id": report_id,
-                "filename": filename,
-                "title": report_with_metadata['title'],
-                "type": report_with_metadata['type'],
-                "created_at": report_with_metadata['created_at'],
-                "devices_count": report_with_metadata['devices_count'],
-                "file_size": file_size,
-                "description": report_with_metadata['description']
-            }
-
-            metadata['reports'].append(report_entry)
+            metadata['reports'].append(report_metadata)
             metadata['stats']['total_reports'] += 1
+
+            if file_format == 'json':
+                metadata['stats']['total_json_reports'] += 1
+            else:
+                metadata['stats']['total_pdf_reports'] += 1
+
             metadata['stats']['total_size_mb'] = round(
                 sum(r['file_size'] for r in metadata['reports']) / (1024 * 1024), 2
             )
@@ -126,24 +237,64 @@ class ReportsRepository:
                 "success": True,
                 "report_id": report_id,
                 "filename": filename,
-                "message": f"Report salvato con successo: {filename}"
+                "format": file_format,
+                "file_size": file_size,
+                "message": f"Report {file_format.upper()} salvato con successo: {filename}"
             }
 
         except Exception as e:
+            print(f"Errore nel salvataggio del report: {e}")
+            import traceback
+            traceback.print_exc()
+
             return {
                 "success": False,
                 "error": str(e),
                 "message": f"Errore nel salvataggio del report: {str(e)}"
             }
 
-    def get_reports_list(self, limit=None, report_type=None):
-        """Ottiene la lista dei reports salvati"""
+    def save_pdf_report(self, pdf_bytes, filename=None, title=None, description=None):
+        """
+        Metodo specifico per salvare report PDF
+
+        Args:
+            pdf_bytes: Dati del PDF come bytes
+            filename: Nome del file (opzionale)
+            title: Titolo del report (opzionale)
+            description: Descrizione del report (opzionale)
+        """
+        result = self.save_report(pdf_bytes, filename, 'pdf')
+
+        # Se sono stati forniti title e description personalizzati, aggiorna i metadata
+        if result['success'] and (title or description):
+            try:
+                metadata = self._load_metadata()
+                for report in metadata['reports']:
+                    if report['id'] == result['report_id']:
+                        if title:
+                            report['title'] = title
+                        if description:
+                            report['description'] = description
+                        break
+                self._save_metadata(metadata)
+                result['message'] = f"Report PDF salvato con titolo personalizzato: {filename}"
+            except Exception as e:
+                print(f"Errore nell'aggiornamento metadati personalizzati: {e}")
+
+        return result
+
+    def get_reports_list(self, limit=None, report_type=None, file_format=None):
+        """Ottiene la lista dei reports salvati con filtri opzionali"""
         metadata = self._load_metadata()
         reports = metadata['reports']
 
         # Filtra per tipo se specificato
         if report_type:
-            reports = [r for r in reports if r['type'] == report_type]
+            reports = [r for r in reports if r.get('type') == report_type]
+
+        # Filtra per formato se specificato
+        if file_format:
+            reports = [r for r in reports if r.get('format') == file_format]
 
         # Ordina per data di creazione (più recenti primi)
         reports.sort(key=lambda x: x['created_at'], reverse=True)
@@ -153,9 +304,11 @@ class ReportsRepository:
             reports = reports[:limit]
 
         return {
+            "success": True,
             "reports": reports,
             "stats": metadata['stats'],
-            "total_count": len(metadata['reports'])
+            "total_count": len(metadata['reports']),
+            "filtered_count": len(reports)
         }
 
     def get_report(self, report_id):
@@ -167,18 +320,30 @@ class ReportsRepository:
             if not report_entry:
                 return {"success": False, "error": "Report non trovato"}
 
-            filepath = self.reports_dir / report_entry['filename']
+            file_format = report_entry.get('format', 'json')
+            file_dir = self._get_file_directory(file_format)
+            filepath = file_dir / report_entry['filename']
 
             if not filepath.exists():
                 return {"success": False, "error": "File del report non trovato"}
 
-            with open(filepath, 'r', encoding='utf-8') as f:
-                report_data = json.load(f)
+            if file_format == 'json':
+                with open(filepath, 'r', encoding='utf-8') as f:
+                    report_data = json.load(f)
 
-            return {
-                "success": True,
-                "report": report_data
-            }
+                return {
+                    "success": True,
+                    "report": report_data,
+                    "format": file_format
+                }
+            else:  # PDF
+                return {
+                    "success": True,
+                    "report": report_entry,  # Solo metadata per PDF
+                    "format": file_format,
+                    "filepath": str(filepath),
+                    "message": "Per i PDF, utilizza l'endpoint di download per ottenere il file"
+                }
 
         except Exception as e:
             return {
@@ -195,14 +360,25 @@ class ReportsRepository:
             if not report_entry:
                 return {"success": False, "error": "Report non trovato"}
 
-            # Elimina il file
-            filepath = self.reports_dir / report_entry['filename']
+            # Determina la directory corretta
+            file_format = report_entry.get('format', 'json')
+            file_dir = self._get_file_directory(file_format)
+            filepath = file_dir / report_entry['filename']
+
+            # Elimina il file se esiste
             if filepath.exists():
                 filepath.unlink()
 
             # Rimuovi dall'indice
             metadata['reports'] = [r for r in metadata['reports'] if r['id'] != report_id]
             metadata['stats']['total_reports'] = len(metadata['reports'])
+
+            # Aggiorna contatori per formato
+            json_count = len([r for r in metadata['reports'] if r.get('format') == 'json'])
+            pdf_count = len([r for r in metadata['reports'] if r.get('format') == 'pdf'])
+            metadata['stats']['total_json_reports'] = json_count
+            metadata['stats']['total_pdf_reports'] = pdf_count
+
             metadata['stats']['total_size_mb'] = round(
                 sum(r['file_size'] for r in metadata['reports']) / (1024 * 1024), 2
             )
@@ -211,42 +387,7 @@ class ReportsRepository:
 
             return {
                 "success": True,
-                "message": "Report eliminato con successo"
-            }
-
-        except Exception as e:
-            return {
-                "success": False,
-                "error": str(e)
-            }
-
-    def cleanup_old_reports(self, days_old=30):
-        """Elimina reports più vecchi di X giorni"""
-        try:
-            cutoff_date = datetime.datetime.now() - datetime.timedelta(days=days_old)
-            metadata = self._load_metadata()
-
-            reports_to_delete = []
-            for report in metadata['reports']:
-                created_at = datetime.datetime.fromisoformat(report['created_at'])
-                if created_at < cutoff_date:
-                    reports_to_delete.append(report)
-
-            deleted_count = 0
-            for report in reports_to_delete:
-                result = self.delete_report(report['id'])
-                if result['success']:
-                    deleted_count += 1
-
-            # Aggiorna data ultimo cleanup
-            metadata = self._load_metadata()
-            metadata['stats']['last_cleanup'] = datetime.datetime.now().isoformat()
-            self._save_metadata(metadata)
-
-            return {
-                "success": True,
-                "deleted_count": deleted_count,
-                "message": f"Eliminati {deleted_count} reports vecchi"
+                "message": f"Report {file_format.upper()} eliminato con successo"
             }
 
         except Exception as e:
@@ -264,10 +405,13 @@ class ReportsRepository:
                 # Aggiungi il file metadata
                 zip_file.write(self.metadata_file, "metadata.json")
 
-                # Aggiungi tutti i files dei reports
-                for report_file in self.reports_dir.glob("*.json"):
-                    if report_file.name != "metadata.json":
-                        zip_file.write(report_file, f"reports/{report_file.name}")
+                # Aggiungi tutti i files JSON
+                for report_file in self.json_dir.glob("*.json"):
+                    zip_file.write(report_file, f"reports/json/{report_file.name}")
+
+                # Aggiungi tutti i files PDF
+                for report_file in self.pdf_dir.glob("*.pdf"):
+                    zip_file.write(report_file, f"reports/pdf/{report_file.name}")
 
             zip_buffer.seek(0)
 
@@ -295,14 +439,15 @@ def api_get_reports():
     """API per ottenere la lista dei reports"""
     limit = request.args.get('limit', type=int)
     report_type = request.args.get('type')
+    file_format = request.args.get('format')  # Nuovo parametro per il formato
 
-    result = repo.get_reports_list(limit=limit, report_type=report_type)
+    result = repo.get_reports_list(limit=limit, report_type=report_type, file_format=file_format)
     return jsonify(result)
 
 
 @reports_repo_bp.route('/api/reports', methods=['POST'])
 def api_save_report():
-    """API per salvare un nuovo report"""
+    """API per salvare un nuovo report (JSON)"""
     try:
         data = request.get_json()
 
@@ -310,12 +455,67 @@ def api_save_report():
             return jsonify({"success": False, "error": "Dati mancanti"}), 400
 
         filename = request.args.get('filename')
-        result = repo.save_report(data, filename)
+        result = repo.save_report(data, filename, 'json')
 
         status_code = 201 if result['success'] else 400
         return jsonify(result), status_code
 
     except Exception as e:
+        print(f"Errore API save report: {e}")
+        import traceback
+        traceback.print_exc()
+
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+
+@reports_repo_bp.route('/api/reports/pdf', methods=['POST'])
+def api_save_pdf_report():
+    """API per salvare un report PDF"""
+    try:
+        print("=== API SAVE PDF REPORT ===")
+        print(f"Request files: {request.files}")
+        print(f"Request form: {request.form}")
+
+        # Controllo se il file è stato caricato
+        if 'file' not in request.files:
+            return jsonify({"success": False, "error": "Nessun file PDF fornito"}), 400
+
+        file = request.files['file']
+
+        if file.filename == '':
+            return jsonify({"success": False, "error": "Nome file vuoto"}), 400
+
+        # Verifica che sia un PDF
+        if not file.filename.lower().endswith('.pdf'):
+            return jsonify({"success": False, "error": "Il file deve essere un PDF"}), 400
+
+        # Leggi i dati del file
+        pdf_bytes = file.read()
+        print(f"PDF bytes read: {len(pdf_bytes)}")
+
+        # Ottieni parametri opzionali
+        title = request.form.get('title')
+        description = request.form.get('description')
+        filename = request.form.get('filename') or file.filename
+
+        print(f"Title: {title}")
+        print(f"Description: {description}")
+        print(f"Filename: {filename}")
+
+        result = repo.save_pdf_report(pdf_bytes, filename, title, description)
+        print(f"Save result: {result}")
+
+        status_code = 201 if result['success'] else 400
+        return jsonify(result), status_code
+
+    except Exception as e:
+        print(f"Errore API save PDF: {e}")
+        import traceback
+        traceback.print_exc()
+
         return jsonify({
             "success": False,
             "error": str(e)
@@ -353,16 +553,20 @@ def api_download_report(report_id):
     if not report_entry:
         return jsonify({"success": False, "error": "Report non trovato"}), 404
 
-    filepath = repo.reports_dir / report_entry['filename']
+    file_format = report_entry.get('format', 'json')
+    file_dir = repo._get_file_directory(file_format)
+    filepath = file_dir / report_entry['filename']
 
     if not filepath.exists():
         return jsonify({"success": False, "error": "File non trovato"}), 404
+
+    mimetype = repo._get_mimetype(file_format)
 
     return send_file(
         filepath,
         as_attachment=True,
         download_name=report_entry['filename'],
-        mimetype='application/json'
+        mimetype=mimetype
     )
 
 
@@ -386,8 +590,20 @@ def api_export_all_reports():
 def api_cleanup_reports():
     """API per pulire reports vecchi"""
     days_old = request.args.get('days', 30, type=int)
-    result = repo.cleanup_old_reports(days_old)
+    file_format = request.args.get('format')  # Nuovo: cleanup per formato specifico
+
+    result = repo.cleanup_old_reports(days_old, file_format)
     return jsonify(result)
+
+
+@reports_repo_bp.route('/api/reports/stats', methods=['GET'])
+def api_get_stats():
+    """API per ottenere statistiche sui reports"""
+    metadata = repo._load_metadata()
+    return jsonify({
+        "success": True,
+        "stats": metadata['stats']
+    })
 
 
 # ==================== ROUTE WEB ====================
@@ -404,8 +620,14 @@ def init_reports_repository(app):
     """Inizializza il sistema di repository reports"""
     app.register_blueprint(reports_repo_bp)
 
-    # Crea directory se non esiste
+    # Crea directory se non esistono
     REPORTS_DIR.mkdir(exist_ok=True)
+    PDF_REPORTS_DIR.mkdir(exist_ok=True)
+    JSON_REPORTS_DIR.mkdir(exist_ok=True)
 
-    print(f"✅ Reports Repository inizializzato in: {REPORTS_DIR.absolute()}")
+    print(f"✅ Reports Repository inizializzato:")
+    print(f"   📁 Directory principale: {REPORTS_DIR.absolute()}")
+    print(f"   📄 Directory JSON: {JSON_REPORTS_DIR.absolute()}")
+    print(f"   📋 Directory PDF: {PDF_REPORTS_DIR.absolute()}")
+
     return repo

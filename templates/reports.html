@@ -1,3 +1,4 @@
+<!-- reports.html AGGIORNATO con integrazione PDF -->
 {% extends "base.html" %}
 
 {% block title %}Reports - Traccar Dashboard{% endblock %}
@@ -73,6 +74,84 @@
         border-radius: 8px;
         text-align: center;
         box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        min-width: 300px;
+    }
+
+    /* NUOVI STILI per PDF salvati */
+    .saved-reports-list {
+        max-height: 200px;
+        overflow-y: auto;
+    }
+
+    .saved-report-card {
+        background: rgba(255,255,255,0.1);
+        border: 1px solid rgba(255,255,255,0.2);
+        transition: all 0.2s ease;
+    }
+
+    .saved-report-card:hover {
+        background: rgba(255,255,255,0.15);
+        border-color: rgba(255,255,255,0.3);
+        transform: translateY(-1px);
+    }
+
+    .saved-report-card .card-title {
+        color: white;
+        font-weight: 600;
+    }
+
+    .auto-save-indicator {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: #28a745;
+        color: white;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        display: none;
+    }
+
+    .auto-save-indicator.show {
+        display: block;
+        animation: fadeInOut 3s ease-in-out;
+    }
+
+    @keyframes fadeInOut {
+        0%, 100% { opacity: 0; }
+        20%, 80% { opacity: 1; }
+    }
+
+    .export-enhancement {
+        border-top: 1px solid rgba(255,255,255,0.2);
+        margin-top: 1rem;
+        padding-top: 1rem;
+    }
+
+    .pdf-save-status {
+        background: rgba(40, 167, 69, 0.2);
+        border: 1px solid rgba(40, 167, 69, 0.4);
+        border-radius: 6px;
+        padding: 0.75rem;
+        margin-top: 0.5rem;
+        font-size: 0.875rem;
+        display: none;
+    }
+
+    .pdf-save-status.show {
+        display: block;
+        animation: slideIn 0.3s ease-out;
+    }
+
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
 
     @media print {
@@ -95,13 +174,40 @@
 {% endblock %}
 
 {% block content %}
-<!-- Loading Overlay -->
+<!-- Loading Overlay POTENZIATO -->
 <div class="loading-overlay" id="loadingOverlay">
     <div class="loading-content">
         <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;"></div>
-        <h5>Generazione PDF in corso...</h5>
-        <p class="text-muted mb-0">Elaborazione dati e creazione documento</p>
+        <h5 id="loadingTitle">Generazione report in corso...</h5>
+        <p class="text-muted mb-0" id="loadingMessage">Elaborazione dati e creazione documento</p>
+
+        <!-- Progress steps -->
+        <div class="mt-3" id="progressSteps" style="display: none;">
+            <div class="d-flex justify-content-center">
+                <div class="text-center mx-2">
+                    <div class="spinner-grow spinner-grow-sm text-primary" style="width: 1rem; height: 1rem;"></div>
+                    <small class="d-block mt-1">Caricamento</small>
+                </div>
+                <div class="text-center mx-2">
+                    <div class="spinner-grow spinner-grow-sm text-success" style="width: 1rem; height: 1rem;"></div>
+                    <small class="d-block mt-1">Elaborazione</small>
+                </div>
+                <div class="text-center mx-2">
+                    <div class="spinner-grow spinner-grow-sm text-warning" style="width: 1rem; height: 1rem;"></div>
+                    <small class="d-block mt-1">PDF</small>
+                </div>
+                <div class="text-center mx-2">
+                    <div class="spinner-grow spinner-grow-sm text-info" style="width: 1rem; height: 1rem;"></div>
+                    <small class="d-block mt-1">Salvataggio</small>
+                </div>
+            </div>
+        </div>
     </div>
+</div>
+
+<!-- Indicatore salvataggio automatico -->
+<div class="auto-save-indicator" id="autoSaveIndicator">
+    <i class="fas fa-check-circle"></i> PDF salvato automaticamente!
 </div>
 
 <div class="page-header mb-4">
@@ -109,8 +215,11 @@
         <div>
             <h2 class="page-title mb-1">
                 <i class="fas fa-chart-line text-primary"></i> Reports e Analisi
+                <span class="badge bg-success ms-2" title="Salvataggio PDF automatico attivo">
+                    <i class="fas fa-robot"></i> AUTO-PDF
+                </span>
             </h2>
-            <p class="text-muted mb-0">Genera report dettagliati sui movimenti e le statistiche dei dispositivi</p>
+            <p class="text-muted mb-0">Genera report dettagliati con salvataggio automatico PDF nel repository</p>
         </div>
         <div class="connection-status">
             <span class="badge bg-success">
@@ -121,7 +230,7 @@
 </div>
 
 <div class="row">
-    <!-- Sidebar Parameters -->
+    <!-- Sidebar Parameters POTENZIATO -->
     <div class="col-md-3">
         <div class="card report-container no-print">
             <div class="card-header bg-primary text-white">
@@ -192,19 +301,31 @@
                     </select>
                 </div>
 
-                <!-- Generate Button -->
-                <button class="btn btn-primary w-100 mb-3" onclick="generateReport()">
-                    <i class="fas fa-play"></i> Genera Report
+                <!-- Generate Button POTENZIATO -->
+                <button class="btn btn-primary w-100 mb-3" onclick="generateReport()" id="generateBtn">
+                    <i class="fas fa-play"></i> Genera Report + Auto-PDF
                 </button>
 
-                <!-- Export Section -->
+                <!-- Status PDF automatico -->
+                <div class="pdf-save-status" id="pdfSaveStatus">
+                    <i class="fas fa-check-circle text-success"></i>
+                    <strong>PDF salvato automaticamente!</strong>
+                    <p class="mb-0 small">Il report è stato salvato nel repository e può essere scaricato dalla sezione sottostante.</p>
+                </div>
+
+                <!-- Export Section MIGLIORATA -->
                 <div class="export-section">
                     <h6 class="mb-3">
-                        <i class="fas fa-download"></i> Esportazione
+                        <i class="fas fa-download"></i> Esportazione Manuale
                     </h6>
+                    <p class="small mb-3 opacity-75">
+                        <i class="fas fa-info-circle"></i> I report vengono salvati automaticamente in PDF.
+                        Usa questi pulsanti per esportazioni personalizzate.
+                    </p>
+
                     <div class="d-grid gap-2">
                         <button class="btn btn-light btn-sm" onclick="exportReport('pdf')" disabled id="exportPDF">
-                            <i class="fas fa-file-pdf text-danger"></i> PDF Professionale
+                            <i class="fas fa-file-pdf text-danger"></i> PDF Personalizzato
                         </button>
                         <button class="btn btn-outline-light btn-sm" onclick="exportReport('excel')" disabled id="exportExcel">
                             <i class="fas fa-file-excel text-success"></i> Excel
@@ -216,7 +337,7 @@
 
                     <!-- PDF Options -->
                     <div class="mt-3" id="pdfOptions" style="display: none;">
-                        <h6 class="small mb-2">Opzioni PDF:</h6>
+                        <h6 class="small mb-2">Opzioni PDF Personalizzato:</h6>
                         <div class="form-check form-check-reverse">
                             <input class="form-check-input" type="checkbox" id="includeLogo" checked>
                             <label class="form-check-label small" for="includeLogo">
@@ -234,6 +355,25 @@
                             <label class="form-check-label small" for="includeMap">
                                 Mappa Percorsi
                             </label>
+                        </div>
+                    </div>
+
+                    <!-- NUOVA SEZIONE: PDF Salvati Recentemente -->
+                    <div class="export-enhancement" id="savedReportsContainer">
+                        <h6 class="mb-3">
+                            <i class="fas fa-archive"></i> PDF Salvati di Recente
+                        </h6>
+                        <div id="savedReportsList" class="saved-reports-list">
+                            <!-- Lista caricata dinamicamente -->
+                            <div class="text-center text-muted py-2">
+                                <div class="spinner-border spinner-border-sm" role="status"></div>
+                                <p class="mb-0 small mt-1">Caricamento...</p>
+                            </div>
+                        </div>
+                        <div class="text-center mt-2">
+                            <a href="/reports/repository" class="btn btn-outline-light btn-sm">
+                                <i class="fas fa-folder-open"></i> Repository Completo
+                            </a>
                         </div>
                     </div>
                 </div>
@@ -292,6 +432,9 @@
                     </h5>
                     <div id="reportInfo" style="display: none;">
                         <small class="text-muted" id="reportGeneratedAt"></small>
+                        <span class="badge bg-success ms-2" id="autoPdfBadge" style="display: none;">
+                            <i class="fas fa-file-pdf"></i> PDF Auto-Salvato
+                        </span>
                     </div>
                 </div>
             </div>
@@ -338,16 +481,415 @@
                 <div id="reportContent">
                     <div class="text-center p-5 text-muted">
                         <i class="fas fa-chart-bar fa-3x mb-3"></i>
-                        <h5>Nessun Report Generato</h5>
-                        <p>Seleziona i parametri e clicca "Genera Report" per iniziare</p>
+                        <h5>Pronto per generare il report</h5>
+                        <p>Seleziona i parametri desiderati e clicca "Genera Report + Auto-PDF"</p>
+                        <div class="mt-3">
+                            <span class="badge bg-info me-2">
+                                <i class="fas fa-robot"></i> Salvataggio PDF Automatico
+                            </span>
+                            <span class="badge bg-success">
+                                <i class="fas fa-archive"></i> Repository Integrato
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- NUOVA SEZIONE: Anteprima Rapida Repository -->
+        <div class="row mt-4 no-print" id="quickRepositoryPreview" style="display: none;">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-light">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0">
+                                <i class="fas fa-history text-primary"></i> Ultimi Report PDF Generati
+                            </h6>
+                            <a href="/reports/repository" class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-folder-open"></i> Vedi Tutti
+                            </a>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div id="quickRepositoryList" class="row">
+                            <!-- Lista rapida caricata dinamicamente -->
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<!-- Toast Container per Notifiche -->
+<div class="toast-container position-fixed top-0 end-0 p-3" id="toastContainer">
+    <!-- Toast notifications will be inserted here -->
+</div>
+
+<!-- Modal per Anteprima PDF -->
+<div class="modal fade" id="pdfPreviewModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-file-pdf text-danger"></i> Anteprima PDF
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="pdfPreviewContent" style="height: 600px; overflow: auto;">
+                    <!-- PDF content preview -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
+                <button type="button" class="btn btn-primary" id="downloadPreviewedPdf">
+                    <i class="fas fa-download"></i> Scarica PDF
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
+<!-- Include jsPDF per generazione PDF -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<!-- Script principale del sistema reports integrato -->
 <script src="{{ url_for('static', filename='js/reports.js') }}"></script>
+
+<!-- Script aggiuntivo per funzionalità avanzate -->
+<script>
+// ==================== SCRIPT AGGIUNTIVO PER FUNZIONALITÀ AVANZATE ====================
+
+document.addEventListener('DOMContentLoaded', function() {
+    initializeAdvancedFeatures();
+});
+
+function initializeAdvancedFeatures() {
+    // Inizializza tooltips e popovers
+    initializeBootstrapComponents();
+
+    // Setup event listeners per funzionalità avanzate
+    setupAdvancedEventListeners();
+
+    // Carica anteprima repository all'avvio
+    loadQuickRepositoryPreview();
+
+    // Setup auto-refresh ogni 5 minuti per la lista PDF salvati
+    setInterval(refreshSavedReportsList, 300000);
+}
+
+function initializeBootstrapComponents() {
+    // Inizializza tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+
+    // Inizializza popovers
+    var popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
+    var popoverList = popoverTriggerList.map(function (popoverTriggerEl) {
+        return new bootstrap.Popover(popoverTriggerEl);
+    });
+}
+
+function setupAdvancedEventListeners() {
+    // Mostra/nascondi opzioni PDF quando si clicca sul pulsante export PDF
+    const exportPDFBtn = document.getElementById('exportPDF');
+    const pdfOptions = document.getElementById('pdfOptions');
+
+    if (exportPDFBtn && pdfOptions) {
+        exportPDFBtn.addEventListener('click', function() {
+            if (pdfOptions.style.display === 'none' || !pdfOptions.style.display) {
+                pdfOptions.style.display = 'block';
+            }
+        });
+    }
+
+    // Event listener per il pulsante di generazione con indicatori visivi
+    const generateBtn = document.getElementById('generateBtn');
+    if (generateBtn) {
+        generateBtn.addEventListener('click', function() {
+            // Disabilita il pulsante durante la generazione
+            this.disabled = true;
+            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generazione in corso...';
+
+            // Riabilita dopo 10 secondi (fallback)
+            setTimeout(() => {
+                this.disabled = false;
+                this.innerHTML = '<i class="fas fa-play"></i> Genera Report + Auto-PDF';
+            }, 10000);
+        });
+    }
+}
+
+async function loadQuickRepositoryPreview() {
+    try {
+        const response = await fetch('/api/reports?format=pdf&limit=3');
+        const data = await response.json();
+
+        if (data.success && data.reports.length > 0) {
+            updateQuickRepositoryPreview(data.reports);
+            document.getElementById('quickRepositoryPreview').style.display = 'block';
+        }
+
+    } catch (error) {
+        console.error('Errore caricamento anteprima repository:', error);
+    }
+}
+
+function updateQuickRepositoryPreview(reports) {
+    const container = document.getElementById('quickRepositoryList');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    reports.forEach(report => {
+        const reportCard = createQuickPreviewCard(report);
+        container.appendChild(reportCard);
+    });
+}
+
+function createQuickPreviewCard(report) {
+    const col = document.createElement('div');
+    col.className = 'col-md-4 mb-3';
+
+    const formatFileSize = (bytes) => {
+        const mb = bytes / (1024 * 1024);
+        return mb < 1 ? `${(bytes / 1024).toFixed(0)}KB` : `${mb.toFixed(1)}MB`;
+    };
+
+    const formatDate = (isoString) => {
+        return new Date(isoString).toLocaleDateString('it-IT', {
+            day: '2-digit',
+            month: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    };
+
+    col.innerHTML = `
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-body">
+                <div class="d-flex align-items-start justify-content-between mb-2">
+                    <i class="fas fa-file-pdf text-danger fa-2x"></i>
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-ellipsis-v"></i>
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="#" onclick="downloadSavedReport('${report.id}')">
+                                <i class="fas fa-download"></i> Scarica
+                            </a></li>
+                            <li><a class="dropdown-item" href="#" onclick="previewPDF('${report.id}')">
+                                <i class="fas fa-eye"></i> Anteprima
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item text-danger" href="#" onclick="deleteSavedReport('${report.id}')">
+                                <i class="fas fa-trash"></i> Elimina
+                            </a></li>
+                        </ul>
+                    </div>
+                </div>
+                <h6 class="card-title">${report.title}</h6>
+                <p class="card-text small text-muted mb-2">
+                    ${formatDate(report.created_at)} • ${formatFileSize(report.file_size)}
+                </p>
+                ${report.description ? `<p class="card-text small">${report.description.substring(0, 80)}${report.description.length > 80 ? '...' : ''}</p>` : ''}
+                <div class="d-flex gap-1 mt-2">
+                    <button class="btn btn-primary btn-sm" onclick="downloadSavedReport('${report.id}')">
+                        <i class="fas fa-download"></i> Scarica
+                    </button>
+                    <button class="btn btn-outline-primary btn-sm" onclick="previewPDF('${report.id}')">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    return col;
+}
+
+async function previewPDF(reportId) {
+    try {
+        showNotification('Caricamento anteprima PDF...', 'info');
+
+        // Per ora mostra un placeholder - in futuro puoi implementare un viewer PDF
+        const modal = new bootstrap.Modal(document.getElementById('pdfPreviewModal'));
+        const content = document.getElementById('pdfPreviewContent');
+
+        content.innerHTML = `
+            <div class="text-center p-5">
+                <i class="fas fa-file-pdf fa-5x text-danger mb-3"></i>
+                <h5>Anteprima PDF</h5>
+                <p class="text-muted">L'anteprima PDF verrà implementata nella prossima versione.</p>
+                <p class="small">Per ora puoi scaricare il file per visualizzarlo.</p>
+                <button class="btn btn-primary" onclick="downloadSavedReport('${reportId}')">
+                    <i class="fas fa-download"></i> Scarica PDF
+                </button>
+            </div>
+        `;
+
+        // Setup download button nel modal footer
+        document.getElementById('downloadPreviewedPdf').onclick = () => downloadSavedReport(reportId);
+
+        modal.show();
+
+    } catch (error) {
+        console.error('Errore anteprima PDF:', error);
+        showNotification('Errore nel caricamento dell\'anteprima', 'error');
+    }
+}
+
+async function deleteSavedReport(reportId) {
+    if (!confirm('Sei sicuro di voler eliminare questo report PDF?')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/reports/${reportId}`, {
+            method: 'DELETE'
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            showNotification('✅ Report eliminato con successo', 'success');
+
+            // Aggiorna entrambe le liste
+            await refreshSavedReportsList();
+            await loadQuickRepositoryPreview();
+        } else {
+            throw new Error(result.error);
+        }
+
+    } catch (error) {
+        console.error('Errore eliminazione:', error);
+        showNotification(`❌ Errore eliminazione: ${error.message}`, 'error');
+    }
+}
+
+// Override della funzione showNotification per usare Bootstrap Toast
+function showNotification(message, type = 'info', duration = 5000) {
+    const toastContainer = document.getElementById('toastContainer');
+    if (!toastContainer) {
+        // Fallback alla console
+        console.log(`[${type.toUpperCase()}] ${message}`);
+        return;
+    }
+
+    const toastId = 'toast_' + Date.now();
+    const iconClass = {
+        'success': 'fas fa-check-circle text-success',
+        'error': 'fas fa-exclamation-circle text-danger',
+        'warning': 'fas fa-exclamation-triangle text-warning',
+        'info': 'fas fa-info-circle text-info'
+    }[type] || 'fas fa-info-circle text-info';
+
+    const bgClass = {
+        'success': 'bg-success',
+        'error': 'bg-danger',
+        'warning': 'bg-warning',
+        'info': 'bg-info'
+    }[type] || 'bg-info';
+
+    const toastHTML = `
+        <div class="toast" role="alert" id="${toastId}" data-bs-delay="${duration}">
+            <div class="toast-header ${bgClass} text-white">
+                <i class="${iconClass} me-2"></i>
+                <strong class="me-auto">Sistema Reports</strong>
+                <small>ora</small>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+            </div>
+            <div class="toast-body">
+                ${message}
+            </div>
+        </div>
+    `;
+
+    toastContainer.insertAdjacentHTML('beforeend', toastHTML);
+
+    const toastElement = document.getElementById(toastId);
+    const toast = new bootstrap.Toast(toastElement);
+
+    toast.show();
+
+    // Rimuovi l'elemento dal DOM dopo che è stato nascosto
+    toastElement.addEventListener('hidden.bs.toast', function() {
+        toastElement.remove();
+    });
+}
+
+// Override della funzione showLoadingOverlay per includere steps
+function showLoadingOverlay(show, message = '', showSteps = false) {
+    const overlay = document.getElementById('loadingOverlay');
+    if (!overlay) return;
+
+    if (show) {
+        overlay.style.display = 'flex';
+
+        const titleEl = document.getElementById('loadingTitle');
+        const messageEl = document.getElementById('loadingMessage');
+        const stepsEl = document.getElementById('progressSteps');
+
+        if (titleEl && message.includes('PDF')) {
+            titleEl.textContent = 'Generazione PDF in corso...';
+        } else if (titleEl) {
+            titleEl.textContent = 'Elaborazione in corso...';
+        }
+
+        if (messageEl && message) {
+            messageEl.textContent = message;
+        }
+
+        if (stepsEl) {
+            stepsEl.style.display = showSteps ? 'block' : 'none';
+        }
+    } else {
+        overlay.style.display = 'none';
+
+        // Mostra indicatore di successo
+        const autoSaveIndicator = document.getElementById('autoSaveIndicator');
+        if (autoSaveIndicator) {
+            autoSaveIndicator.classList.add('show');
+            setTimeout(() => {
+                autoSaveIndicator.classList.remove('show');
+            }, 3000);
+        }
+
+        // Mostra status PDF nella sidebar
+        const pdfStatus = document.getElementById('pdfSaveStatus');
+        if (pdfStatus && currentReportData) {
+            pdfStatus.classList.add('show');
+            setTimeout(() => {
+                pdfStatus.classList.remove('show');
+            }, 10000);
+        }
+
+        // Mostra badge nel header del report
+        const autoPdfBadge = document.getElementById('autoPdfBadge');
+        if (autoPdfBadge && currentReportData) {
+            autoPdfBadge.style.display = 'inline-block';
+        }
+    }
+}
+
+// Funzione per resettare lo stato della UI dopo la generazione
+function resetGenerationUI() {
+    const generateBtn = document.getElementById('generateBtn');
+    if (generateBtn) {
+        generateBtn.disabled = false;
+        generateBtn.innerHTML = '<i class="fas fa-play"></i> Genera Report + Auto-PDF';
+    }
+}
+
+// Aggiungi event listener per chiamare resetGenerationUI quando necessario
+window.addEventListener('reportGenerationComplete', resetGenerationUI);
+window.addEventListener('reportGenerationError', resetGenerationUI);
+
+</script>
 {% endblock %}

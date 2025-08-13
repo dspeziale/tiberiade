@@ -1,1367 +1,1550 @@
-// reports.js - Sistema avanzato di reporting con esportazione PDF professionale
+// reports.js - Sistema integrato con salvataggio automatico PDF
 
-// Variabili globali
-let allDevices = [];
+// ==================== VARIABILI GLOBALI ====================
 let currentReportData = null;
-let reportCounter = 1;
+let selectedDevices = [];
+let isGenerating = false;
 
-// Configurazione azienda
-const COMPANY_CONFIG = {
-    name: "Traccar GPS Solutions",
-    subtitle: "Sistema di Monitoraggio e Tracking GPS",
-    address: "Via Roma 123, 00100 Roma",
-    phone: "+39 06 1234567",
-    email: "info@traccar.it",
-    website: "www.traccar.it",
-    logoBase64: "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iODAiIHZpZXdCb3g9IjAgMCA4MCA4MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iNDAiIGN5PSI0MCIgcj0iNDAiIGZpbGw9IiMwZDZlZmQiLz4KPHN2ZyB4PSIyMCIgeT0iMjAiIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJ3aGl0ZSI+CjxwYXRoIGQ9Ik0xMiAyQzYuNDggMiAyIDYuNDggMiAxMnM0LjQ4IDEwIDEwIDEwIDEwLTQuNDggMTAtMTBTMTcuNTIgMiAxMiAyem0tMiAxNWwtNS01IDEuNDEtMS40MUwxMCAxNC4xN2w3LjU5LTcuNTlMMTkgOGwtOSA5eiIvPgo8L3N2Zz4KPC9zdmc+"
-};
-
-// Inizializzazione documento
+// ==================== INIZIALIZZAZIONE ====================
 document.addEventListener('DOMContentLoaded', function() {
     loadDevices();
     setupEventListeners();
-    setDefaultDates();
-    initializeCompanyInfo();
-});
+    loadSavedReportsList();
 
-// ==================== INIZIALIZZAZIONE ====================
-
-function initializeCompanyInfo() {
-    document.getElementById('companyName').textContent = COMPANY_CONFIG.name;
-    document.getElementById('companyLogo').src = COMPANY_CONFIG.logoBase64;
-    document.getElementById('reportDate').textContent = new Date().toLocaleDateString('it-IT');
-    document.getElementById('reportNumber').textContent = `#${String(reportCounter).padStart(4, '0')}`;
-}
-
-function setupEventListeners() {
-    // Gestione preset date
-    document.getElementById('datePreset').addEventListener('change', function() {
-        const customRange = document.getElementById('customDateRange');
-        const pdfOptions = document.getElementById('pdfOptions');
-
-        if (this.value === 'custom') {
-            customRange.style.display = 'block';
-        } else {
-            customRange.style.display = 'none';
-            setPresetDates(this.value);
-        }
-    });
-
-    // Selezione tutti i dispositivi
-    document.getElementById('selectAllDevices').addEventListener('change', function() {
-        const deviceSelect = document.getElementById('deviceSelect');
-        const options = deviceSelect.options;
-
-        for (let i = 0; i < options.length; i++) {
-            options[i].selected = this.checked;
-        }
-    });
-
-    // Mostra opzioni PDF quando abilitato
-    document.getElementById('exportPDF').addEventListener('mouseenter', function() {
-        if (!this.disabled) {
-            document.getElementById('pdfOptions').style.display = 'block';
-        }
-    });
-}
-
-function loadDevices() {
-    fetch('/api/devices')
-        .then(response => response.json())
-        .then(devices => {
-            allDevices = devices;
-            const select = document.getElementById('deviceSelect');
-            select.innerHTML = '';
-
-            devices.forEach(device => {
-                const option = document.createElement('option');
-                option.value = device.id;
-                option.textContent = `${device.name} (${device.uniqueId})`;
-                option.setAttribute('data-category', device.category || 'unknown');
-                select.appendChild(option);
-            });
-
-            showAlert(`Caricati ${devices.length} dispositivi`, 'success');
-        })
-        .catch(error => {
-            console.error('Errore nel caricamento dispositivi:', error);
-            showAlert('Errore nel caricamento dei dispositivi', 'danger');
-        });
-}
-
-function setDefaultDates() {
+    // Imposta date di default
     const today = new Date();
-    const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
 
     document.getElementById('fromDate').value = yesterday.toISOString().split('T')[0];
     document.getElementById('toDate').value = today.toISOString().split('T')[0];
+});
+
+function setupEventListeners() {
+    // Event listeners per la UI
+    document.getElementById('datePreset').addEventListener('change', handleDatePresetChange);
+    document.getElementById('selectAllDevices').addEventListener('change', toggleAllDevices);
+
+    // Aggiorna testo pulsante PDF quando si generano reports
+    document.getElementById('exportPDF').addEventListener('click', function() {
+        // Questo viene ora gestito automaticamente in generateReport
+        if (currentReportData) {
+            exportAndSavePDF();
+        }
+    });
 }
 
-function setPresetDates(preset) {
-    const now = new Date();
-    let fromDate, toDate;
+// ==================== FUNZIONE PRINCIPALE INTEGRATA ====================
 
-    switch (preset) {
-        case 'today':
-            fromDate = new Date(now);
-            toDate = new Date(now);
-            break;
-        case 'yesterday':
-            fromDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-            toDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-            break;
-        case 'week':
-            fromDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-            toDate = new Date(now);
-            break;
-        case 'month':
-            fromDate = new Date(now.getFullYear(), now.getMonth(), 1);
-            toDate = new Date(now);
-            break;
-    }
-
-    document.getElementById('fromDate').value = fromDate.toISOString().split('T')[0];
-    document.getElementById('toDate').value = toDate.toISOString().split('T')[0];
-}
-
-// ==================== GENERAZIONE REPORT ====================
-
-function generateReport() {
-    const selectedDevices = getSelectedDeviceIds();
-    const dateRange = getDateRange();
-    const reportType = document.getElementById('reportType').value;
-
-    if (selectedDevices.length === 0) {
-        showAlert('Seleziona almeno un dispositivo', 'warning');
+/**
+ * FUNZIONE PRINCIPALE MODIFICATA: Genera report e salva automaticamente in PDF
+ */
+async function generateReport() {
+    if (isGenerating) {
+        showNotification('⚠️ Generazione già in corso...', 'warning');
         return;
     }
 
-    if (!dateRange.from || !dateRange.to) {
-        showAlert('Seleziona un periodo valido', 'warning');
-        return;
-    }
-
-    // Mostra loading
-    showLoadingState(selectedDevices.length);
-
-    // Calcola giorni per API
-    const diffTime = Math.abs(dateRange.to - dateRange.from);
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-
-    // Genera report basato sul tipo
-    switch (reportType) {
-        case 'summary':
-            generateSummaryReport(selectedDevices, diffDays);
-            break;
-        case 'routes':
-            generateRoutesReport(selectedDevices, diffDays);
-            break;
-        case 'stops':
-            generateStopsReport(selectedDevices, diffDays);
-            break;
-        case 'trips':
-            generateTripsReport(selectedDevices, diffDays);
-            break;
-        case 'performance':
-            generatePerformanceReport(selectedDevices, diffDays);
-            break;
-    }
-}
-
-function showLoadingState(deviceCount) {
-    const reportContent = document.getElementById('reportContent');
-    reportContent.innerHTML = `
-        <div class="text-center p-5">
-            <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
-                <span class="visually-hidden">Generazione report...</span>
-            </div>
-            <h5>Generazione Report in corso...</h5>
-            <p class="text-muted">Elaborazione dati per ${deviceCount} dispositivi</p>
-            <div class="progress mt-3" style="height: 6px;">
-                <div class="progress-bar progress-bar-striped progress-bar-animated"
-                     style="width: 0%" id="loadingProgress"></div>
-            </div>
-        </div>
-    `;
-
-    // Simula progresso
-    let progress = 0;
-    const progressBar = document.getElementById('loadingProgress');
-    const interval = setInterval(() => {
-        progress += Math.random() * 20;
-        if (progress >= 90) progress = 90;
-        progressBar.style.width = progress + '%';
-
-        if (progress >= 90) {
-            clearInterval(interval);
-        }
-    }, 300);
-}
-
-function generateSummaryReport(deviceIds, days) {
-    const promises = deviceIds.map(deviceId =>
-        fetch(`/api/positions?deviceId=${deviceId}&hours=${days * 24}`)
-            .then(response => response.json())
-            .then(positions => ({ deviceId, positions }))
-    );
-
-    Promise.all(promises)
-        .then(results => {
-            const reportData = processSummaryData(results);
-            renderSummaryReport(reportData);
-            renderPDFPreview(reportData);
-            updateStatistics(reportData);
-            enableExportButtons();
-            showReportInfo();
-        })
-        .catch(error => {
-            console.error('Errore nella generazione del report:', error);
-            showAlert('Errore nella generazione del report', 'danger');
-            showEmptyReport();
-        });
-}
-
-function generateRoutesReport(deviceIds, days) {
-    showAlert('Report Percorsi - Funzionalità avanzata in sviluppo', 'info');
-    // Placeholder per report percorsi più dettagliato
-    generateSummaryReport(deviceIds, days);
-}
-
-function generateStopsReport(deviceIds, days) {
-    showAlert('Report Soste - Funzionalità avanzata in sviluppo', 'info');
-    // Placeholder per analisi soste
-    generateSummaryReport(deviceIds, days);
-}
-
-function generateTripsReport(deviceIds, days) {
-    showAlert('Report Viaggi - Funzionalità avanzata in sviluppo', 'info');
-    // Placeholder per dettaglio viaggi
-    generateSummaryReport(deviceIds, days);
-}
-
-function generatePerformanceReport(deviceIds, days) {
-    showAlert('Report Performance - Funzionalità avanzata in sviluppo', 'info');
-    // Placeholder per analisi performance
-    generateSummaryReport(deviceIds, days);
-}
-
-// ==================== ELABORAZIONE DATI ====================
-
-function processSummaryData(results) {
-    const summary = [];
-    let totalDistance = 0;
-    let totalTime = 0;
-    let totalMaxSpeed = 0;
-    let totalAvgSpeed = 0;
-    let deviceCount = 0;
-
-    results.forEach(({ deviceId, positions }) => {
-        if (positions.length === 0) return;
-
-        const deviceName = getDeviceName(deviceId);
-        positions.sort((a, b) => new Date(a.serverTime) - new Date(b.serverTime));
-
-        let deviceDistance = 0;
-        let deviceMaxSpeed = 0;
-        let speedSum = 0;
-        let speedCount = 0;
-
-        for (let i = 0; i < positions.length - 1; i++) {
-            const pos1 = positions[i];
-            const pos2 = positions[i + 1];
-
-            const distance = calculateDistance(
-                pos1.latitude, pos1.longitude,
-                pos2.latitude, pos2.longitude
-            );
-            deviceDistance += distance;
-
-            if (pos1.speed) {
-                deviceMaxSpeed = Math.max(deviceMaxSpeed, pos1.speed);
-                speedSum += pos1.speed;
-                speedCount++;
-            }
-        }
-
-        const deviceAvgSpeed = speedCount > 0 ? speedSum / speedCount : 0;
-        const startTime = new Date(positions[0].serverTime);
-        const endTime = new Date(positions[positions.length - 1].serverTime);
-        const duration = endTime - startTime;
-
-        summary.push({
-            deviceId,
-            deviceName,
-            distance: deviceDistance / 1000, // Convert to km
-            duration,
-            avgSpeed: deviceAvgSpeed,
-            maxSpeed: deviceMaxSpeed,
-            positionsCount: positions.length,
-            startTime,
-            endTime,
-            category: getDeviceCategory(deviceId)
-        });
-
-        totalDistance += deviceDistance / 1000;
-        totalTime += duration;
-        totalMaxSpeed = Math.max(totalMaxSpeed, deviceMaxSpeed);
-        totalAvgSpeed += deviceAvgSpeed;
-        deviceCount++;
-    });
-
-    currentReportData = {
-        type: 'summary',
-        data: summary,
-        totals: {
-            distance: totalDistance,
-            time: totalTime,
-            avgSpeed: deviceCount > 0 ? totalAvgSpeed / deviceCount : 0,
-            maxSpeed: totalMaxSpeed,
-            deviceCount
-        },
-        period: getDateRange(),
-        generatedAt: new Date()
-    };
-
-    return currentReportData;
-}
-
-// ==================== RENDERING REPORT ====================
-
-function renderSummaryReport(reportData) {
-    let html = `
-        <div class="table-responsive">
-            <table class="table table-striped table-hover report-table">
-                <thead>
-                    <tr>
-                        <th><i class="fas fa-mobile-alt"></i> Dispositivo</th>
-                        <th><i class="fas fa-route"></i> Distanza</th>
-                        <th><i class="fas fa-clock"></i> Tempo</th>
-                        <th><i class="fas fa-tachometer-alt"></i> Vel. Media</th>
-                        <th><i class="fas fa-exclamation-triangle"></i> Vel. Max</th>
-                        <th><i class="fas fa-map-marker-alt"></i> Posizioni</th>
-                        <th><i class="fas fa-calendar"></i> Periodo</th>
-                    </tr>
-                </thead>
-                <tbody>
-    `;
-
-    reportData.data.forEach(device => {
-        const categoryIcon = getCategoryIcon(device.category);
-        const distanceColor = device.distance > 100 ? 'text-success' : device.distance > 50 ? 'text-warning' : 'text-danger';
-        const speedColor = device.maxSpeed > 130 ? 'text-danger' : device.maxSpeed > 90 ? 'text-warning' : 'text-success';
-
-        html += `
-            <tr>
-                <td>
-                    <div class="d-flex align-items-center">
-                        <i class="${categoryIcon} text-primary me-2"></i>
-                        <div>
-                            <div class="fw-bold">${device.deviceName}</div>
-                            <small class="text-muted">${device.category || 'N/A'}</small>
-                        </div>
-                    </div>
-                </td>
-                <td class="${distanceColor} fw-bold">${device.distance.toFixed(1)} km</td>
-                <td>${formatDuration(device.duration)}</td>
-                <td>${Math.round(device.avgSpeed)} km/h</td>
-                <td class="${speedColor} fw-bold">${Math.round(device.maxSpeed)} km/h</td>
-                <td>
-                    <span class="badge bg-info">${device.positionsCount}</span>
-                </td>
-                <td>
-                    <small>
-                        ${formatDateTime(device.startTime)}<br>
-                        <i class="fas fa-arrow-down"></i><br>
-                        ${formatDateTime(device.endTime)}
-                    </small>
-                </td>
-            </tr>
-        `;
-    });
-
-    html += `
-                </tbody>
-            </table>
-        </div>
-
-        <!-- Summary Cards -->
-        <div class="row mt-4">
-            <div class="col-md-12">
-                <div class="alert alert-info">
-                    <h6><i class="fas fa-info-circle"></i> Riepilogo del Periodo</h6>
-                    <div class="row">
-                        <div class="col-md-3">
-                            <strong>Dispositivi analizzati:</strong> ${reportData.totals.deviceCount}
-                        </div>
-                        <div class="col-md-3">
-                            <strong>Distanza totale:</strong> ${reportData.totals.distance.toFixed(1)} km
-                        </div>
-                        <div class="col-md-3">
-                            <strong>Tempo totale:</strong> ${formatDuration(reportData.totals.time)}
-                        </div>
-                        <div class="col-md-3">
-                            <strong>Velocità media generale:</strong> ${Math.round(reportData.totals.avgSpeed)} km/h
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
-
-    document.getElementById('reportContent').innerHTML = html;
-}
-
-function renderPDFPreview(reportData) {
-    const pdfContent = document.getElementById('reportContentPDF');
-
-    let html = `
-        <!-- Executive Summary -->
-        <div class="row mb-4">
-            <div class="col-12">
-                <h4 class="text-primary fw-bold mb-3">Riepilogo Esecutivo</h4>
-                <div class="row">
-                    <div class="col-md-3">
-                        <div class="text-center p-3 border rounded">
-                            <h3 class="text-primary fw-bold">${reportData.totals.deviceCount}</h3>
-                            <p class="mb-0 small">Dispositivi Monitorati</p>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="text-center p-3 border rounded">
-                            <h3 class="text-success fw-bold">${reportData.totals.distance.toFixed(0)} km</h3>
-                            <p class="mb-0 small">Distanza Totale</p>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="text-center p-3 border rounded">
-                            <h3 class="text-warning fw-bold">${formatDuration(reportData.totals.time, true)}</h3>
-                            <p class="mb-0 small">Tempo di Viaggio</p>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="text-center p-3 border rounded">
-                            <h3 class="text-danger fw-bold">${Math.round(reportData.totals.avgSpeed)} km/h</h3>
-                            <p class="mb-0 small">Velocità Media</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Detailed Table -->
-        <div class="mb-4">
-            <h5 class="text-primary fw-bold mb-3">Dettaglio per Dispositivo</h5>
-            <table class="table table-bordered table-sm">
-                <thead style="background-color: #f8f9fa;">
-                    <tr>
-                        <th>Dispositivo</th>
-                        <th>Categoria</th>
-                        <th>Distanza (km)</th>
-                        <th>Tempo Viaggio</th>
-                        <th>Vel. Media</th>
-                        <th>Vel. Massima</th>
-                        <th>N° Posizioni</th>
-                    </tr>
-                </thead>
-                <tbody>
-    `;
-
-    reportData.data.forEach(device => {
-        html += `
-            <tr>
-                <td class="fw-bold">${device.deviceName}</td>
-                <td>${device.category || 'N/A'}</td>
-                <td class="text-end">${device.distance.toFixed(1)}</td>
-                <td>${formatDuration(device.duration, true)}</td>
-                <td class="text-end">${Math.round(device.avgSpeed)}</td>
-                <td class="text-end fw-bold">${Math.round(device.maxSpeed)}</td>
-                <td class="text-center">${device.positionsCount}</td>
-            </tr>
-        `;
-    });
-
-    html += `
-                </tbody>
-            </table>
-        </div>
-
-        <!-- Analysis Section -->
-        <div class="row">
-            <div class="col-12">
-                <h5 class="text-primary fw-bold mb-3">Analisi e Considerazioni</h5>
-                <div class="bg-light p-3 rounded">
-                    <p><strong>Periodo di analisi:</strong> ${formatDate(reportData.period.from)} - ${formatDate(reportData.period.to)}</p>
-                    <p><strong>Dispositivo più attivo:</strong> ${getMostActiveDevice(reportData.data)}</p>
-                    <p><strong>Distanza media per dispositivo:</strong> ${(reportData.totals.distance / reportData.totals.deviceCount).toFixed(1)} km</p>
-                    <p><strong>Efficienza di tracking:</strong> ${calculateTrackingEfficiency(reportData.data)}% (basata sul numero di posizioni registrate)</p>
-                    <p class="mb-0"><strong>Note:</strong> Report generato automaticamente dal sistema Traccar GPS Solutions.
-                    Tutti i dati sono elaborati in tempo reale e riflettono l'attività effettiva dei dispositivi nel periodo selezionato.</p>
-                </div>
-            </div>
-        </div>
-    `;
-
-    pdfContent.innerHTML = html;
-    document.getElementById('generationTimestamp').textContent = formatDateTime(new Date());
-}
-
-// ==================== ESPORTAZIONE ====================
-
-function exportReport(format) {
-    if (!currentReportData) {
-        showAlert('Nessun report da esportare', 'warning');
-        return;
-    }
-
-    switch (format) {
-        case 'csv':
-            exportCSV();
-            break;
-        case 'excel':
-            exportExcel();
-            break;
-        case 'pdf':
-            exportPDF();
-            break;
-    }
-}
-
-function exportPDF() {
-    // Mostra loading overlay
-    document.getElementById('loadingOverlay').style.display = 'flex';
-
-    setTimeout(() => {
-        try {
-            // Carica la libreria jsPDF
-            if (typeof jsPDF === 'undefined') {
-                loadJsPDF().then(() => {
-                    generatePDFDocument();
-                });
-            } else {
-                generatePDFDocument();
-            }
-        } catch (error) {
-            console.error('Errore nell\'esportazione PDF:', error);
-            showAlert('Errore nell\'esportazione PDF', 'danger');
-            document.getElementById('loadingOverlay').style.display = 'none';
-        }
-    }, 500);
-}
-
-function loadJsPDF() {
-    return new Promise((resolve, reject) => {
-        if (document.querySelector('script[src*="jspdf"]')) {
-            resolve();
-            return;
-        }
-
-        const script = document.createElement('script');
-        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
-        script.onload = resolve;
-        script.onerror = reject;
-        document.head.appendChild(script);
-    });
-}
-
-function generatePDFDocument() {
     try {
-        // Fallback: utilizza la funzione di stampa del browser con stili PDF
-        document.getElementById('pdfPreview').style.display = 'block';
-        document.getElementById('reportContent').style.display = 'none';
+        isGenerating = true;
+        showLoadingOverlay(true, 'Generazione report in corso...');
 
-        // Applica stili per la stampa
-        const printStyle = document.createElement('style');
-        printStyle.innerHTML = `
-            @media print {
-                body * { visibility: hidden; }
-                .pdf-preview, .pdf-preview * { visibility: visible; }
-                .pdf-preview { position: absolute; left: 0; top: 0; width: 100%; }
-                .no-print { display: none !important; }
-            }
-        `;
-        document.head.appendChild(printStyle);
+        // 1. Validazione parametri
+        const reportParams = validateAndGetReportParams();
+        if (!reportParams.isValid) {
+            throw new Error(reportParams.error);
+        }
 
-        // Aggiorna le informazioni del report
-        updatePDFMetadata();
+        // 2. Genera report dati
+        showLoadingOverlay(true, 'Caricamento dati dispositivi...');
+        const reportData = await fetchReportData(reportParams);
 
-        // Attiva la stampa
-        setTimeout(() => {
-            window.print();
+        if (!reportData || !reportData.success) {
+            throw new Error('Errore nel caricamento dei dati del report');
+        }
 
-            // Ripulisci dopo la stampa
-            setTimeout(() => {
-                document.head.removeChild(printStyle);
-                document.getElementById('pdfPreview').style.display = 'none';
-                document.getElementById('reportContent').style.display = 'block';
-                document.getElementById('loadingOverlay').style.display = 'none';
-                showAlert('PDF generato con successo', 'success');
-            }, 1000);
-        }, 500);
+        // 3. Aggiorna UI con i dati del report
+        currentReportData = reportData.data;
+        displayReportResults(currentReportData);
+        enableExportButtons();
+
+        // 4. NOVITÀ: Genera e salva automaticamente il PDF nel repository
+        showLoadingOverlay(true, 'Generazione PDF automatica in corso...');
+        await generateAndSaveAutoPDF(currentReportData, reportParams);
+
+        // 5. Mostra notifica di successo
+        showNotification(
+            `✅ Report generato con successo! PDF salvato automaticamente nel repository.`,
+            'success'
+        );
+
+        // 6. Aggiorna la lista dei report salvati
+        await refreshSavedReportsList();
+
+        showLoadingOverlay(false);
 
     } catch (error) {
-        console.error('Errore nella generazione PDF:', error);
-        showAlert('Errore nella generazione PDF. Utilizza la funzione di stampa del browser.', 'warning');
-        document.getElementById('loadingOverlay').style.display = 'none';
+        console.error('Errore nella generazione del report:', error);
+        showNotification(`❌ Errore: ${error.message}`, 'error');
+        showLoadingOverlay(false);
+    } finally {
+        isGenerating = false;
     }
 }
 
-function updatePDFMetadata() {
-    const now = new Date();
-    document.getElementById('reportDate').textContent = now.toLocaleDateString('it-IT');
-    document.getElementById('reportNumber').textContent = `#${String(reportCounter++).padStart(4, '0')}`;
-    document.getElementById('generationTimestamp').textContent = now.toLocaleString('it-IT');
-}
+/**
+ * NUOVA FUNZIONE: Genera e salva automaticamente il PDF nel repository
+ */
+async function generateAndSaveAutoPDF(reportData, reportParams) {
+    try {
+        // Genera il PDF
+        const pdfBlob = await generateProfessionalPDF(reportData, reportParams);
 
-function exportCSV() {
-    let csvContent = '';
+        // Crea metadati descrittivi
+        const reportType = reportParams.reportType || 'summary';
+        const dateRange = `${formatDate(reportParams.fromDate)} - ${formatDate(reportParams.toDate)}`;
 
-    if (currentReportData.type === 'summary') {
-        csvContent = 'Dispositivo,Categoria,Distanza (km),Tempo di Viaggio,Velocità Media (km/h),Velocità Massima (km/h),Posizioni,Data Inizio,Data Fine\n';
+        const title = `Report ${getReportTypeLabel(reportType)} - ${formatDate(new Date())}`;
+        const description = `Report automatico (${getReportTypeLabel(reportType)}) per il periodo ${dateRange}. Dispositivi: ${reportData.devices_count || 0}`;
 
-        currentReportData.data.forEach(device => {
-            const duration = formatDuration(device.duration, true);
-            csvContent += `"${device.deviceName}","${device.category || 'N/A'}",${device.distance.toFixed(1)},"${duration}",${Math.round(device.avgSpeed)},${Math.round(device.maxSpeed)},${device.positionsCount},"${formatDateTime(device.startTime)}","${formatDateTime(device.endTime)}"\n`;
-        });
-    }
+        // Salva nel repository
+        const saveResult = await savePDFToRepository(pdfBlob, null, title, description);
 
-    downloadFile(csvContent, `traccar_report_${new Date().toISOString().split('T')[0]}.csv`, 'text/csv');
-    showAlert('Report CSV esportato con successo', 'success');
-}
-
-function exportExcel() {
-    showAlert('Esportazione Excel - Implementazione avanzata in sviluppo', 'info');
-    // Placeholder per esportazione Excel con librerie come SheetJS
-}
-
-// ==================== UTILITÀ ====================
-
-function getSelectedDeviceIds() {
-    const select = document.getElementById('deviceSelect');
-    const selected = [];
-    for (let option of select.options) {
-        if (option.selected) {
-            selected.push(option.value);
+        if (!saveResult.success) {
+            console.warn('Salvataggio PDF fallito:', saveResult.error);
+            // Non bloccare l'operazione principale, ma logga l'errore
         }
+
+        return saveResult;
+
+    } catch (error) {
+        console.error('Errore nel salvataggio automatico PDF:', error);
+        // Non bloccare la generazione del report per errori PDF
+        return { success: false, error: error.message };
     }
-    return selected;
 }
 
-function getDateRange() {
-    const preset = document.getElementById('datePreset').value;
+// ==================== FUNZIONI DI SUPPORTO ====================
 
-    if (preset === 'custom') {
+function validateAndGetReportParams() {
+    const selectedDeviceOptions = document.querySelectorAll('#deviceSelect option:checked');
+    const selectedDeviceIds = Array.from(selectedDeviceOptions).map(option => option.value);
+
+    if (selectedDeviceIds.length === 0) {
         return {
-            from: new Date(document.getElementById('fromDate').value),
-            to: new Date(document.getElementById('toDate').value)
+            isValid: false,
+            error: 'Seleziona almeno un dispositivo per generare il report'
         };
-    } else {
-        const now = new Date();
-        switch (preset) {
-            case 'today':
-                return { from: new Date(now), to: new Date(now) };
-            case 'yesterday':
-                const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-                return { from: yesterday, to: yesterday };
-            case 'week':
-                return {
-                    from: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000),
-                    to: new Date(now)
-                };
-            case 'month':
-                return {
-                    from: new Date(now.getFullYear(), now.getMonth(), 1),
-                    to: new Date(now)
-                };
+    }
+
+    const datePreset = document.getElementById('datePreset').value;
+    let fromDate, toDate;
+
+    if (datePreset === 'custom') {
+        fromDate = document.getElementById('fromDate').value;
+        toDate = document.getElementById('toDate').value;
+
+        if (!fromDate || !toDate) {
+            return {
+                isValid: false,
+                error: 'Inserisci le date di inizio e fine per il periodo personalizzato'
+            };
         }
+
+        // Valida che fromDate non sia successiva a toDate
+        if (new Date(fromDate) > new Date(toDate)) {
+            return {
+                isValid: false,
+                error: 'La data di inizio non può essere successiva alla data di fine'
+            };
+        }
+
+        // Valida che le date non siano troppo nel futuro
+        const now = new Date();
+        if (new Date(toDate) > now) {
+            return {
+                isValid: false,
+                error: 'La data di fine non può essere nel futuro'
+            };
+        }
+
+        // Avvisa se il range è molto ampio
+        const daysDiff = (new Date(toDate) - new Date(fromDate)) / (1000 * 60 * 60 * 24);
+        if (daysDiff > 90) {
+            if (!confirm(`Stai richiedendo un report per ${Math.round(daysDiff)} giorni. Questo potrebbe richiedere molto tempo. Continuare?`)) {
+                return {
+                    isValid: false,
+                    error: 'Operazione annullata dall\'utente'
+                };
+            }
+        }
+    } else {
+        const dates = getDateRangeFromPreset(datePreset);
+        fromDate = dates.from;
+        toDate = dates.to;
+    }
+
+    // Informazioni sui dispositivi selezionati per il log
+    const selectedDeviceNames = Array.from(selectedDeviceOptions).map(option =>
+        option.getAttribute('data-device-name') || option.textContent
+    );
+
+    console.log(`Generazione report per ${selectedDeviceIds.length} dispositivi:`, selectedDeviceNames);
+
+    return {
+        isValid: true,
+        deviceIds: selectedDeviceIds,
+        deviceNames: selectedDeviceNames,
+        fromDate: fromDate,
+        toDate: toDate,
+        reportType: document.getElementById('reportType').value,
+        datePreset: datePreset
+    };
+}
+
+async function fetchReportData(params) {
+    console.log('=== FETCHING REAL REPORT DATA ===');
+    console.log('Parametri report:', params);
+
+    try {
+        // Converte le date nel formato ISO per l'API
+        const fromDate = new Date(params.fromDate);
+        const toDate = new Date(params.toDate);
+
+        // Aggiungi ore per coprire l'intera giornata
+        fromDate.setHours(0, 0, 0, 0);
+        toDate.setHours(23, 59, 59, 999);
+
+        console.log(`Periodo dati: ${fromDate.toISOString()} -> ${toDate.toISOString()}`);
+
+        // Carica dati per ogni dispositivo selezionato
+        const devicesData = await Promise.all(
+            params.deviceIds.map(async (deviceId) => {
+                console.log(`Caricamento dati per dispositivo ${deviceId}...`);
+
+                try {
+                    // Ottieni informazioni del dispositivo
+                    const deviceResponse = await fetch(`/api/devices/${deviceId}`);
+                    const deviceInfo = await deviceResponse.json();
+
+                    if (!deviceResponse.ok) {
+                        console.warn(`Impossibile caricare info dispositivo ${deviceId}:`, deviceInfo);
+                        throw new Error(`Dispositivo ${deviceId} non accessibile`);
+                    }
+
+                    // Ottieni posizioni del dispositivo per il periodo
+                    const hoursRange = Math.ceil((toDate - fromDate) / (1000 * 60 * 60));
+                    const positionsResponse = await fetch(
+                        `/api/positions?deviceId=${deviceId}&hours=${hoursRange}`
+                    );
+                    const positions = await positionsResponse.json();
+
+                    console.log(`Dispositivo ${deviceId} (${deviceInfo.name}): ${positions.length} posizioni`);
+
+                    // Ottieni status attuale del dispositivo
+                    const statusResponse = await fetch(`/api/device/${deviceId}/status`);
+                    const deviceStatus = await statusResponse.json();
+
+                    // Calcola statistiche dalle posizioni reali
+                    const stats = calculateRealDeviceStats(positions, deviceInfo, deviceStatus);
+
+                    return {
+                        deviceId: deviceId,
+                        deviceName: deviceInfo.name || `Dispositivo ${deviceId}`,
+                        deviceInfo: deviceInfo,
+                        positions: positions,
+                        status: deviceStatus,
+                        ...stats
+                    };
+
+                } catch (deviceError) {
+                    console.error(`Errore dispositivo ${deviceId}:`, deviceError);
+                    return {
+                        deviceId: deviceId,
+                        deviceName: `Dispositivo ${deviceId} (Errore)`,
+                        error: deviceError.message,
+                        distance: 0,
+                        engineHours: 0,
+                        maxSpeed: 0,
+                        averageSpeed: 0,
+                        stops: 0,
+                        fuel: 0
+                    };
+                }
+            })
+        );
+
+        // Filtra dispositivi con errori per il calcolo totali
+        const validDevices = devicesData.filter(device => !device.error);
+        const errorDevices = devicesData.filter(device => device.error);
+
+        if (errorDevices.length > 0) {
+            console.warn(`${errorDevices.length} dispositivi con errori:`, errorDevices);
+            showNotification(`⚠️ ${errorDevices.length} dispositivi non accessibili`, 'warning');
+        }
+
+        // Calcola totali reali
+        const totals = calculateTotalStats(validDevices);
+
+        const reportData = {
+            type: params.reportType,
+            title: `Report ${getReportTypeLabel(params.reportType)}`,
+            description: `Report automatico per ${devicesData.length} dispositivi (${validDevices.length} accessibili)`,
+            devices_count: devicesData.length,
+            valid_devices_count: validDevices.length,
+            period: {
+                from: params.fromDate,
+                to: params.toDate,
+                fromISO: fromDate.toISOString(),
+                toISO: toDate.toISOString()
+            },
+            totals: totals,
+            data: devicesData,
+            generated_at: new Date().toISOString(),
+            generated_by: 'Sistema Traccar'
+        };
+
+        console.log('Report data generato:', reportData);
+
+        return {
+            success: true,
+            data: reportData
+        };
+
+    } catch (error) {
+        console.error('Errore nella generazione report data:', error);
+        return {
+            success: false,
+            error: error.message
+        };
     }
 }
 
-function updateStatistics(reportData) {
-    if (!reportData || !reportData.totals) return;
+/**
+ * Calcola statistiche reali da array di posizioni Traccar
+ */
+function calculateRealDeviceStats(positions, deviceInfo, deviceStatus) {
+    if (!positions || positions.length === 0) {
+        return {
+            distance: 0,
+            engineHours: 0,
+            maxSpeed: 0,
+            averageSpeed: 0,
+            stops: 0,
+            fuel: 0
+        };
+    }
 
-    const totals = reportData.totals;
+    // Ordina posizioni per tempo
+    positions.sort((a, b) => new Date(a.deviceTime) - new Date(b.deviceTime));
 
-    document.getElementById('totalDistance').textContent = totals.distance.toFixed(1) + ' km';
-    document.getElementById('totalTime').textContent = formatDuration(totals.time);
-    document.getElementById('avgSpeed').textContent = Math.round(totals.avgSpeed) + ' km/h';
-    document.getElementById('maxSpeed').textContent = Math.round(totals.maxSpeed) + ' km/h';
+    let totalDistance = 0;
+    let totalMovingTime = 0;
+    let maxSpeed = 0;
+    let speedSum = 0;
+    let speedCount = 0;
+    let stops = 0;
+    let lastPosition = null;
+    let wasMoving = false;
 
-    document.getElementById('statsCards').style.display = 'flex';
+    // Calcola statistiche dalle posizioni reali
+    positions.forEach((position, index) => {
+        // Velocità massima
+        const speed = position.speed || 0;
+        maxSpeed = Math.max(maxSpeed, speed);
+
+        if (speed > 0) {
+            speedSum += speed;
+            speedCount++;
+        }
+
+        // Calcola distanza tra posizioni consecutive
+        if (lastPosition && position.latitude && position.longitude) {
+            const distance = calculateDistance(
+                lastPosition.latitude, lastPosition.longitude,
+                position.latitude, position.longitude
+            );
+            totalDistance += distance;
+        }
+
+        // Rileva soste (velocità zero dopo movimento)
+        const isMoving = speed > 3; // km/h soglia movimento
+        if (wasMoving && !isMoving) {
+            stops++;
+        }
+        wasMoving = isMoving;
+
+        // Calcola tempo di movimento
+        if (lastPosition && isMoving) {
+            const timeDiff = new Date(position.deviceTime) - new Date(lastPosition.deviceTime);
+            totalMovingTime += timeDiff / (1000 * 60); // minuti
+        }
+
+        lastPosition = position;
+    });
+
+    // Calcola velocità media
+    const averageSpeed = speedCount > 0 ? (speedSum / speedCount) : 0;
+
+    // Stima carburante basata su distanza (approssimazione)
+    const estimatedFuel = totalDistance > 0 ? (totalDistance / 100) * 8 : 0; // 8L/100km
+
+    return {
+        distance: Math.round(totalDistance * 1000), // metri
+        engineHours: Math.round(totalMovingTime), // minuti
+        maxSpeed: Math.round(maxSpeed * 3.6), // km/h (da m/s)
+        averageSpeed: Math.round(averageSpeed * 3.6), // km/h (da m/s)
+        stops: stops,
+        fuel: Math.round(estimatedFuel)
+    };
 }
 
-function enableExportButtons() {
-    document.getElementById('exportExcel').disabled = false;
-    document.getElementById('exportCSV').disabled = false;
-    document.getElementById('exportPDF').disabled = false;
-}
-
-function showReportInfo() {
-    const info = document.getElementById('reportInfo');
-    const timestamp = document.getElementById('reportGeneratedAt');
-
-    timestamp.textContent = `Generato il ${new Date().toLocaleString('it-IT')}`;
-    info.style.display = 'block';
-}
-
-function showEmptyReport() {
-    const reportContent = document.getElementById('reportContent');
-    reportContent.innerHTML = `
-        <div class="text-center p-5 text-muted">
-            <i class="fas fa-exclamation-triangle fa-3x mb-3"></i>
-            <h5>Errore nella Generazione</h5>
-            <p>Riprova con parametri diversi o verifica la connessione</p>
-        </div>
-    `;
-}
-
-// Funzioni di utilità per calcoli e formattazione
+/**
+ * Calcola distanza tra due punti geografici (formula Haversine)
+ */
 function calculateDistance(lat1, lon1, lat2, lon2) {
-    const R = 6371000; // Earth's radius in meters
-    const φ1 = lat1 * Math.PI / 180;
-    const φ2 = lat2 * Math.PI / 180;
-    const Δφ = (lat2 - lat1) * Math.PI / 180;
-    const Δλ = (lon2 - lon1) * Math.PI / 180;
-
-    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
-              Math.cos(φ1) * Math.cos(φ2) *
-              Math.sin(Δλ/2) * Math.sin(Δλ/2);
+    const R = 6371; // Raggio Terra in km
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a =
+        Math.sin(dLat/2) * Math.sin(dLat/2) +
+        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+        Math.sin(dLon/2) * Math.sin(dLon/2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-
     return R * c;
 }
 
-function getDeviceName(deviceId) {
-    const device = allDevices.find(d => d.id == deviceId);
-    return device ? device.name : `Dispositivo ${deviceId}`;
+function toRad(degrees) {
+    return degrees * (Math.PI / 180);
 }
 
-function getDeviceCategory(deviceId) {
-    const device = allDevices.find(d => d.id == deviceId);
-    return device ? device.category : 'unknown';
-}
-
-function getCategoryIcon(category) {
-    const icons = {
-        'car': 'fas fa-car',
-        'truck': 'fas fa-truck',
-        'motorcycle': 'fas fa-motorcycle',
-        'bus': 'fas fa-bus',
-        'van': 'fas fa-shuttle-van',
-        'boat': 'fas fa-ship',
-        'person': 'fas fa-walking',
-        'animal': 'fas fa-paw'
-    };
-    return icons[category] || 'fas fa-map-marker-alt';
-}
-
-function formatDuration(milliseconds, short = false) {
-    const hours = Math.floor(milliseconds / (1000 * 60 * 60));
-    const minutes = Math.floor((milliseconds % (1000 * 60 * 60)) / (1000 * 60));
-
-    if (short) {
-        return `${hours}h ${minutes}m`;
+/**
+ * Calcola statistiche totali da array di dispositivi
+ */
+function calculateTotalStats(devicesData) {
+    if (!devicesData || devicesData.length === 0) {
+        return {
+            totalDistance: 0,
+            totalDriving: 0,
+            totalFuel: 0,
+            totalStops: 0,
+            averageSpeed: 0,
+            maxSpeed: 0
+        };
     }
 
-    return `${hours}h ${minutes}m`;
+    const totals = devicesData.reduce((acc, device) => {
+        return {
+            totalDistance: acc.totalDistance + (device.distance || 0),
+            totalDriving: acc.totalDriving + (device.engineHours || 0),
+            totalFuel: acc.totalFuel + (device.fuel || 0),
+            totalStops: acc.totalStops + (device.stops || 0),
+            maxSpeed: Math.max(acc.maxSpeed, device.maxSpeed || 0)
+        };
+    }, {
+        totalDistance: 0,
+        totalDriving: 0,
+        totalFuel: 0,
+        totalStops: 0,
+        maxSpeed: 0
+    });
+
+    // Calcola velocità media ponderata
+    const totalValidDevices = devicesData.filter(d => d.averageSpeed > 0).length;
+    totals.averageSpeed = totalValidDevices > 0
+        ? Math.round(devicesData.reduce((sum, d) => sum + (d.averageSpeed || 0), 0) / totalValidDevices)
+        : 0;
+
+    return totals;
+}
+
+/**
+ * Genera PDF professionale con solo caratteri ASCII standard
+ */
+async function generateProfessionalPDF(reportData, reportParams) {
+    try {
+        console.log('=== GENERATING PROFESSIONAL PDF ===');
+        console.log('Report data:', reportData);
+
+        const { jsPDF } = window.jspdf;
+
+        if (!jsPDF) {
+            throw new Error('jsPDF non è disponibile. Assicurati che la libreria sia caricata.');
+        }
+
+        const doc = new jsPDF();
+
+        // Configurazione PDF
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+        const margin = 20;
+        let yPos = margin;
+
+        console.log('PDF dimensions:', { pageWidth, pageHeight, margin });
+
+        // === HEADER PROFESSIONALE ===
+        yPos += 10;
+        doc.setFontSize(24);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(13, 110, 253); // Blue primary
+        doc.text('TRACCAR GPS SOLUTIONS', margin, yPos);
+
+        yPos += 8;
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(108, 117, 125); // Gray
+        doc.text('Sistema di Monitoraggio e Tracking GPS Professionale', margin, yPos);
+
+        // Linea separatore
+        yPos += 10;
+        doc.setDrawColor(13, 110, 253);
+        doc.setLineWidth(2);
+        doc.line(margin, yPos, pageWidth - margin, yPos);
+        yPos += 15;
+
+        // === INFORMAZIONI REPORT ===
+        doc.setFontSize(18);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(33, 37, 41);
+        doc.text(`REPORT ${getReportTypeLabel(reportData.type).toUpperCase()}`, margin, yPos);
+
+        // Info box
+        yPos += 15;
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+
+        const infoLines = [
+            `Generato il: ${formatDateTime(new Date())}`,
+            `Periodo: ${formatDate(reportData.period.from)} - ${formatDate(reportData.period.to)}`,
+            `Dispositivi monitorati: ${reportData.devices_count} (${reportData.valid_devices_count || reportData.devices_count} accessibili)`,
+            `Tipo analisi: ${getReportTypeLabel(reportData.type)}`
+        ];
+
+        // Sfondo per info box
+        doc.setFillColor(248, 249, 250);
+        doc.roundedRect(margin, yPos - 5, pageWidth - 2 * margin, 25, 3, 3, 'F');
+
+        infoLines.forEach(line => {
+            doc.text(line, margin + 5, yPos);
+            yPos += 5;
+        });
+
+        yPos += 15;
+
+        // === SEZIONE RIEPILOGO STATISTICHE ===
+        if (reportData.totals) {
+            doc.setFontSize(14);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(13, 110, 253);
+            doc.text('RIEPILOGO GENERALE', margin, yPos);
+            yPos += 10;
+
+            // Statistiche in colonne - SOLO CARATTERI ASCII
+            const stats = [
+                { label: 'Distanza Totale', value: `${(reportData.totals.totalDistance / 1000).toFixed(1)} km`, code: '[DIST]' },
+                { label: 'Tempo di Guida', value: formatDuration(reportData.totals.totalDriving), code: '[TIME]' },
+                { label: 'Velocita Media', value: `${reportData.totals.averageSpeed} km/h`, code: '[V-MED]' },
+                { label: 'Velocita Massima', value: `${reportData.totals.maxSpeed} km/h`, code: '[V-MAX]' },
+                { label: 'Soste Totali', value: reportData.totals.totalStops.toString(), code: '[STOPS]' },
+                { label: 'Consumo Stimato', value: `${reportData.totals.totalFuel || 0} L`, code: '[FUEL]' }
+            ];
+
+            // Sfondo per statistiche
+            doc.setFillColor(240, 248, 255);
+            doc.roundedRect(margin, yPos - 3, pageWidth - 2 * margin, 40, 3, 3, 'F');
+
+            doc.setFontSize(9);
+            doc.setTextColor(33, 37, 41);
+
+            const colWidth = (pageWidth - 2 * margin - 10) / 3;
+            stats.forEach((stat, index) => {
+                const col = index % 3;
+                const row = Math.floor(index / 3);
+                const x = margin + 5 + (col * colWidth);
+                const y = yPos + (row * 18);
+
+                // Codice identificativo
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor(108, 117, 125);
+                doc.text(stat.code, x, y);
+
+                // Etichetta
+                doc.setFont('helvetica', 'normal');
+                doc.setTextColor(33, 37, 41);
+                doc.text(stat.label, x, y + 5);
+
+                // Valore
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor(13, 110, 253);
+                doc.text(stat.value, x, y + 11);
+            });
+
+            yPos += 50;
+        }
+
+        // === TABELLA DETTAGLI DISPOSITIVI ===
+        if (reportData.data && reportData.data.length > 0) {
+            // Controlla spazio rimanente
+            if (yPos > pageHeight - 80) {
+                doc.addPage();
+                yPos = margin;
+            }
+
+            doc.setFontSize(14);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(13, 110, 253);
+            doc.text('DETTAGLI PER DISPOSITIVO', margin, yPos);
+            yPos += 15;
+
+            // Header tabella
+            const headers = ['Dispositivo', 'Distanza', 'Durata', 'Vel.Media', 'Vel.Max', 'Soste'];
+            const colWidths = [55, 22, 22, 22, 22, 17];
+            const startX = margin;
+
+            // Sfondo header
+            doc.setFillColor(13, 110, 253);
+            doc.rect(startX, yPos - 3, pageWidth - 2 * margin, 12, 'F');
+
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(255, 255, 255);
+
+            let xPos = startX + 2;
+            headers.forEach((header, index) => {
+                doc.text(header, xPos, yPos + 5);
+                xPos += colWidths[index];
+            });
+
+            yPos += 15;
+
+            // Righe dati
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(33, 37, 41);
+            doc.setFontSize(8);
+
+            reportData.data.forEach((device, index) => {
+                // Controlla spazio per nuova riga
+                if (yPos > pageHeight - 25) {
+                    doc.addPage();
+                    yPos = margin;
+
+                    // Ripeti header sulla nuova pagina
+                    doc.setFillColor(13, 110, 253);
+                    doc.rect(startX, yPos - 3, pageWidth - 2 * margin, 12, 'F');
+                    doc.setFontSize(9);
+                    doc.setFont('helvetica', 'bold');
+                    doc.setTextColor(255, 255, 255);
+
+                    xPos = startX + 2;
+                    headers.forEach((header, headerIndex) => {
+                        doc.text(header, xPos, yPos + 5);
+                        xPos += colWidths[headerIndex];
+                    });
+                    yPos += 15;
+
+                    doc.setFont('helvetica', 'normal');
+                    doc.setTextColor(33, 37, 41);
+                    doc.setFontSize(8);
+                }
+
+                // Sfondo alternato
+                if (index % 2 === 0) {
+                    doc.setFillColor(248, 249, 250);
+                    doc.rect(startX, yPos - 2, pageWidth - 2 * margin, 10, 'F');
+                }
+
+                // Prepara dati della riga
+                const deviceName = device.deviceName || `Dispositivo ${index + 1}`;
+                const truncatedName = deviceName.length > 20 ? deviceName.substring(0, 17) + '...' : deviceName;
+
+                const rowData = [
+                    truncatedName,
+                    `${(device.distance / 1000).toFixed(1)} km`,
+                    formatDuration(device.engineHours) || '0:00',
+                    `${device.averageSpeed || 0} km/h`,
+                    `${device.maxSpeed || 0} km/h`,
+                    (device.stops || 0).toString()
+                ];
+
+                // Se c'è un errore, mostra il messaggio
+                if (device.error) {
+                    rowData[1] = 'ERRORE';
+                    rowData[2] = 'N/A';
+                    rowData[3] = 'N/A';
+                    rowData[4] = 'N/A';
+                    rowData[5] = 'N/A';
+                }
+
+                xPos = startX + 2;
+                rowData.forEach((cell, cellIndex) => {
+                    doc.text(cell, xPos, yPos + 5);
+                    xPos += colWidths[cellIndex];
+                });
+
+                yPos += 10;
+            });
+        }
+
+        // === FOOTER ===
+        const totalPages = doc.internal.getNumberOfPages();
+        for (let i = 1; i <= totalPages; i++) {
+            doc.setPage(i);
+
+            // Linea footer
+            doc.setDrawColor(13, 110, 253);
+            doc.setLineWidth(1);
+            doc.line(margin, pageHeight - 20, pageWidth - margin, pageHeight - 20);
+
+            // Testo footer
+            doc.setFontSize(8);
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(108, 117, 125);
+
+            doc.text(
+                `Report generato automaticamente da Traccar GPS Solutions - ${formatDateTime(new Date())}`,
+                margin,
+                pageHeight - 12
+            );
+
+            doc.text(
+                `Pagina ${i} di ${totalPages}`,
+                pageWidth - margin - 30,
+                pageHeight - 12
+            );
+        }
+
+        const pdfBlob = doc.output('blob');
+        console.log('PDF generated successfully, size:', pdfBlob.size);
+
+        return pdfBlob;
+
+    } catch (error) {
+        console.error('Errore generazione PDF:', error);
+        throw new Error(`Errore nella generazione PDF: ${error.message}`);
+    }
+}
+
+/**
+ * Salva PDF nel repository con metadati migliorati
+ */
+async function savePDFToRepository(pdfBlob, filename = null, title = null, description = null) {
+    try {
+        console.log('=== SAVING PDF TO REPOSITORY ===');
+        console.log('PDF Blob size:', pdfBlob.size);
+        console.log('PDF Blob type:', pdfBlob.type);
+
+        const formData = new FormData();
+
+        // Nome file con timestamp
+        const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '');
+        const finalFilename = filename || `report_auto_${timestamp}.pdf`;
+
+        // Assicurati che il blob sia trattato come PDF
+        const pdfFile = new File([pdfBlob], finalFilename, {
+            type: 'application/pdf',
+            lastModified: Date.now()
+        });
+
+        formData.append('file', pdfFile);
+
+        if (title) {
+            formData.append('title', title);
+        }
+
+        if (description) {
+            formData.append('description', description);
+        }
+
+        formData.append('filename', finalFilename);
+
+        console.log('FormData contents:');
+        for (let [key, value] of formData.entries()) {
+            if (value instanceof File) {
+                console.log(`${key}: File(${value.name}, ${value.size} bytes, ${value.type})`);
+            } else {
+                console.log(`${key}: ${value}`);
+            }
+        }
+
+        const response = await fetch('/api/reports/pdf', {
+            method: 'POST',
+            body: formData
+        });
+
+        console.log('Response status:', response.status);
+        console.log('Response headers:', response.headers);
+
+        if (!response.ok) {
+            const responseText = await response.text();
+            console.error('Error response body:', responseText);
+
+            let errorMessage = `Errore HTTP: ${response.status} ${response.statusText}`;
+
+            // Prova a parsare la risposta come JSON per ottenere un messaggio di errore più specifico
+            try {
+                const errorData = JSON.parse(responseText);
+                if (errorData.error) {
+                    errorMessage = errorData.error;
+                }
+            } catch (parseError) {
+                // Se non è JSON, usa il testo della risposta
+                if (responseText) {
+                    errorMessage = responseText;
+                }
+            }
+
+            throw new Error(errorMessage);
+        }
+
+        const result = await response.json();
+        console.log('Save result:', result);
+        return result;
+
+    } catch (error) {
+        console.error('Errore nel salvataggio PDF:', error);
+        return {
+            success: false,
+            error: error.message
+        };
+    }
+}
+
+// ==================== FUNZIONI DI ESPORTAZIONE MANUALE ====================
+
+/**
+ * Funzione di esportazione manuale (pulsante Export PDF)
+ */
+async function exportReport(format) {
+    if (!currentReportData) {
+        showNotification('❌ Genera prima un report prima di esportare', 'error');
+        return;
+    }
+
+    try {
+        showLoadingOverlay(true, `Esportazione ${format.toUpperCase()} in corso...`);
+
+        switch (format) {
+            case 'pdf':
+                await exportAndSavePDF();
+                break;
+            case 'excel':
+                await exportToExcel();
+                break;
+            case 'csv':
+                await exportToCSV();
+                break;
+            default:
+                throw new Error(`Formato ${format} non supportato`);
+        }
+
+        showLoadingOverlay(false);
+
+    } catch (error) {
+        console.error(`Errore esportazione ${format}:`, error);
+        showNotification(`❌ Errore esportazione ${format}: ${error.message}`, 'error');
+        showLoadingOverlay(false);
+    }
+}
+
+/**
+ * Esportazione PDF manuale (con opzioni personalizzabili)
+ */
+async function exportAndSavePDF() {
+    try {
+        // Leggi opzioni PDF
+        const options = {
+            includeLogo: document.getElementById('includeLogo')?.checked ?? true,
+            includeCharts: document.getElementById('includeCharts')?.checked ?? true,
+            includeMap: document.getElementById('includeMap')?.checked ?? true
+        };
+
+        // Genera PDF con opzioni personalizzate
+        const pdfBlob = await generateCustomPDF(currentReportData, options);
+
+        // Richiedi titolo personalizzato
+        const customTitle = prompt(
+            'Inserisci un titolo per il report PDF (opzionale):',
+            `Report ${getReportTypeLabel(currentReportData.type)} - ${formatDate(new Date())}`
+        );
+
+        let customDescription = null;
+        if (customTitle) {
+            customDescription = prompt(
+                'Inserisci una descrizione (opzionale):',
+                `Report personalizzato esportato manualmente.`
+            );
+        }
+
+        // Salva nel repository
+        const saveResult = await savePDFToRepository(
+            pdfBlob,
+            null,
+            customTitle || undefined,
+            customDescription || undefined
+        );
+
+        if (saveResult.success) {
+            showNotification(
+                `✅ PDF salvato nel repository: ${saveResult.filename}`,
+                'success'
+            );
+
+            // Offri anche download diretto
+            offerDirectDownload(pdfBlob, saveResult.filename);
+
+            // Aggiorna lista salvati
+            await refreshSavedReportsList();
+        } else {
+            throw new Error(saveResult.error);
+        }
+
+    } catch (error) {
+        if (error.message !== 'Operazione annullata dall\'utente') {
+            throw error;
+        }
+    }
+}
+
+async function generateCustomPDF(reportData, options = {}) {
+    // Utilizza la funzione di generazione PDF principale con opzioni personalizzate
+    return await generateProfessionalPDF(reportData, {
+        reportType: reportData.type,
+        fromDate: reportData.period.from,
+        toDate: reportData.period.to,
+        options: options
+    });
+}
+
+// ==================== GESTIONE LISTA REPORT SALVATI ====================
+
+async function refreshSavedReportsList() {
+    try {
+        const response = await fetch('/api/reports?format=pdf&limit=5');
+        const data = await response.json();
+
+        if (data.success) {
+            updateSavedReportsUI(data.reports);
+        }
+
+    } catch (error) {
+        console.error('Errore aggiornamento lista salvati:', error);
+    }
+}
+
+async function loadSavedReportsList() {
+    await refreshSavedReportsList();
+}
+
+function updateSavedReportsUI(reports) {
+    const container = document.getElementById('savedReportsList');
+    if (!container) {
+        // Crea container se non esiste
+        createSavedReportsContainer();
+        return updateSavedReportsUI(reports);
+    }
+
+    container.innerHTML = '';
+
+    if (reports.length === 0) {
+        container.innerHTML = `
+            <div class="text-center text-muted py-3">
+                <i class="fas fa-folder-open"></i>
+                <p class="mb-0 small">Nessun PDF salvato</p>
+            </div>
+        `;
+        return;
+    }
+
+    reports.forEach(report => {
+        const reportCard = createSavedReportCard(report);
+        container.appendChild(reportCard);
+    });
+}
+
+function createSavedReportsContainer() {
+    const exportSection = document.querySelector('.export-section');
+    if (!exportSection) return;
+
+    const savedContainer = document.createElement('div');
+    savedContainer.className = 'mt-4';
+    savedContainer.innerHTML = `
+        <h6 class="mb-3">
+            <i class="fas fa-archive"></i> PDF Salvati di Recente
+        </h6>
+        <div id="savedReportsList" class="saved-reports-list">
+            <!-- Reports salvati -->
+        </div>
+        <div class="text-center mt-2">
+            <a href="/reports/repository" class="btn btn-outline-light btn-sm">
+                <i class="fas fa-folder"></i> Vedi Tutti
+            </a>
+        </div>
+    `;
+
+    exportSection.appendChild(savedContainer);
+}
+
+function createSavedReportCard(report) {
+    const card = document.createElement('div');
+    card.className = 'card mb-2 saved-report-card';
+
+    const formatFileSize = (bytes) => {
+        const mb = bytes / (1024 * 1024);
+        return mb < 1 ? `${(bytes / 1024).toFixed(0)}KB` : `${mb.toFixed(1)}MB`;
+    };
+
+    const formatDate = (isoString) => {
+        return new Date(isoString).toLocaleDateString('it-IT', {
+            day: '2-digit',
+            month: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    };
+
+    card.innerHTML = `
+        <div class="card-body py-2 px-3">
+            <div class="d-flex justify-content-between align-items-start">
+                <div class="flex-grow-1">
+                    <h6 class="card-title mb-1 small">${report.title}</h6>
+                    <p class="card-text mb-0" style="font-size: 0.75rem; color: rgba(255,255,255,0.7);">
+                        📄 ${formatFileSize(report.file_size)} • ${formatDate(report.created_at)}
+                    </p>
+                </div>
+                <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-light btn-sm" onclick="downloadSavedReport('${report.id}')"
+                            title="Scarica PDF">
+                        <i class="fas fa-download"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    return card;
+}
+
+async function downloadSavedReport(reportId) {
+    try {
+        const response = await fetch(`/api/reports/${reportId}/download`);
+
+        if (!response.ok) {
+            throw new Error('Errore nel download del report');
+        }
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+
+        const contentDisposition = response.headers.get('Content-Disposition');
+        let filename = 'report.pdf';
+
+        if (contentDisposition) {
+            const matches = contentDisposition.match(/filename="(.+)"/);
+            if (matches) filename = matches[1];
+        }
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+
+        showNotification('✅ Report scaricato', 'success');
+
+    } catch (error) {
+        console.error('Errore download:', error);
+        showNotification(`❌ Errore download: ${error.message}`, 'error');
+    }
+}
+
+// ==================== FUNZIONI DI UTILITÀ ====================
+
+function displayReportResults(reportData) {
+    // Aggiorna statistiche
+    if (reportData.totals) {
+        document.getElementById('totalDistance').textContent = `${(reportData.totals.totalDistance / 1000).toFixed(1)} km`;
+        document.getElementById('totalTime').textContent = formatDuration(reportData.totals.totalDriving);
+        document.getElementById('avgSpeed').textContent = `${reportData.totals.averageSpeed} km/h`;
+        document.getElementById('maxSpeed').textContent = `${reportData.totals.maxSpeed} km/h`;
+    }
+
+    // Mostra cards statistiche
+    document.getElementById('statsCards').style.display = 'block';
+
+    // Aggiorna contenuto report
+    const reportContent = document.getElementById('reportContent');
+    reportContent.innerHTML = generateReportHTML(reportData);
+
+    // Aggiorna info report
+    document.getElementById('reportInfo').style.display = 'block';
+    document.getElementById('reportGeneratedAt').textContent = `Generato il ${formatDateTime(new Date())}`;
+}
+
+function generateReportHTML(reportData) {
+    let html = `
+        <div class="report-summary mb-4">
+            <h5><i class="fas fa-chart-bar text-primary"></i> ${reportData.title}</h5>
+            <p class="text-muted">${reportData.description}</p>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-striped report-table">
+                <thead>
+                    <tr>
+                        <th>Dispositivo</th>
+                        <th>Distanza</th>
+                        <th>Durata</th>
+                        <th>Velocità Media</th>
+                        <th>Velocità Max</th>
+                        <th>Soste</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+
+    if (reportData.data && reportData.data.length > 0) {
+        reportData.data.forEach(device => {
+            html += `
+                <tr>
+                    <td><strong>${device.deviceName || 'N/A'}</strong></td>
+                    <td>${(device.distance / 1000).toFixed(1)} km</td>
+                    <td>${formatDuration(device.engineHours) || '0:00'}</td>
+                    <td>${device.averageSpeed || 0} km/h</td>
+                    <td>${device.maxSpeed || 0} km/h</td>
+                    <td>${device.stops || 0}</td>
+                </tr>
+            `;
+        });
+    } else {
+        html += '<tr><td colspan="6" class="text-center text-muted">Nessun dato disponibile</td></tr>';
+    }
+
+    html += `
+                </tbody>
+            </table>
+        </div>
+    `;
+
+    return html;
+}
+
+function enableExportButtons() {
+    document.getElementById('exportPDF').disabled = false;
+    document.getElementById('exportExcel').disabled = false;
+    document.getElementById('exportCSV').disabled = false;
+}
+
+function getReportTypeLabel(type) {
+    const labels = {
+        'summary': 'Riepilogo Generale',
+        'routes': 'Analisi Percorsi',
+        'stops': 'Analisi Soste',
+        'trips': 'Dettaglio Viaggi',
+        'performance': 'Performance Veicoli'
+    };
+    return labels[type] || 'Report Generico';
+}
+
+function formatDuration(minutes) {
+    if (!minutes || minutes === 0) return '0:00';
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return `${hours}:${mins.toString().padStart(2, '0')}`;
+}
+
+function formatDate(dateString) {
+    return new Date(dateString).toLocaleDateString('it-IT');
 }
 
 function formatDateTime(date) {
     return date.toLocaleString('it-IT');
 }
 
-function formatDate(date) {
-    return date.toLocaleDateString('it-IT');
+function showNotification(message, type = 'info') {
+    // Implementa il tuo sistema di notifiche
+    console.log(`[${type.toUpperCase()}] ${message}`);
+
+    // Esempio con alert temporaneo - sostituisci con il tuo sistema
+    if (type === 'error') {
+        console.error(message);
+    }
 }
 
-function getMostActiveDevice(devices) {
-    const mostActive = devices.reduce((max, device) =>
-        device.distance > max.distance ? device : max, devices[0]);
-    return mostActive ? mostActive.deviceName : 'N/A';
+function showLoadingOverlay(show, message = '') {
+    const overlay = document.getElementById('loadingOverlay');
+    if (!overlay) return;
+
+    if (show) {
+        overlay.style.display = 'flex';
+        const messageEl = overlay.querySelector('.loading-content p');
+        if (messageEl && message) {
+            messageEl.textContent = message;
+        }
+    } else {
+        overlay.style.display = 'none';
+    }
 }
 
-function calculateTrackingEfficiency(devices) {
-    const totalPositions = devices.reduce((sum, device) => sum + device.positionsCount, 0);
-    const avgPositions = totalPositions / devices.length;
-    // Stima efficienza basata su 1 posizione ogni 2 minuti come ideale
-    const idealPositions = 720; // 24 ore * 30 posizioni/ora
-    return Math.min(100, Math.round((avgPositions / idealPositions) * 100));
-}
+function offerDirectDownload(blob, filename) {
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
 
-function downloadFile(content, filename, contentType) {
-    const blob = new Blob([content], { type: contentType + ';charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', filename);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-}
+    // Offri il download con un pulsante temporaneo
+    const downloadBtn = document.createElement('button');
+    downloadBtn.className = 'btn btn-outline-success btn-sm ms-2';
+    downloadBtn.innerHTML = '<i class="fas fa-download"></i> Scarica anche localmente';
+    downloadBtn.onclick = () => {
+        a.click();
+        window.URL.revokeObjectURL(url);
+        downloadBtn.remove();
+    };
 
-function showAlert(message, type = 'info') {
-    const alertHtml = `
-        <div class="alert alert-${type} alert-dismissible fade show position-fixed"
-             style="top: 80px; right: 20px; z-index: 2000; min-width: 300px;" role="alert">
-            <i class="fas fa-${getAlertIcon(type)}"></i> ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    `;
-
-    document.body.insertAdjacentHTML('beforeend', alertHtml);
-
+    // Aggiungi il pulsante temporaneamente
     setTimeout(() => {
-        const alert = document.querySelector('.alert');
-        if (alert) {
-            alert.remove();
-        }
-    }, 5000);
+        if (downloadBtn.parentNode) downloadBtn.remove();
+        window.URL.revokeObjectURL(url);
+    }, 30000);
 }
 
-function getAlertIcon(type) {
-    const icons = {
-        'success': 'check-circle',
-        'danger': 'exclamation-triangle',
-        'warning': 'exclamation-circle',
-        'info': 'info-circle'
-    };
-    return icons[type] || 'info-circle';
-}
+// ==================== CARICAMENTO DISPOSITIVI REALI ====================
 
-// reports_integration.js - Integrazione per salvare automaticamente i reports
-
-// Aggiungi queste funzioni al file reports.js esistente
-
-// ==================== INTEGRAZIONE REPOSITORY ====================
-
-/**
- * Aggiunge il pulsante "Salva nel Repository" all'interfaccia reports
- */
-function addSaveToRepositoryButton() {
-    const exportSection = document.querySelector('.export-section .d-grid');
-    if (exportSection && !document.getElementById('saveToRepo')) {
-        const saveButton = document.createElement('button');
-        saveButton.className = 'btn btn-outline-light btn-sm';
-        saveButton.id = 'saveToRepo';
-        saveButton.disabled = true;
-        saveButton.innerHTML = '<i class="fas fa-save text-info"></i> Salva nel Repository';
-        saveButton.onclick = () => showSaveToRepositoryModal();
-
-        exportSection.appendChild(saveButton);
-    }
-}
-
-/**
- * Abilita il pulsante salva repository quando un report è generato
- */
-function enableSaveToRepository() {
-    const saveBtn = document.getElementById('saveToRepo');
-    if (saveBtn) {
-        saveBtn.disabled = false;
-    }
-}
-
-/**
- * Mostra il modal per salvare nel repository
- */
-function showSaveToRepositoryModal() {
-    if (!currentReportData) {
-        showAlert('Nessun report da salvare', 'warning');
-        return;
-    }
-
-    // Crea modal dinamicamente se non esiste
-    if (!document.getElementById('saveRepositoryModal')) {
-        createSaveRepositoryModal();
-    }
-
-    // Popola i campi con dati predefiniti
-    populateModalDefaults();
-
-    const modal = new bootstrap.Modal(document.getElementById('saveRepositoryModal'));
-    modal.show();
-}
-
-/**
- * Crea il modal per salvare nel repository
- */
-function createSaveRepositoryModal() {
-    const modalHtml = `
-        <div class="modal fade" id="saveRepositoryModal" tabindex="-1">
-            <div class="modal-dialog modal-lg">
-                <div class="modal-content">
-                    <div class="modal-header bg-primary text-white">
-                        <h5 class="modal-title">
-                            <i class="fas fa-save"></i> Salva Report nel Repository
-                        </h5>
-                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                    </div>
-                    <div class="modal-body">
-                        <form id="saveRepositoryForm">
-                            <!-- Informazioni Base -->
-                            <div class="row mb-4">
-                                <div class="col-12">
-                                    <h6 class="border-bottom pb-2 mb-3">
-                                        <i class="fas fa-info-circle text-primary"></i> Informazioni Report
-                                    </h6>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">Titolo Report *</label>
-                                    <input type="text" class="form-control" id="reportTitle" required
-                                           placeholder="Es: Report Mensile Gennaio 2024">
-                                    <div class="form-text">Nome identificativo del report</div>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">Tipo Report</label>
-                                    <select class="form-select" id="reportTypeRepo" disabled>
-                                        <option value="summary">Riepilogo Generale</option>
-                                        <option value="routes">Analisi Percorsi</option>
-                                        <option value="stops">Analisi Soste</option>
-                                        <option value="trips">Dettaglio Viaggi</option>
-                                        <option value="performance">Performance Veicoli</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div class="row mb-4">
-                                <div class="col-12">
-                                    <label class="form-label">Descrizione</label>
-                                    <textarea class="form-control" id="reportDescription" rows="3"
-                                              placeholder="Descrizione dettagliata del report e del suo scopo..."></textarea>
-                                </div>
-                            </div>
-
-                            <!-- Metadati Automatici -->
-                            <div class="row mb-4">
-                                <div class="col-12">
-                                    <h6 class="border-bottom pb-2 mb-3">
-                                        <i class="fas fa-robot text-info"></i> Metadati Automatici
-                                    </h6>
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="form-label">Dispositivi Analizzati</label>
-                                    <input type="text" class="form-control" id="devicesCount" readonly>
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="form-label">Periodo Analisi</label>
-                                    <input type="text" class="form-control" id="analysisPeriod" readonly>
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="form-label">Generato da</label>
-                                    <input type="text" class="form-control" id="generatedBy"
-                                           value="Sistema Traccar GPS" readonly>
-                                </div>
-                            </div>
-
-                            <!-- Statistiche Report -->
-                            <div class="row mb-4">
-                                <div class="col-12">
-                                    <h6 class="border-bottom pb-2 mb-3">
-                                        <i class="fas fa-chart-bar text-success"></i> Statistiche Report
-                                    </h6>
-                                </div>
-                                <div class="col-md-3">
-                                    <div class="card bg-primary text-white">
-                                        <div class="card-body text-center p-2">
-                                            <h6 id="statTotalDistance">0 km</h6>
-                                            <small>Distanza Totale</small>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-3">
-                                    <div class="card bg-success text-white">
-                                        <div class="card-body text-center p-2">
-                                            <h6 id="statTotalTime">0h 0m</h6>
-                                            <small>Tempo Totale</small>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-3">
-                                    <div class="card bg-warning text-white">
-                                        <div class="card-body text-center p-2">
-                                            <h6 id="statAvgSpeed">0 km/h</h6>
-                                            <small>Velocità Media</small>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-3">
-                                    <div class="card bg-danger text-white">
-                                        <div class="card-body text-center p-2">
-                                            <h6 id="statMaxSpeed">0 km/h</h6>
-                                            <small>Velocità Massima</small>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Opzioni Avanzate -->
-                            <div class="row mb-3">
-                                <div class="col-12">
-                                    <h6 class="border-bottom pb-2 mb-3">
-                                        <i class="fas fa-cogs text-warning"></i> Opzioni Avanzate
-                                    </h6>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="form-check form-switch">
-                                        <input class="form-check-input" type="checkbox" id="includeRawData" checked>
-                                        <label class="form-check-label" for="includeRawData">
-                                            Includi dati grezzi per future analisi
-                                        </label>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="form-check form-switch">
-                                        <input class="form-check-input" type="checkbox" id="autoCleanup" checked>
-                                        <label class="form-check-label" for="autoCleanup">
-                                            Elimina automaticamente dopo 90 giorni
-                                        </label>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Nome File -->
-                            <div class="row">
-                                <div class="col-12">
-                                    <label class="form-label">Nome File (opzionale)</label>
-                                    <input type="text" class="form-control" id="customFilename"
-                                           placeholder="Se vuoto, verrà generato automaticamente">
-                                    <div class="form-text">
-                                        <i class="fas fa-info-circle"></i>
-                                        Formato suggerito: report_tipo_YYYYMMDD_HHMMSS.json
-                                    </div>
-                                </div>
-                            </div>
-                        </form>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                            <i class="fas fa-times"></i> Annulla
-                        </button>
-                        <button type="button" class="btn btn-primary" onclick="saveReportToRepository()">
-                            <i class="fas fa-save"></i> Salva nel Repository
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
-
-    document.body.insertAdjacentHTML('beforeend', modalHtml);
-}
-
-/**
- * Popola il modal con i dati del report corrente
- */
-function populateModalDefaults() {
-    if (!currentReportData) return;
-
-    const now = new Date();
-    const reportType = currentReportData.type || 'summary';
-    const deviceCount = currentReportData.totals?.deviceCount || 0;
-
-    // Titolo suggerito
-    const titleSuggestion = `Report ${getReportTypeName(reportType)} - ${now.toLocaleDateString('it-IT')}`;
-    document.getElementById('reportTitle').value = titleSuggestion;
-
-    // Tipo report
-    document.getElementById('reportTypeRepo').value = reportType;
-
-    // Descrizione suggerita
-    const period = currentReportData.period;
-    const periodText = period ?
-        `dal ${formatDate(period.from)} al ${formatDate(period.to)}` :
-        'periodo selezionato';
-
-    const descriptionSuggestion = `Report ${getReportTypeName(reportType).toLowerCase()} generato per ${deviceCount} dispositivi nel ${periodText}. Include statistiche complete su distanze, tempi di percorrenza e velocità.`;
-    document.getElementById('reportDescription').value = descriptionSuggestion;
-
-    // Metadati automatici
-    document.getElementById('devicesCount').value = `${deviceCount} dispositivi`;
-    document.getElementById('analysisPeriod').value = periodText;
-
-    // Statistiche
-    if (currentReportData.totals) {
-        const totals = currentReportData.totals;
-        document.getElementById('statTotalDistance').textContent = totals.distance.toFixed(1) + ' km';
-        document.getElementById('statTotalTime').textContent = formatDuration(totals.time);
-        document.getElementById('statAvgSpeed').textContent = Math.round(totals.avgSpeed) + ' km/h';
-        document.getElementById('statMaxSpeed').textContent = Math.round(totals.maxSpeed) + ' km/h';
-    }
-
-    // Nome file suggerito
-    const timestamp = now.toISOString().replace(/[-:]/g, '').split('.')[0].replace('T', '_');
-    const filenameSuggestion = `report_${reportType}_${timestamp}.json`;
-    document.getElementById('customFilename').placeholder = `Suggerito: ${filenameSuggestion}`;
-}
-
-/**
- * Salva il report nel repository
- */
-async function saveReportToRepository() {
-    const form = document.getElementById('saveRepositoryForm');
-    const formData = new FormData(form);
-
-    // Validazione
-    const title = document.getElementById('reportTitle').value.trim();
-    if (!title) {
-        showAlert('Il titolo del report è obbligatorio', 'warning');
-        return;
-    }
-
-    // Prepara i dati per il salvataggio
-    const reportToSave = {
-        ...currentReportData,
-        title: title,
-        description: document.getElementById('reportDescription').value.trim(),
-        generated_by: document.getElementById('generatedBy').value,
-        repository_metadata: {
-            include_raw_data: document.getElementById('includeRawData').checked,
-            auto_cleanup: document.getElementById('autoCleanup').checked,
-            saved_at: new Date().toISOString(),
-            saved_from: 'reports_interface'
-        }
-    };
-
-    // Nome file personalizzato se specificato
-    const customFilename = document.getElementById('customFilename').value.trim();
-    const filename = customFilename || null; // null = auto-generate
+async function loadDevices() {
+    console.log('=== LOADING REAL DEVICES ===');
+    const deviceSelect = document.getElementById('deviceSelect');
 
     try {
         // Mostra loading
-        const saveBtn = document.querySelector('#saveRepositoryModal .btn-primary');
-        const originalText = saveBtn.innerHTML;
-        saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvataggio...';
-        saveBtn.disabled = true;
+        deviceSelect.innerHTML = '<option value="">Caricamento dispositivi...</option>';
 
-        // Effettua il salvataggio
-        const response = await fetch('/api/reports' + (filename ? `?filename=${encodeURIComponent(filename)}` : ''), {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(reportToSave)
+        // Prima verifica lo stato della connessione Traccar
+        const debugResponse = await fetch('/api/debug/traccar-status');
+        const debugInfo = await debugResponse.json();
+
+        console.log('Debug Traccar Status:', debugInfo);
+
+        if (!debugInfo.server_reachable) {
+            throw new Error('Server Traccar non raggiungibile');
+        }
+
+        if (!debugInfo.session_valid) {
+            console.warn('Sessione Traccar non valida, tentativo di riparazione...');
+
+            // Tenta di riparare la sessione
+            try {
+                const repairResponse = await fetch('/api/force-reload-devices');
+                const repairResult = await repairResponse.json();
+
+                if (repairResult.success) {
+                    console.log('Sessione riparata con successo');
+                    showNotification('✅ Connessione Traccar ripristinata', 'success');
+                } else {
+                    console.warn('Riparazione sessione fallita:', repairResult.error);
+                }
+            } catch (repairError) {
+                console.error('Errore nella riparazione sessione:', repairError);
+            }
+        }
+
+        // Carica i dispositivi reali
+        console.log('Caricamento dispositivi da API Traccar...');
+        const response = await fetch('/api/devices');
+
+        if (!response.ok) {
+            throw new Error(`Errore API dispositivi: ${response.status} ${response.statusText}`);
+        }
+
+        const devices = await response.json();
+        console.log(`Ricevuti ${devices.length} dispositivi:`, devices);
+
+        // Popola il select con i dispositivi reali
+        deviceSelect.innerHTML = '<option value="">Seleziona dispositivi...</option>';
+
+        if (devices.length === 0) {
+            deviceSelect.innerHTML = '<option value="" disabled>Nessun dispositivo disponibile</option>';
+            showNotification('⚠️ Nessun dispositivo trovato', 'warning');
+            return;
+        }
+
+        devices.forEach(device => {
+            const option = document.createElement('option');
+            option.value = device.id;
+
+            // Crea un nome descrittivo per il dispositivo
+            let deviceDisplayName = device.name || `Dispositivo ${device.id}`;
+
+            // Aggiungi IMEI/UniqueID se disponibile
+            if (device.uniqueId) {
+                deviceDisplayName += ` (${device.uniqueId})`;
+            }
+
+            // Aggiungi info sul modello se disponibile
+            if (device.model) {
+                deviceDisplayName += ` - ${device.model}`;
+            }
+
+            option.textContent = deviceDisplayName;
+            option.setAttribute('data-device-name', device.name);
+            option.setAttribute('data-device-imei', device.uniqueId || '');
+            option.setAttribute('data-device-model', device.model || '');
+            option.setAttribute('data-device-category', device.category || '');
+
+            deviceSelect.appendChild(option);
         });
 
-        const result = await response.json();
+        console.log(`✅ Caricati ${devices.length} dispositivi reali`);
+        showNotification(`✅ Caricati ${devices.length} dispositivi`, 'success');
 
-        if (response.ok && result.success) {
-            // Chiudi modal
-            const modal = bootstrap.Modal.getInstance(document.getElementById('saveRepositoryModal'));
-            modal.hide();
-
-            // Mostra successo con opzioni
-            showSuccessWithActions(result);
-
-        } else {
-            throw new Error(result.error || 'Errore nel salvataggio');
-        }
+        // Salva i dispositivi per uso futuro
+        window.traccarDevices = devices;
 
     } catch (error) {
-        console.error('Errore nel salvataggio:', error);
-        showAlert('Errore nel salvataggio del report: ' + error.message, 'danger');
-    } finally {
-        // Ripristina pulsante
-        const saveBtn = document.querySelector('#saveRepositoryModal .btn-primary');
-        saveBtn.innerHTML = '<i class="fas fa-save"></i> Salva nel Repository';
-        saveBtn.disabled = false;
+        console.error('Errore nel caricamento dei dispositivi:', error);
+
+        deviceSelect.innerHTML = `
+            <option value="" disabled>❌ Errore caricamento</option>
+            <option value="" disabled>${error.message}</option>
+        `;
+
+        showNotification(`❌ Errore caricamento dispositivi: ${error.message}`, 'error');
+
+        // Mostra un pulsante per riprovare
+        const retryBtn = document.createElement('button');
+        retryBtn.className = 'btn btn-warning btn-sm mt-2 w-100';
+        retryBtn.innerHTML = '<i class="fas fa-redo"></i> Riprova Caricamento';
+        retryBtn.onclick = loadDevices;
+
+        const deviceContainer = deviceSelect.parentElement;
+        const existingRetryBtn = deviceContainer.querySelector('.btn-warning');
+        if (existingRetryBtn) {
+            existingRetryBtn.remove();
+        }
+        deviceContainer.appendChild(retryBtn);
     }
 }
 
-/**
- * Mostra notifica di successo con azioni
- */
-function showSuccessWithActions(result) {
-    const alertHtml = `
-        <div class="alert alert-success alert-dismissible fade show position-fixed"
-             style="top: 80px; right: 20px; z-index: 2000; min-width: 400px;" role="alert">
-            <div class="d-flex align-items-start">
-                <i class="fas fa-check-circle fa-2x text-success me-3"></i>
-                <div class="flex-grow-1">
-                    <h6 class="mb-1">Report Salvato con Successo!</h6>
-                    <p class="mb-2">${result.message}</p>
-                    <div class="d-flex gap-2">
-                        <a href="/reports/repository" class="btn btn-sm btn-outline-success">
-                            <i class="fas fa-folder-open"></i> Apri Repository
-                        </a>
-                        <button class="btn btn-sm btn-outline-info" onclick="downloadSavedReport('${result.report_id}')">
-                            <i class="fas fa-download"></i> Scarica
-                        </button>
-                    </div>
-                </div>
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-        </div>
-    `;
+function handleDatePresetChange() {
+    const preset = document.getElementById('datePreset').value;
+    const customRange = document.getElementById('customDateRange');
 
-    document.body.insertAdjacentHTML('beforeend', alertHtml);
+    if (preset === 'custom') {
+        customRange.style.display = 'block';
+    } else {
+        customRange.style.display = 'none';
 
-    // Auto-remove dopo 10 secondi invece di 5 per dare tempo alle azioni
-    setTimeout(() => {
-        const alert = document.querySelector('.alert-success');
-        if (alert) {
-            alert.remove();
-        }
-    }, 10000);
-}
-
-/**
- * Scarica un report salvato dal repository
- */
-async function downloadSavedReport(reportId) {
-    try {
-        const response = await fetch(`/api/reports/${reportId}/download`);
-
-        if (response.ok) {
-            const blob = await response.blob();
-            const contentDisposition = response.headers.get('Content-Disposition');
-            const filename = contentDisposition
-                ? contentDisposition.split('filename=')[1].replace(/"/g, '')
-                : `report_${reportId}.json`;
-
-            // Crea link per download
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-
-            showAlert('Report scaricato dal repository', 'success');
-        } else {
-            throw new Error('Errore nel download dal repository');
-        }
-    } catch (error) {
-        console.error('Errore nel download:', error);
-        showAlert('Errore nel download del report: ' + error.message, 'danger');
+        const dates = getDateRangeFromPreset(preset);
+        document.getElementById('fromDate').value = dates.from;
+        document.getElementById('toDate').value = dates.to;
     }
 }
 
-/**
- * Salvataggio automatico del report (chiamata da enableExportButtons)
- */
-function autoSaveReport() {
-    if (!currentReportData) return;
+function getDateRangeFromPreset(preset) {
+    const today = new Date();
+    const dates = { to: today.toISOString().split('T')[0] };
 
-    // Salvataggio automatico silenzioso con titolo auto-generato
-    const now = new Date();
-    const reportType = currentReportData.type || 'summary';
-    const deviceCount = currentReportData.totals?.deviceCount || 0;
+    switch (preset) {
+        case 'today':
+            dates.from = dates.to;
+            break;
+        case 'yesterday':
+            const yesterday = new Date(today);
+            yesterday.setDate(yesterday.getDate() - 1);
+            dates.from = dates.to = yesterday.toISOString().split('T')[0];
+            break;
+        case 'week':
+            const weekAgo = new Date(today);
+            weekAgo.setDate(weekAgo.getDate() - 7);
+            dates.from = weekAgo.toISOString().split('T')[0];
+            break;
+        case 'month':
+            const monthAgo = new Date(today);
+            monthAgo.setMonth(monthAgo.getMonth() - 1);
+            dates.from = monthAgo.toISOString().split('T')[0];
+            break;
+        default:
+            dates.from = dates.to;
+    }
 
-    const autoReport = {
-        ...currentReportData,
-        title: `Auto-Save ${getReportTypeName(reportType)} - ${now.toLocaleString('it-IT')}`,
-        description: `Report generato automaticamente per ${deviceCount} dispositivi - ${now.toLocaleString('it-IT')}`,
-        generated_by: 'Sistema (Auto-Save)',
-        repository_metadata: {
-            auto_saved: true,
-            include_raw_data: true,
-            auto_cleanup: true,
-            saved_at: now.toISOString(),
-            saved_from: 'auto_save'
-        }
-    };
+    return dates;
+}
 
-    // Salvataggio in background senza UI
-    fetch('/api/reports', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(autoReport)
-    })
-    .then(response => response.json())
-    .then(result => {
-        if (result.success) {
-            console.log('✅ Report auto-salvato:', result.filename);
-            // Piccola notifica discreta
-            showAlert('Report auto-salvato nel repository', 'info');
-        }
-    })
-    .catch(error => {
-        console.error('❌ Errore auto-save:', error);
+function toggleAllDevices() {
+    const selectAll = document.getElementById('selectAllDevices');
+    const deviceOptions = document.querySelectorAll('#deviceSelect option:not([value=""])');
+
+    deviceOptions.forEach(option => {
+        option.selected = selectAll.checked;
     });
+
+    // Aggiorna il contatore dei dispositivi selezionati
+    updateDeviceSelectionInfo();
 }
 
-// ==================== UTILITY FUNCTIONS ====================
+/**
+ * Aggiorna le informazioni sui dispositivi selezionati
+ */
+function updateDeviceSelectionInfo() {
+    const selectedOptions = document.querySelectorAll('#deviceSelect option:checked');
+    const selectedCount = selectedOptions.length;
 
-function getReportTypeName(type) {
-    const typeNames = {
-        'summary': 'Riepilogo',
-        'routes': 'Percorsi',
-        'stops': 'Soste',
-        'trips': 'Viaggi',
-        'performance': 'Performance'
-    };
-    return typeNames[type] || type.charAt(0).toUpperCase() + type.slice(1);
+    // Aggiorna il testo del pulsante genera report
+    const generateBtn = document.getElementById('generateBtn');
+    if (generateBtn) {
+        if (selectedCount > 0) {
+            generateBtn.innerHTML = `<i class="fas fa-play"></i> Genera Report + Auto-PDF (${selectedCount} dispositivi)`;
+            generateBtn.disabled = false;
+        } else {
+            generateBtn.innerHTML = `<i class="fas fa-play"></i> Genera Report + Auto-PDF`;
+            generateBtn.disabled = false; // Lascio abilitato, la validazione avviene al click
+        }
+    }
+
+    // Aggiorna il checkbox "Seleziona tutti"
+    const selectAllCheckbox = document.getElementById('selectAllDevices');
+    const totalOptions = document.querySelectorAll('#deviceSelect option:not([value=""])').length;
+
+    if (selectAllCheckbox) {
+        if (selectedCount === 0) {
+            selectAllCheckbox.indeterminate = false;
+            selectAllCheckbox.checked = false;
+        } else if (selectedCount === totalOptions) {
+            selectAllCheckbox.indeterminate = false;
+            selectAllCheckbox.checked = true;
+        } else {
+            selectAllCheckbox.indeterminate = true;
+            selectAllCheckbox.checked = false;
+        }
+    }
+
+    // Mostra info sui dispositivi selezionati
+    const deviceSelect = document.getElementById('deviceSelect');
+    let infoText = '';
+
+    if (selectedCount > 0) {
+        const selectedNames = Array.from(selectedOptions)
+            .map(option => option.getAttribute('data-device-name') || option.textContent)
+            .slice(0, 3); // Mostra max 3 nomi
+
+        infoText = selectedNames.join(', ');
+        if (selectedCount > 3) {
+            infoText += ` e altri ${selectedCount - 3}`;
+        }
+    }
+
+    // Aggiorna o crea l'elemento info
+    let infoElement = document.getElementById('deviceSelectionInfo');
+    if (!infoElement) {
+        infoElement = document.createElement('div');
+        infoElement.id = 'deviceSelectionInfo';
+        infoElement.className = 'form-text text-info mt-1';
+        deviceSelect.parentElement.appendChild(infoElement);
+    }
+
+    if (selectedCount > 0) {
+        infoElement.innerHTML = `<i class="fas fa-check-circle"></i> ${selectedCount} selezionati: ${infoText}`;
+        infoElement.style.display = 'block';
+    } else {
+        infoElement.style.display = 'none';
+    }
 }
 
-// ==================== MODIFICHE AL CODICE ESISTENTE ====================
+function setupEventListeners() {
+    // Event listeners per la UI
+    document.getElementById('datePreset').addEventListener('change', handleDatePresetChange);
 
-// Modifica la funzione enableExportButtons esistente per includere il repository
-const originalEnableExportButtons = enableExportButtons;
-enableExportButtons = function() {
-    // Chiama la funzione originale
-    originalEnableExportButtons();
+    const selectAllDevices = document.getElementById('selectAllDevices');
+    if (selectAllDevices) {
+        selectAllDevices.addEventListener('change', toggleAllDevices);
+    }
 
-    // Abilita il salvataggio nel repository
-    enableSaveToRepository();
+    const deviceSelect = document.getElementById('deviceSelect');
+    if (deviceSelect) {
+        deviceSelect.addEventListener('change', updateDeviceSelectionInfo);
+    }
 
-    // Auto-salvataggio opzionale (commentato per default)
-    // autoSaveReport();
-};
+    // Aggiorna testo pulsante PDF quando si generano reports
+    document.getElementById('exportPDF').addEventListener('click', function() {
+        if (currentReportData) {
+            exportAndSavePDF();
+        }
+    });
 
-// Modifica l'inizializzazione per aggiungere il pulsante
-const originalSetupEventListeners = setupEventListeners;
-setupEventListeners = function() {
-    // Chiama la funzione originale
-    originalSetupEventListeners();
+    // Event listener per controlli avanzati
+    setupAdvancedEventListeners();
+}
 
-    // Aggiungi il pulsante salva repository
-    addSaveToRepositoryButton();
-};
+function setupAdvancedEventListeners() {
+    // Validazione in tempo reale delle date personalizzate
+    const fromDate = document.getElementById('fromDate');
+    const toDate = document.getElementById('toDate');
 
-// ==================== ESEMPI DI INTEGRAZIONE ====================
+    if (fromDate && toDate) {
+        fromDate.addEventListener('change', validateDateRange);
+        toDate.addEventListener('change', validateDateRange);
+    }
 
-/*
-// Per integrare questo sistema nel file reports.js esistente:
+    // Auto-refresh dispositivi ogni 5 minuti
+    setInterval(async () => {
+        if (document.visibilityState === 'visible') {
+            console.log('Auto-refresh dispositivi...');
+            await loadDevices();
+        }
+    }, 300000); // 5 minuti
+}
 
-1. Aggiungi questo codice alla fine del file reports.js
+function validateDateRange() {
+    const fromDate = document.getElementById('fromDate');
+    const toDate = document.getElementById('toDate');
 
-2. Modifica la funzione enableExportButtons aggiungendo:
-   enableSaveToRepository();
+    if (!fromDate.value || !toDate.value) return;
 
-3. Modifica la funzione setupEventListeners aggiungendo:
-   addSaveToRepositoryButton();
+    const from = new Date(fromDate.value);
+    const to = new Date(toDate.value);
+    const now = new Date();
 
-4. Opzionalmente, per l'auto-save, aggiungi alla fine di generateSummaryReport:
-   if (ENABLE_AUTO_SAVE) {
-       autoSaveReport();
-   }
+    // Reset stili
+    fromDate.classList.remove('is-invalid');
+    toDate.classList.remove('is-invalid');
 
-5. Aggiungi questa configurazione in cima al file:
-   const ENABLE_AUTO_SAVE = false; // true per abilitare auto-save
-*/
+    let hasError = false;
 
-// ==================== CONFIGURAZIONE ====================
+    // Valida che fromDate non sia successiva a toDate
+    if (from > to) {
+        toDate.classList.add('is-invalid');
+        hasError = true;
+    }
 
-// Configurazione per il sistema di repository
-const REPOSITORY_CONFIG = {
-    // Auto-save ogni report generato
-    AUTO_SAVE_ENABLED: false,
+    // Valida che toDate non sia nel futuro
+    if (to > now) {
+        toDate.classList.add('is-invalid');
+        hasError = true;
+    }
 
-    // Mostra sempre il pulsante salva repository
-    SHOW_SAVE_BUTTON: true,
+    // Avvisa se il range è molto ampio (>30 giorni)
+    const daysDiff = (to - from) / (1000 * 60 * 60 * 24);
+    if (daysDiff > 30) {
+        showNotification(`⚠️ Range molto ampio: ${Math.round(daysDiff)} giorni`, 'warning');
+    }
 
-    // Cleanup automatico dopo X giorni
-    AUTO_CLEANUP_DAYS: 90,
+    return !hasError;
+}
 
-    // Dimensione massima repository (MB)
-    MAX_REPOSITORY_SIZE: 500,
+// Esportazione in Excel e CSV (da implementare)
+async function exportToExcel() {
+    // Implementa esportazione Excel
+    showNotification('Funzione Excel in sviluppo', 'info');
+}
 
-    // Notifiche per azioni repository
-    SHOW_NOTIFICATIONS: true
-};
+async function exportToCSV() {
+    // Implementa esportazione CSV
+    showNotification('Funzione CSV in sviluppo', 'info');
+}
 
-console.log('📁 Repository Integration caricato con successo!');
+// Esporta le funzioni principali per l'uso globale
+window.generateReport = generateReport;
+window.exportReport = exportReport;
+window.downloadSavedReport = downloadSavedReport;
