@@ -81,7 +81,7 @@ class TraccarAPI:
         except requests.exceptions.ConnectionError:
             return {
                 'success': False,
-                'error': 'Impossibile connettersi al server Traccar. Verificare che sia online.'
+                'error': f'Impossibile connettersi al server {self.server_url}. Verificare che sia online.'
             }
         except Exception as e:
             return {
