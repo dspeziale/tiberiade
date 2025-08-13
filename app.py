@@ -2065,6 +2065,663 @@ def geocoding_test_page():
     return render_template('test.html')
 
 
+# Aggiungi queste route al tuo app.py esistente
+
+import os
+import subprocess
+import tempfile
+from simulatore.google_maps_route import GoogleMapsRouteGenerator, create_simulator_config_with_google_route
+
+# Aggiungi la configurazione della API key di Google Maps
+GOOGLE_MAPS_API_KEY = os.getenv('GOOGLE_MAPS_API_KEY', 'AIzaSyAZLNmrmri-HUzex5s4FaJZPk8xVeAyFVk')
+
+
+@app.route('/simulator/google-maps')
+@login_required
+def google_maps_simulator():
+    """Pagina per creare simulazioni con Google Maps"""
+    permissions = traccar_api.get_user_permissions()
+
+    if not (permissions.get('admin') or permissions.get('manager')):
+        flash('Permessi insufficienti per accedere al simulatore', 'error')
+        return redirect(url_for('dashboard'))
+
+    # Ottieni la lista dei dispositivi disponibili
+    devices = traccar_api.get_devices()
+
+    return render_template('google_maps_simulator.html',
+                           permissions=permissions,
+                           devices=devices,
+                           api_key_configured=bool(GOOGLE_MAPS_API_KEY and GOOGLE_MAPS_API_KEY != 'AIzaSyAZLNmrmri-HUzex5s4FaJZPk8xVeAyFVk'))
+
+
+@app.route('/api/simulator/google-maps/preview', methods=['POST'])
+@login_required
+def api_google_maps_preview():
+    """API per anteprima del percorso Google Maps"""
+    permissions = traccar_api.get_user_permissions()
+
+    if not (permissions.get('admin') or permissions.get('manager')):
+        return jsonify({'error': 'Permessi insufficienti'}), 403
+
+    if not GOOGLE_MAPS_API_KEY or GOOGLE_MAPS_API_KEY == '':
+        return jsonify({'error': 'API Key Google Maps non configurata'}), 400
+
+    try:
+        data = request.get_json()
+
+        # Validazione dati
+        required_fields = ['origin', 'destination']
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({'error': f'Campo {field} richiesto'}), 400
+
+        # Crea il generatore di percorsi
+        route_generator = GoogleMapsRouteGenerator(GOOGLE_MAPS_API_KEY)
+
+        # Parametri opzionali
+        waypoints = data.get('waypoints', [])
+        travel_mode = data.get('travel_mode', 'driving')
+        avoid = data.get('avoid', [])
+
+        # Filtra waypoints vuoti
+        waypoints = [wp.strip() for wp in waypoints if wp.strip()]
+
+        # Genera il percorso
+        route_data = route_generator.create_simulator_path(
+            origin=data['origin'],
+            destination=data['destination'],
+            waypoints=waypoints if waypoints else None,
+            travel_mode=travel_mode,
+            avoid=avoid if avoid else None
+        )
+
+        # Ritorna i dati per l'anteprima
+        return jsonify({
+            'success': True,
+            'route': {
+                'path': route_data['path'][:100],  # Limita a 100 punti per l'anteprima
+                'start_address': route_data['route_info']['start_address'],
+                'end_address': route_data['route_info']['end_address'],
+                'total_distance_km': round(route_data['total_distance_km'], 2),
+                'estimated_duration_minutes': round(route_data['estimated_duration_minutes'], 0),
+                'suggested_speed_kmh': round(route_data['suggested_speed_kmh'], 0),
+                'total_points': len(route_data['path']),
+                'bounds': route_data['route_info']['bounds']
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Errore anteprima Google Maps: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/simulator/google-maps/start', methods=['POST'])
+@login_required
+def api_google_maps_start():
+    """API per avviare una simulazione con percorso Google Maps"""
+    permissions = traccar_api.get_user_permissions()
+
+    if not (permissions.get('admin') or permissions.get('manager')):
+        return jsonify({'error': 'Permessi insufficienti'}), 403
+
+    if not GOOGLE_MAPS_API_KEY or GOOGLE_MAPS_API_KEY == '':
+        return jsonify({'error': 'API Key Google Maps non configurata'}), 400
+
+    try:
+        data = request.get_json()
+
+        # Validazione dati
+        required_fields = ['device_id', 'imei', 'origin', 'destination']
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({'error': f'Campo {field} richiesto'}), 400
+
+        device_id = data['device_id']
+        imei = data['imei']
+
+        # Verifica che il dispositivo esista
+        device = traccar_api.get_device_by_id(device_id)
+        if not device:
+            return jsonify({'error': 'Dispositivo non trovato'}), 404
+
+        # Verifica che non ci sia già una simulazione attiva
+        if imei in simulator_processes:
+            proc = simulator_processes[imei]['process']
+            if proc.poll() is None:
+                return jsonify({'error': 'Simulazione già attiva per questo dispositivo'}), 409
+            else:
+                del simulator_processes[imei]
+
+        # Parametri opzionali
+        waypoints = data.get('waypoints', [])
+        waypoints = [wp.strip() for wp in waypoints if wp.strip()]
+
+        # Crea la configurazione usando Google Maps
+        config = create_simulator_config_with_google_route(
+            device_id=device_id,
+            imei=imei,
+            origin=data['origin'],
+            destination=data['destination'],
+            api_key=GOOGLE_MAPS_API_KEY,
+            waypoints=waypoints if waypoints else None,
+            update_interval=data.get('update_interval', 30),
+            travel_mode=data.get('travel_mode', 'driving'),
+            avoid=data.get('avoid', []),
+            traccar_server=f"http://torraccia.iliadboxos.it:58082"
+        )
+
+        # Salva configurazione temporanea
+        temp_config_file = f'temp_googlemaps_{imei}.json'
+        with open(temp_config_file, 'w', encoding='utf-8') as f:
+            json.dump(config, f, indent=2, ensure_ascii=False)
+
+        # Avvia il simulatore
+        cmd = ['python3', 'device_simulator.py', '--config', temp_config_file]
+        process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+
+        # Traccia il processo
+        simulator_processes[imei] = {
+            'process': process,
+            'device_name': device.get('name', f'Device {device_id}'),
+            'start_time': datetime.now().isoformat(),
+            'config': data,
+            'temp_config_file': temp_config_file,
+            'type': 'google_maps',
+            'route_info': config['devices'][0]['route_metadata']
+        }
+
+        logger.info(f"Simulazione Google Maps avviata per {imei} (PID: {process.pid})")
+
+        return jsonify({
+            'success': True,
+            'message': f'Simulazione Google Maps avviata per {device.get("name")}',
+            'imei': imei,
+            'pid': process.pid,
+            'route_info': config['devices'][0]['route_metadata']
+        })
+
+    except Exception as e:
+        logger.error(f"Errore avvio simulazione Google Maps: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/simulator/google-maps/geocode', methods=['POST'])
+@login_required
+def api_google_maps_geocode():
+    """API per geocodificare un indirizzo"""
+    permissions = traccar_api.get_user_permissions()
+
+    if not (permissions.get('admin') or permissions.get('manager')):
+        return jsonify({'error': 'Permessi insufficienti'}), 403
+
+    if not GOOGLE_MAPS_API_KEY or GOOGLE_MAPS_API_KEY == '':
+        return jsonify({'error': 'API Key Google Maps non configurata'}), 400
+
+    try:
+        data = request.get_json()
+        address = data.get('address', '').strip()
+
+        if not address:
+            return jsonify({'error': 'Indirizzo richiesto'}), 400
+
+        # Chiamata all'API di geocoding di Google
+        geocode_url = "https://maps.googleapis.com/maps/api/geocode/json"
+        params = {
+            'address': address,
+            'key': GOOGLE_MAPS_API_KEY,
+            'language': 'it',
+            'region': 'it'
+        }
+
+        response = requests.get(geocode_url, params=params)
+        response.raise_for_status()
+        geocode_data = response.json()
+
+        if geocode_data['status'] != 'OK':
+            return jsonify({'error': f'Geocoding fallito: {geocode_data["status"]}'}), 400
+
+        results = []
+        for result in geocode_data['results'][:5]:  # Massimo 5 risultati
+            results.append({
+                'formatted_address': result['formatted_address'],
+                'location': result['geometry']['location'],
+                'types': result['types']
+            })
+
+        return jsonify({
+            'success': True,
+            'results': results
+        })
+
+    except Exception as e:
+        logger.error(f"Errore geocoding: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/simulator/google-maps/config')
+@login_required
+def api_google_maps_config():
+    """API per verificare la configurazione di Google Maps"""
+    permissions = traccar_api.get_user_permissions()
+
+    if not (permissions.get('admin') or permissions.get('manager')):
+        return jsonify({'error': 'Permessi insufficienti'}), 403
+
+    return jsonify({
+        'api_key_configured': bool(GOOGLE_MAPS_API_KEY and GOOGLE_MAPS_API_KEY != 'AIzaSyAZLNmrmri-HUzex5s4FaJZPk8xVeAyFVk'),
+        'travel_modes': ['driving', 'walking', 'bicycling', 'transit'],
+        'avoid_options': ['tolls', 'highways', 'ferries'],
+        'supported_regions': ['it', 'eu', 'us']
+    })
+
+
+# AGGIUNGI QUESTA ROUTE SEMPLICE AL TUO app.py PER DEBUG IMMEDIATO
+# ROUTE DI DEBUG CORRETTA - AGGIUNGI AL TUO app.py
+
+@app.route('/debug-simple')
+@login_required
+def debug_simple():
+    """Debug semplice senza template complesso"""
+
+    api_key = os.getenv('GOOGLE_MAPS_API_KEY', '')
+    devices = traccar_api.get_devices()
+
+    # Genera la lista dispositivi per il select
+    device_options = ''
+    for device in devices:
+        device_options += f'<option value="{device["id"]}" data-imei="{device["uniqueId"]}">{device["name"]} ({device["uniqueId"]})</option>'
+
+    html = f"""
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Google Maps Simulator</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .debug-section {{
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }}
+        .status-ok {{ color: #28a745; }}
+        .status-error {{ color: #dc3545; }}
+        .status-warning {{ color: #ffc107; }}
+        #console-output {{
+            background: #000;
+            color: #0f0;
+            font-family: monospace;
+            padding: 15px;
+            height: 200px;
+            overflow-y: auto;
+            border-radius: 5px;
+        }}
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-12">
+                <h1><i class="fas fa-bug"></i> Debug Google Maps Simulator</h1>
+                <p>Diagnostica problemi di integrazione</p>
+                <div class="alert alert-info">
+                    <strong>Ora:</strong> {datetime.now().strftime('%H:%M:%S')} | 
+                    <strong>Status:</strong> <span class="status-ok">ONLINE</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Status Check -->
+        <div class="debug-section">
+            <h3><i class="fas fa-heartbeat"></i> Status System</h3>
+            <ul class="list-unstyled">
+                <li><i class="fas fa-check status-ok"></i> Flask App: <strong>RUNNING</strong></li>
+                <li><i class="fas fa-{'check status-ok' if api_key else 'times status-error'}"></i> Google Maps API Key: <strong>{'CONFIGURED' if api_key else 'NOT CONFIGURED'}</strong></li>
+                <li><i class="fas fa-check status-ok"></i> Traccar Connection: <strong>OK</strong></li>
+                <li><i class="fas fa-check status-ok"></i> Dispositivi disponibili: <strong>{len(devices)}</strong></li>
+            </ul>
+
+            {'<div class="alert alert-success"><strong>API Key OK:</strong> ' + api_key[:20] + '...</div>' if api_key else '<div class="alert alert-warning"><strong>API Key mancante!</strong><br><code>set GOOGLE_MAPS_API_KEY=your_key</code></div>'}
+        </div>
+
+        <!-- Test JavaScript -->
+        <div class="debug-section">
+            <h3><i class="fas fa-code"></i> Test JavaScript</h3>
+            <div class="row">
+                <div class="col-md-12">
+                    <button class="btn btn-primary me-2" onclick="testBasicJS()">Test JavaScript Base</button>
+                    <button class="btn btn-info me-2" onclick="testAJAX()">Test AJAX</button>
+                    <button class="btn btn-warning me-2" onclick="clearConsole()">Pulisci Console</button>
+                    <button class="btn btn-secondary" onclick="window.location.reload()">Ricarica Pagina</button>
+                </div>
+            </div>
+            <div class="mt-3">
+                <h5>Console Output:</h5>
+                <div id="console-output">Clicca "Test JavaScript Base" per iniziare...<br></div>
+            </div>
+        </div>
+
+        <!-- Test Form -->
+        <div class="debug-section">
+            <h3><i class="fas fa-wpforms"></i> Test Form Simulatore</h3>
+            <form id="testForm" class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Dispositivo</label>
+                    <select class="form-select" id="deviceSelect">
+                        <option value="">Seleziona dispositivo</option>
+                        {device_options}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Origine</label>
+                    <input type="text" class="form-control" id="origin" placeholder="Roma, Italia">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Destinazione</label>
+                    <input type="text" class="form-control" id="destination" placeholder="Milano, Italia">
+                </div>
+                <div class="col-12">
+                    <button type="button" class="btn btn-success me-2" onclick="testPreview()">Test Preview</button>
+                    <button type="button" class="btn btn-primary me-2" onclick="fillTestData()">Riempi Dati Test</button>
+                    <button type="button" class="btn btn-secondary" onclick="showFormData()">Mostra Dati Form</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- API Test -->
+        <div class="debug-section">
+            <h3><i class="fas fa-network-wired"></i> Test API</h3>
+            <div class="row">
+                <div class="col-12">
+                    <button class="btn btn-outline-primary me-2" onclick="testGeocoding()">Test Geocoding</button>
+                    <button class="btn btn-outline-success me-2" onclick="testPreviewAPI()">Test Preview API</button>
+                    <button class="btn btn-outline-info me-2" onclick="testConfigAPI()">Test Config API</button>
+                    <button class="btn btn-outline-warning me-2" onclick="testServerStatus()">Test Server Status</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation -->
+        <div class="debug-section">
+            <h3><i class="fas fa-link"></i> Links</h3>
+            <a href="/simulator" class="btn btn-outline-secondary me-2">← Simulator Dashboard</a>
+            <a href="/simulator/google-maps" class="btn btn-outline-primary me-2">Google Maps Simulator</a>
+            <a href="/debug/google-maps" class="btn btn-outline-info me-2">Debug Google Maps (se esiste)</a>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <script>
+        // Variabili globali
+        let consoleOutput = document.getElementById('console-output');
+        let testCount = 0;
+
+        // Funzione di logging
+        function log(message, type) {{
+            type = type || 'info';
+            testCount++;
+            const timestamp = new Date().toLocaleTimeString();
+            let color = '#0ff';
+
+            if (type === 'error') color = '#ff6b6b';
+            else if (type === 'success') color = '#51cf66';
+            else if (type === 'warning') color = '#ffd43b';
+
+            const logLine = '[' + timestamp + '] ' + message;
+            consoleOutput.innerHTML += '<div style="color: ' + color + '">' + logLine + '</div>';
+            consoleOutput.scrollTop = consoleOutput.scrollHeight;
+            console.log('[' + type.toUpperCase() + '] ' + message);
+        }}
+
+        // Funzioni di test
+        function clearConsole() {{
+            consoleOutput.innerHTML = 'Console pulita...<br>';
+            console.clear();
+            testCount = 0;
+        }}
+
+        function testBasicJS() {{
+            log('🧪 Test JavaScript Base...', 'info');
+
+            try {{
+                // Test jQuery
+                if (typeof $ !== 'undefined') {{
+                    log('✅ jQuery: LOADED (v' + $.fn.jquery + ')', 'success');
+                }} else {{
+                    log('❌ jQuery: NOT LOADED', 'error');
+                    return;
+                }}
+
+                // Test Bootstrap
+                if (typeof bootstrap !== 'undefined') {{
+                    log('✅ Bootstrap: LOADED', 'success');
+                }} else {{
+                    log('⚠️ Bootstrap: NOT LOADED', 'warning');
+                }}
+
+                // Test basic DOM
+                const deviceCount = $('#deviceSelect option').length - 1;
+                const originField = $('#origin').length;
+                const destField = $('#destination').length;
+
+                log('✅ DOM Elements: deviceSelect=' + deviceCount + ', origin=' + originField + ', dest=' + destField, 'success');
+                log('📱 Dispositivi disponibili: ' + deviceCount, 'info');
+
+                if (deviceCount === 0) {{
+                    log('⚠️ ATTENZIONE: Nessun dispositivo trovato!', 'warning');
+                }}
+
+                log('✅ Test JavaScript BASE completato!', 'success');
+
+            }} catch (error) {{
+                log('❌ Errore: ' + error.message, 'error');
+            }}
+        }}
+
+        function testAJAX() {{
+            log('🌐 Test AJAX...', 'info');
+
+            if (typeof $ === 'undefined') {{
+                log('❌ jQuery non disponibile per AJAX', 'error');
+                return;
+            }}
+
+            $.ajax({{
+                url: '/api/server/status',
+                method: 'GET',
+                timeout: 5000,
+                success: function(data) {{
+                    log('✅ AJAX Test OK: Server risponde', 'success');
+                    log('📊 Server Status: ' + JSON.stringify(data), 'info');
+                }},
+                error: function(xhr, status, error) {{
+                    log('❌ AJAX Test FAILED: ' + error, 'error');
+                    log('📄 Status: ' + xhr.status + ', Response: ' + xhr.responseText.substring(0, 100), 'error');
+                }}
+            }});
+        }}
+
+        function fillTestData() {{
+            log('📝 Riempimento dati test...', 'info');
+
+            try {{
+                $('#origin').val('Roma, Italia');
+                $('#destination').val('Milano, Italia');
+
+                if ($('#deviceSelect option').length > 1) {{
+                    $('#deviceSelect').prop('selectedIndex', 1);
+                    log('✅ Dispositivo selezionato: ' + $('#deviceSelect option:selected').text(), 'success');
+                }} else {{
+                    log('❌ Nessun dispositivo disponibile', 'error');
+                }}
+
+                log('✅ Dati test inseriti', 'success');
+
+            }} catch (error) {{
+                log('❌ Errore riempimento dati: ' + error.message, 'error');
+            }}
+        }}
+
+        function showFormData() {{
+            log('📋 Lettura dati form...', 'info');
+
+            try {{
+                const data = {{
+                    device: $('#deviceSelect').val(),
+                    imei: $('#deviceSelect option:selected').data('imei'),
+                    origin: $('#origin').val(),
+                    destination: $('#destination').val()
+                }};
+
+                log('Device ID: ' + (data.device || 'VUOTO'), 'info');
+                log('IMEI: ' + (data.imei || 'VUOTO'), 'info');
+                log('Origine: ' + (data.origin || 'VUOTO'), 'info');
+                log('Destinazione: ' + (data.destination || 'VUOTO'), 'info');
+
+            }} catch (error) {{
+                log('❌ Errore lettura form: ' + error.message, 'error');
+            }}
+        }}
+
+        function testServerStatus() {{
+            log('🏠 Test Server Status...', 'info');
+            testAJAX(); // Riusa la funzione AJAX
+        }}
+
+        function testGeocoding() {{
+            const address = $('#origin').val() || 'Roma, Italia';
+            log('🔍 Test Geocoding: ' + address, 'info');
+
+            $.ajax({{
+                url: '/api/simulator/google-maps/geocode',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({{ address: address }}),
+                timeout: 10000,
+                success: function(response) {{
+                    log('✅ Geocoding OK', 'success');
+                    log('📍 Risultati: ' + (response.results ? response.results.length : 0), 'info');
+                    if (response.results && response.results.length > 0) {{
+                        log('🏠 Primo risultato: ' + response.results[0].formatted_address, 'info');
+                    }}
+                }},
+                error: function(xhr) {{
+                    log('❌ Geocoding FAILED: ' + xhr.status, 'error');
+                    log('📄 Response: ' + xhr.responseText.substring(0, 200), 'error');
+                }}
+            }});
+        }}
+
+        function testPreview() {{
+            log('👁️ Test Preview Route...', 'info');
+
+            const data = {{
+                origin: $('#origin').val() || 'Roma, Italia',
+                destination: $('#destination').val() || 'Milano, Italia',
+                waypoints: [],
+                travel_mode: 'driving',
+                avoid: []
+            }};
+
+            log('📡 Invio richiesta preview...', 'info');
+
+            $.ajax({{
+                url: '/api/simulator/google-maps/preview',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify(data),
+                timeout: 15000,
+                success: function(response) {{
+                    log('✅ Preview OK', 'success');
+                    if (response.route) {{
+                        log('🗺️ Distanza: ' + response.route.total_distance_km + ' km', 'info');
+                        log('⏱️ Durata: ' + response.route.estimated_duration_minutes + ' min', 'info');
+                        log('🚗 Velocità: ' + response.route.suggested_speed_kmh + ' km/h', 'info');
+                        log('📍 Punti GPS: ' + response.route.total_points, 'info');
+                    }}
+                }},
+                error: function(xhr) {{
+                    log('❌ Preview FAILED: ' + xhr.status, 'error');
+                    log('📄 Response: ' + xhr.responseText.substring(0, 300), 'error');
+                }}
+            }});
+        }}
+
+        function testPreviewAPI() {{
+            testPreview();
+        }}
+
+        function testConfigAPI() {{
+            log('⚙️ Test Config API...', 'info');
+
+            $.ajax({{
+                url: '/api/simulator/google-maps/config',
+                method: 'GET',
+                timeout: 5000,
+                success: function(response) {{
+                    log('✅ Config API OK', 'success');
+                    log('🔑 API Key configurata: ' + response.api_key_configured, 'info');
+                    if (response.travel_modes) {{
+                        log('🚗 Travel modes: ' + response.travel_modes.join(', '), 'info');
+                    }}
+                    if (response.avoid_options) {{
+                        log('🚫 Avoid options: ' + response.avoid_options.join(', '), 'info');
+                    }}
+                }},
+                error: function(xhr) {{
+                    log('❌ Config API FAILED: ' + xhr.status, 'error');
+                    log('📄 Response: ' + xhr.responseText.substring(0, 200), 'error');
+                }}
+            }});
+        }}
+
+        // Auto-start quando la pagina è pronta
+        $(document).ready(function() {{
+            log('🚀 Debug page caricata', 'info');
+            log('👆 Clicca "Test JavaScript Base" per iniziare', 'info');
+            log('🔧 Totale dispositivi: {len(devices)}', 'info');
+            log('🔑 API Key: {"CONFIGURATA" if api_key else "NON CONFIGURATA"}', 'info');
+        }});
+
+        // Global error handler
+        window.onerror = function(msg, url, line, col, error) {{
+            log('❌ JS ERROR: ' + msg + ' at line ' + line, 'error');
+            return false;
+        }};
+
+        // Log di caricamento librerie
+        if (typeof $ !== 'undefined') {{
+            console.log('✅ jQuery loaded successfully');
+        }} else {{
+            console.error('❌ jQuery NOT loaded');
+        }}
+
+        if (typeof bootstrap !== 'undefined') {{
+            console.log('✅ Bootstrap loaded successfully');
+        }} else {{
+            console.warn('⚠️ Bootstrap NOT loaded');
+        }}
+    </script>
+</body>
+</html>
+    """
+
+    return html
+
 if __name__ == '__main__':
     # Registra la funzione di cleanup
     atexit.register(cleanup_all_simulators)

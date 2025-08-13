@@ -1,0 +1,850 @@
+{% extends "base.html" %}
+
+{% block title %}Simulatore Google Maps - Traccar{% endblock %}
+
+{% block extra_css %}
+<style>
+    .route-form {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+    }
+
+    .route-preview {
+        background: white;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-top: 1rem;
+    }
+
+    .waypoint-input {
+        position: relative;
+        margin-bottom: 0.5rem;
+    }
+
+    .waypoint-remove {
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        color: #dc3545;
+        cursor: pointer;
+        padding: 5px;
+        z-index: 10;
+    }
+
+    .route-info {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin: 1rem 0;
+    }
+
+    .route-info-item {
+        text-align: center;
+        padding: 1rem;
+        background: #f8f9fa;
+        border-radius: 6px;
+    }
+
+    .route-info-value {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: #0d6efd;
+    }
+
+    .route-info-label {
+        font-size: 0.9rem;
+        color: #6c757d;
+        margin-top: 0.5rem;
+    }
+
+    #map {
+        height: 400px;
+        border-radius: 8px;
+        border: 1px solid #e0e0e0;
+        background: #f0f0f0;
+    }
+
+    .address-suggestions {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: white;
+        border: 1px solid #e0e0e0;
+        border-top: none;
+        border-radius: 0 0 6px 6px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        z-index: 1000;
+        max-height: 200px;
+        overflow-y: auto;
+        display: none;
+    }
+
+    .suggestion-item {
+        padding: 0.75rem 1rem;
+        cursor: pointer;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    .suggestion-item:hover {
+        background: #f8f9fa;
+    }
+
+    .suggestion-item:last-child {
+        border-bottom: none;
+    }
+
+    .input-group-address {
+        position: relative;
+    }
+
+    .debug-info {
+        background: #e7f3ff;
+        border: 1px solid #bee5eb;
+        padding: 1rem;
+        border-radius: 6px;
+        margin: 1rem 0;
+        font-family: monospace;
+        font-size: 0.9rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="content-area">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2><i class="fas fa-route text-primary"></i> Simulatore Google Maps</h2>
+            <p class="text-muted mb-0">Crea simulazioni GPS utilizzando percorsi reali da Google Maps</p>
+        </div>
+        <div>
+            <a href="{{ url_for('simulator_dashboard') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Torna al Simulatore
+            </a>
+        </div>
+    </div>
+
+    <!-- Debug Info -->
+    <div class="debug-info">
+        <strong>🔧 Debug Info:</strong><br>
+        API Key Configured: {{ api_key_configured }}<br>
+        {% if google_maps_api_key %}
+        API Key Preview: {{ google_maps_api_key[:10] }}...<br>
+        {% endif %}
+        Dispositivi disponibili: {{ devices|length }}<br>
+        <button class="btn btn-sm btn-info" onclick="testJavaScript()">Test JavaScript</button>
+        <button class="btn btn-sm btn-warning" onclick="checkConsole()">Controlla Console</button>
+    </div>
+
+    {% if not api_key_configured %}
+    <div class="alert alert-danger">
+        <i class="fas fa-exclamation-triangle"></i>
+        <strong>ERRORE:</strong> La chiave API di Google Maps non è configurata.<br>
+        <strong>Soluzione:</strong> Configura la variabile d'ambiente <code>GOOGLE_MAPS_API_KEY</code>
+        <br><br>
+        <strong>Windows:</strong><br>
+        <code>set GOOGLE_MAPS_API_KEY=your_api_key_here</code><br>
+        <strong>PowerShell:</strong><br>
+        <code>$env:GOOGLE_MAPS_API_KEY="your_api_key_here"</code>
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <div class="col-lg-6">
+            <!-- Form di configurazione percorso -->
+            <div class="route-form">
+                <h4><i class="fas fa-map-marked-alt"></i> Configurazione Percorso</h4>
+
+                <form id="routeForm" onsubmit="return false;">
+                    <!-- Selezione dispositivo -->
+                    <div class="mb-3">
+                        <label class="form-label">Dispositivo</label>
+                        <select class="form-select" id="deviceSelect" required>
+                            <option value="">Seleziona un dispositivo</option>
+                            {% for device in devices %}
+                            <option value="{{ device.id }}" data-imei="{{ device.uniqueId }}">
+                                {{ device.name }} ({{ device.uniqueId }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Origine -->
+                    <div class="mb-3">
+                        <label class="form-label">Origine</label>
+                        <div class="input-group-address">
+                            <input type="text" class="form-control address-input" id="originInput"
+                                   placeholder="es. Roma, Italia" required>
+                            <div class="address-suggestions" id="originSuggestions"></div>
+                        </div>
+                    </div>
+
+                    <!-- Destinazione -->
+                    <div class="mb-3">
+                        <label class="form-label">Destinazione</label>
+                        <div class="input-group-address">
+                            <input type="text" class="form-control address-input" id="destinationInput"
+                                   placeholder="es. Milano, Italia" required>
+                            <div class="address-suggestions" id="destinationSuggestions"></div>
+                        </div>
+                    </div>
+
+                    <!-- Punti intermedi -->
+                    <div class="mb-3">
+                        <label class="form-label">Punti Intermedi (opzionale)</label>
+                        <div id="waypointsContainer">
+                            <!-- I waypoints verranno aggiunti dinamicamente -->
+                        </div>
+                        <button type="button" class="btn btn-outline-primary btn-sm" id="addWaypointBtn">
+                            <i class="fas fa-plus"></i> Aggiungi Punto Intermedio
+                        </button>
+                    </div>
+
+                    <!-- Modalità di viaggio -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Modalità di Viaggio</label>
+                            <select class="form-select" id="travelMode">
+                                <option value="driving">Auto</option>
+                                <option value="walking">A piedi</option>
+                                <option value="bicycling">Bicicletta</option>
+                                <option value="transit">Trasporto pubblico</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Intervallo Aggiornamento (sec)</label>
+                            <input type="number" class="form-control" id="updateInterval"
+                                   value="30" min="5" max="300">
+                        </div>
+                    </div>
+
+                    <!-- Opzioni da evitare -->
+                    <div class="mb-3">
+                        <label class="form-label">Evita</label>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="avoidTolls" value="tolls">
+                                    <label class="form-check-label" for="avoidTolls">Pedaggi</label>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="avoidHighways" value="highways">
+                                    <label class="form-check-label" for="avoidHighways">Autostrade</label>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="avoidFerries" value="ferries">
+                                    <label class="form-check-label" for="avoidFerries">Traghetti</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Pulsanti -->
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-primary" id="previewBtn">
+                            <i class="fas fa-eye"></i> Anteprima Percorso
+                        </button>
+                        <button type="button" class="btn btn-success" id="startSimulationBtn" style="display: none;">
+                            <i class="fas fa-play"></i> Avvia Simulazione
+                        </button>
+                        <button type="button" class="btn btn-info btn-sm" onclick="testFormData()">
+                            Test Form
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <!-- Anteprima percorso -->
+            <div class="route-preview" id="routePreview" style="display: none;">
+                <h4><i class="fas fa-route"></i> Anteprima Percorso</h4>
+
+                <div class="route-info" id="routeInfo">
+                    <!-- Le informazioni del percorso verranno inserite qui -->
+                </div>
+
+                <!-- Mappa -->
+                <div id="map">
+                    <div class="text-center p-4">
+                        <i class="fas fa-map-marked-alt fa-2x text-muted mb-3"></i>
+                        <p class="text-muted">Mappa Google Maps sarà caricata qui</p>
+                    </div>
+                </div>
+
+                <div class="mt-3" id="routeDetails">
+                    <!-- Dettagli del percorso -->
+                </div>
+            </div>
+
+            <!-- Placeholder quando nessun percorso è selezionato -->
+            <div class="text-center p-5" id="noRoutePreview">
+                <i class="fas fa-map-marked-alt fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">Configura un percorso per vedere l'anteprima</h5>
+                <p class="text-muted">Compila i campi a sinistra e clicca "Anteprima Percorso"</p>
+                <button class="btn btn-outline-primary" onclick="fillTestData()">
+                    <i class="fas fa-flask"></i> Riempi Dati Test
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Loading modal -->
+<div class="modal fade" id="loadingModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-body text-center p-4">
+                <div class="spinner-border text-primary mb-3" role="status">
+                    <span class="visually-hidden">Caricamento...</span>
+                </div>
+                <h5 id="loadingText">Caricamento percorso...</h5>
+                <p class="text-muted mb-0" id="loadingSubtext">Attendere prego</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Variabili globali
+let currentRoute = null;
+let map = null;
+let directionsService = null;
+let directionsRenderer = null;
+let waypointCount = 0;
+let isGoogleMapsLoaded = false;
+
+// DEBUG FUNCTIONS
+function testJavaScript() {
+    console.log('🧪 Test JavaScript...');
+    console.log('jQuery disponibile:', typeof $ !== 'undefined');
+    console.log('Google Maps disponibile:', typeof google !== 'undefined');
+    console.log('API Key configurata:', {{ api_key_configured|lower }});
+
+    alert('✅ JavaScript funziona!\nControlla la Console (F12) per dettagli');
+}
+
+function checkConsole() {
+    console.log('=== GOOGLE MAPS SIMULATOR DEBUG ===');
+    console.log('Dispositivi:', $('#deviceSelect option').length - 1);
+    console.log('API Key:', {{ api_key_configured|lower }});
+    console.log('Google Maps:', typeof google !== 'undefined' ? 'LOADED' : 'NOT LOADED');
+    console.log('jQuery:', typeof $ !== 'undefined' ? 'LOADED' : 'NOT LOADED');
+
+    alert('Controlla la Console (F12) per informazioni dettagliate');
+}
+
+function fillTestData() {
+    console.log('📝 Riempimento dati test...');
+    $('#originInput').val('Roma, Italia');
+    $('#destinationInput').val('Milano, Italia');
+
+    // Seleziona il primo dispositivo se disponibile
+    if ($('#deviceSelect option').length > 1) {
+        $('#deviceSelect').prop('selectedIndex', 1);
+    }
+
+    alert('✅ Dati test inseriti!\nOra prova "Anteprima Percorso"');
+}
+
+function testFormData() {
+    const formData = getFormData();
+    console.log('📋 Dati form:', formData);
+
+    let message = 'Dati Form:\n';
+    message += `Device ID: ${formData.deviceId}\n`;
+    message += `IMEI: ${formData.imei}\n`;
+    message += `Origine: ${formData.origin}\n`;
+    message += `Destinazione: ${formData.destination}\n`;
+    message += `Waypoints: ${formData.waypoints.length}\n`;
+    message += `Modalità: ${formData.travelMode}\n`;
+
+    alert(message);
+}
+
+// MAIN FUNCTIONS
+$(document).ready(function() {
+    console.log('🚀 Inizializzazione simulatore Google Maps...');
+
+    try {
+        // Event listeners con gestione errori
+        $('#previewBtn').off('click').on('click', function(e) {
+            e.preventDefault();
+            console.log('👆 Click Anteprima Percorso');
+            previewRoute();
+        });
+
+        $('#startSimulationBtn').off('click').on('click', function(e) {
+            e.preventDefault();
+            console.log('👆 Click Avvia Simulazione');
+            startSimulation();
+        });
+
+        $('#addWaypointBtn').off('click').on('click', function(e) {
+            e.preventDefault();
+            console.log('👆 Click Aggiungi Waypoint');
+            addWaypoint();
+        });
+
+        // Inizializza autocomplete
+        setupAddressAutocomplete();
+
+        // Inizializza mappa solo se Google Maps è disponibile
+        if ({{ api_key_configured|lower }}) {
+            console.log('🗺️ Caricamento Google Maps...');
+            // La mappa sarà inizializzata dal callback
+        } else {
+            console.warn('⚠️ API Key non configurata, mappa disabilitata');
+        }
+
+        console.log('✅ Inizializzazione completata');
+
+    } catch (error) {
+        console.error('❌ Errore inizializzazione:', error);
+        showAlert('Errore di inizializzazione: ' + error.message, 'danger');
+    }
+});
+
+function initMap() {
+    try {
+        console.log('🗺️ Inizializzazione mappa Google Maps...');
+
+        if (typeof google === 'undefined') {
+            console.error('❌ Google Maps API non caricata');
+            return;
+        }
+
+        map = new google.maps.Map(document.getElementById('map'), {
+            zoom: 6,
+            center: { lat: 41.9028, lng: 12.4964 }, // Roma
+            mapTypeControl: false,
+            streetViewControl: false,
+            fullscreenControl: false
+        });
+
+        directionsService = new google.maps.DirectionsService();
+        directionsRenderer = new google.maps.DirectionsRenderer({
+            draggable: false,
+            map: map
+        });
+
+        isGoogleMapsLoaded = true;
+        console.log('✅ Google Maps inizializzata');
+
+    } catch (error) {
+        console.error('❌ Errore inizializzazione mappa:', error);
+    }
+}
+
+function setupAddressAutocomplete() {
+    $('.address-input').off('input').on('input', function() {
+        const input = $(this);
+        const value = input.val();
+        const suggestionsContainer = input.siblings('.address-suggestions');
+
+        if (value.length < 3) {
+            suggestionsContainer.hide().empty();
+            return;
+        }
+
+        // Debounce per evitare troppe chiamate
+        clearTimeout(input.data('timeout'));
+        input.data('timeout', setTimeout(() => {
+            if ({{ api_key_configured|lower }}) {
+                geocodeAddress(value, suggestionsContainer, input);
+            }
+        }, 500));
+    });
+
+    // Nascondi suggerimenti quando si clicca fuori
+    $(document).off('click.autocomplete').on('click.autocomplete', function(e) {
+        if (!$(e.target).closest('.input-group-address').length) {
+            $('.address-suggestions').hide();
+        }
+    });
+}
+
+function geocodeAddress(address, container, input) {
+    console.log('🔍 Geocoding:', address);
+
+    $.ajax({
+        url: '/api/simulator/google-maps/geocode',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ address: address }),
+        success: function(response) {
+            console.log('✅ Geocoding risposta:', response);
+            if (response.success) {
+                container.empty();
+                response.results.forEach(result => {
+                    const item = $('<div class="suggestion-item"></div>')
+                        .text(result.formatted_address)
+                        .click(function() {
+                            input.val(result.formatted_address);
+                            container.hide();
+                        });
+                    container.append(item);
+                });
+                container.show();
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('❌ Errore geocoding:', error, xhr.responseText);
+            container.hide();
+        }
+    });
+}
+
+function addWaypoint() {
+    waypointCount++;
+    const waypointHtml = `
+        <div class="waypoint-input" data-waypoint="${waypointCount}">
+            <div class="input-group-address">
+                <input type="text" class="form-control address-input waypoint"
+                       placeholder="es. Firenze, Italia">
+                <button type="button" class="waypoint-remove" onclick="removeWaypoint(${waypointCount})">
+                    <i class="fas fa-times"></i>
+                </button>
+                <div class="address-suggestions"></div>
+            </div>
+        </div>
+    `;
+    $('#waypointsContainer').append(waypointHtml);
+    setupAddressAutocomplete(); // Riapplica l'autocomplete
+    console.log('✅ Waypoint aggiunto:', waypointCount);
+}
+
+function removeWaypoint(id) {
+    $(`.waypoint-input[data-waypoint="${id}"]`).remove();
+    console.log('🗑️ Waypoint rimosso:', id);
+}
+
+function previewRoute() {
+    console.log('👁️ Anteprima percorso...');
+
+    try {
+        const formData = getFormData();
+        console.log('📋 Dati form:', formData);
+
+        if (!validateForm(formData)) {
+            console.warn('⚠️ Validazione form fallita');
+            return;
+        }
+
+        showLoading('Caricamento percorso...', 'Consultando Google Maps...');
+
+        const requestData = {
+            origin: formData.origin,
+            destination: formData.destination,
+            waypoints: formData.waypoints,
+            travel_mode: formData.travelMode,
+            avoid: formData.avoid
+        };
+
+        console.log('📡 Richiesta API:', requestData);
+
+        $.ajax({
+            url: '/api/simulator/google-maps/preview',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(requestData),
+            success: function(response) {
+                console.log('✅ Risposta preview:', response);
+                hideLoading();
+
+                if (response.success) {
+                    currentRoute = response.route;
+                    displayRoutePreview(response.route);
+
+                    if (isGoogleMapsLoaded) {
+                        showRouteOnMap(requestData);
+                    } else {
+                        console.warn('⚠️ Google Maps non caricata, skip visualizzazione mappa');
+                    }
+
+                    $('#startSimulationBtn').show();
+                    showAlert('Percorso caricato con successo!', 'success');
+                } else {
+                    showAlert('Errore nella generazione del percorso: ' + (response.error || 'Sconosciuto'), 'danger');
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('❌ Errore preview:', error, xhr.responseText);
+                hideLoading();
+
+                let errorMsg = 'Errore sconosciuto';
+                try {
+                    const errorResponse = JSON.parse(xhr.responseText);
+                    errorMsg = errorResponse.error || errorMsg;
+                } catch (e) {
+                    errorMsg = xhr.responseText || error;
+                }
+
+                showAlert('Errore: ' + errorMsg, 'danger');
+            }
+        });
+
+    } catch (error) {
+        console.error('❌ Errore preview route:', error);
+        hideLoading();
+        showAlert('Errore interno: ' + error.message, 'danger');
+    }
+}
+
+function showRouteOnMap(requestData) {
+    if (!isGoogleMapsLoaded) {
+        console.warn('⚠️ Google Maps non disponibile');
+        return;
+    }
+
+    try {
+        console.log('🗺️ Visualizzazione percorso su mappa...');
+
+        const request = {
+            origin: requestData.origin,
+            destination: requestData.destination,
+            travelMode: google.maps.TravelMode[requestData.travel_mode.toUpperCase()],
+            avoidHighways: requestData.avoid.includes('highways'),
+            avoidTolls: requestData.avoid.includes('tolls'),
+            avoidFerries: requestData.avoid.includes('ferries')
+        };
+
+        if (requestData.waypoints && requestData.waypoints.length > 0) {
+            request.waypoints = requestData.waypoints.map(wp => ({
+                location: wp,
+                stopover: true
+            }));
+        }
+
+        directionsService.route(request, function(result, status) {
+            console.log('🗺️ Directions status:', status);
+            if (status === 'OK') {
+                directionsRenderer.setDirections(result);
+                console.log('✅ Percorso visualizzato su mappa');
+            } else {
+                console.error('❌ Errore directions:', status);
+            }
+        });
+
+    } catch (error) {
+        console.error('❌ Errore visualizzazione mappa:', error);
+    }
+}
+
+function displayRoutePreview(route) {
+    console.log('📊 Visualizzazione anteprima:', route);
+
+    $('#noRoutePreview').hide();
+    $('#routePreview').show();
+
+    // Informazioni del percorso
+    const routeInfoHtml = `
+        <div class="route-info-item">
+            <div class="route-info-value">${route.total_distance_km} km</div>
+            <div class="route-info-label">Distanza</div>
+        </div>
+        <div class="route-info-item">
+            <div class="route-info-value">${route.estimated_duration_minutes} min</div>
+            <div class="route-info-label">Durata Stimata</div>
+        </div>
+        <div class="route-info-item">
+            <div class="route-info-value">${route.suggested_speed_kmh} km/h</div>
+            <div class="route-info-label">Velocità Media</div>
+        </div>
+        <div class="route-info-item">
+            <div class="route-info-value">${route.total_points}</div>
+            <div class="route-info-label">Punti GPS</div>
+        </div>
+    `;
+    $('#routeInfo').html(routeInfoHtml);
+
+    // Dettagli del percorso
+    const routeDetailsHtml = `
+        <div class="alert alert-info">
+            <strong>Da:</strong> ${route.start_address}<br>
+            <strong>A:</strong> ${route.end_address}
+        </div>
+    `;
+    $('#routeDetails').html(routeDetailsHtml);
+}
+
+function startSimulation() {
+    console.log('🚀 Avvio simulazione...');
+
+    try {
+        const formData = getFormData();
+        if (!validateForm(formData)) return;
+
+        showLoading('Avvio simulazione...', 'Configurando il dispositivo GPS...');
+
+        const requestData = {
+            device_id: formData.deviceId,
+            imei: formData.imei,
+            origin: formData.origin,
+            destination: formData.destination,
+            waypoints: formData.waypoints,
+            travel_mode: formData.travelMode,
+            avoid: formData.avoid,
+            update_interval: formData.updateInterval
+        };
+
+        console.log('📡 Richiesta start simulation:', requestData);
+
+        $.ajax({
+            url: '/api/simulator/google-maps/start',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(requestData),
+            success: function(response) {
+                console.log('✅ Simulazione avviata:', response);
+                hideLoading();
+
+                if (response.success) {
+                    showAlert('Simulazione avviata con successo!', 'success');
+                    // Redirect alla dashboard del simulatore
+                    setTimeout(() => {
+                        window.location.href = '/simulator';
+                    }, 2000);
+                } else {
+                    showAlert('Errore nell\'avvio della simulazione: ' + (response.error || 'Sconosciuto'), 'danger');
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('❌ Errore start simulation:', error, xhr.responseText);
+                hideLoading();
+
+                let errorMsg = 'Errore sconosciuto';
+                try {
+                    const errorResponse = JSON.parse(xhr.responseText);
+                    errorMsg = errorResponse.error || errorMsg;
+                } catch (e) {
+                    errorMsg = xhr.responseText || error;
+                }
+
+                showAlert('Errore: ' + errorMsg, 'danger');
+            }
+        });
+
+    } catch (error) {
+        console.error('❌ Errore start simulation:', error);
+        hideLoading();
+        showAlert('Errore interno: ' + error.message, 'danger');
+    }
+}
+
+function getFormData() {
+    const deviceSelect = $('#deviceSelect');
+    const waypoints = [];
+    $('.waypoint').each(function() {
+        const value = $(this).val().trim();
+        if (value) waypoints.push(value);
+    });
+
+    const avoid = [];
+    $('input[type="checkbox"]:checked').each(function() {
+        avoid.push($(this).val());
+    });
+
+    return {
+        deviceId: deviceSelect.val(),
+        imei: deviceSelect.find(':selected').data('imei'),
+        origin: $('#originInput').val().trim(),
+        destination: $('#destinationInput').val().trim(),
+        waypoints: waypoints,
+        travelMode: $('#travelMode').val(),
+        avoid: avoid,
+        updateInterval: parseInt($('#updateInterval').val())
+    };
+}
+
+function validateForm(data) {
+    console.log('✅ Validazione form:', data);
+
+    if (!data.deviceId) {
+        showAlert('Seleziona un dispositivo', 'warning');
+        return false;
+    }
+    if (!data.origin) {
+        showAlert('Inserisci l\'indirizzo di origine', 'warning');
+        return false;
+    }
+    if (!data.destination) {
+        showAlert('Inserisci l\'indirizzo di destinazione', 'warning');
+        return false;
+    }
+    return true;
+}
+
+function showLoading(title, subtitle) {
+    $('#loadingText').text(title);
+    $('#loadingSubtext').text(subtitle);
+    $('#loadingModal').modal('show');
+}
+
+function hideLoading() {
+    $('#loadingModal').modal('hide');
+}
+
+function showAlert(message, type) {
+    console.log(`🔔 Alert (${type}):`, message);
+
+    // Rimuovi alert precedenti
+    $('.alert-dismissible').remove();
+
+    const alertHtml = `
+        <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+    $('.content-area').prepend(alertHtml);
+
+    // Auto-hide dopo 5 secondi per success
+    if (type === 'success') {
+        setTimeout(() => {
+            $('.alert-success').alert('close');
+        }, 5000);
+    }
+}
+
+// Gestione errori globali
+window.onerror = function(msg, url, lineNo, columnNo, error) {
+    console.error('❌ Errore JavaScript globale:', {
+        message: msg,
+        source: url,
+        line: lineNo,
+        column: columnNo,
+        error: error
+    });
+    return false;
+};
+</script>
+
+<!-- Carica l'API di Google Maps solo se configurata -->
+{% if api_key_configured and google_maps_api_key %}
+<script async defer
+    src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&libraries=geometry&callback=initMap"
+    onerror="console.error('❌ Errore caricamento Google Maps API')">
+</script>
+{% else %}
+<script>
+console.warn('⚠️ Google Maps API non configurata, skip caricamento');
+function initMap() {
+    console.log('🗺️ Mappa simulata (API non configurata)');
+}
+</script>
+{% endif %}
+{% endblock %}
