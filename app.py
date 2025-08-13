@@ -1,13 +1,14 @@
-import datetime
 import traceback
 
 import requests
 import json
 import re
 from flask import Flask, render_template, jsonify, request, session, redirect, url_for, flash
-from datetime import timedelta
+from datetime import timedelta,datetime, timezone
 import os
 from functools import wraps
+
+from pyodbc import DATETIME
 
 from simulatore.device_simulator import logger
 
@@ -607,54 +608,42 @@ def settings():
 @app.route('/api/devices/force-reload')
 @login_required
 def api_force_reload_devices():
-    """Forza il reload dei dispositivi con debug completo"""
+    """Forza il reload dei dispositivi con riparazione automatica della sessione"""
     try:
         print("=== FORCE RELOAD DEVICES ===")
 
-        # Test connessione diretta
-        import requests
-        test_session = requests.Session()
+        # Prima prova normale
+        devices = traccar_api.get_devices()
 
-        # Login diretto
-        login_response = test_session.post(
-            f"{TRACCAR_SERVER}/api/session",
-            data={
-                'email': TRACCAR_USERNAME or session.get('user_email'),
-                'password': TRACCAR_PASSWORD or 'password_placeholder'  # In produzione usa un sistema sicuro
-            }
-        )
+        if isinstance(devices, list) and len(devices) > 0:
+            return jsonify({
+                'success': True,
+                'devices': devices,
+                'count': len(devices),
+                'method': 'normal_reload'
+            })
 
-        print(f"Login diretto status: {login_response.status_code}")
+        # Se fallisce, prova a riparare la sessione
+        print("Normal reload failed, trying session fix...")
 
-        if login_response.status_code == 200:
-            user_data = login_response.json()
-            print(f"Login diretto successful: {user_data.get('name')}")
+        # Chiama l'endpoint di riparazione sessione
+        fix_result = api_devices_fix_session()
+        fix_data = fix_result.get_json()
 
-            # Recupero dispositivi
-            devices_response = test_session.get(f"{TRACCAR_SERVER}/api/devices")
-            print(f"Devices response status: {devices_response.status_code}")
-
-            if devices_response.status_code == 200:
-                devices = devices_response.json()
-                print(f"Dispositivi trovati: {len(devices)}")
-
-                return jsonify({
-                    'success': True,
-                    'devices': devices,
-                    'count': len(devices),
-                    'user': user_data
-                })
-            else:
-                return jsonify({
-                    'success': False,
-                    'error': f'Errore recupero dispositivi: {devices_response.status_code}',
-                    'response': devices_response.text
-                })
+        if fix_data.get('success'):
+            return jsonify({
+                'success': True,
+                'devices': fix_data['devices'],
+                'count': fix_data['count'],
+                'method': 'session_fixed',
+                'message': 'Sessione riparata e dispositivi ricaricati'
+            })
         else:
             return jsonify({
                 'success': False,
-                'error': f'Errore login: {login_response.status_code}',
-                'response': login_response.text
+                'error': 'Impossibile ricaricare dispositivi',
+                'fix_attempt': fix_data,
+                'suggestion': 'Controlla configurazione server Traccar'
             })
 
     except Exception as e:
@@ -955,12 +944,140 @@ def api_positions():
     device_id = request.args.get('deviceId')
     hours = int(request.args.get('hours', 24))
 
-    to_time = datetime.datetime.now(datetime.UTC)
+    # USA TIMEZONE LOCALE invece di UTC
+    to_time = datetime.now()  # Timezone locale del server
     from_time = to_time - timedelta(hours=hours)
 
+    print(f"Device {device_id}: {from_time} to {to_time} (LOCAL TIME)")
     positions = traccar_api.get_positions(device_id, from_time, to_time)
+    print(f"Found {len(positions)} positions")
     return jsonify(positions)
 
+@app.route('/api/devices/debug')
+@login_required
+def api_devices_debug():
+    """Endpoint di debug completo per i dispositivi"""
+    try:
+        debug_info = {
+            'timestamp': datetime.datetime.now(datetime.UTC).isoformat(),
+            'flask_session': {
+                'logged_in': session.get('logged_in'),
+                'username': session.get('username'),
+                'user_id': session.get('user_id'),
+                'user_admin': session.get('user_admin'),
+            },
+            'traccar_api': {
+                'server_url': traccar_api.server_url,
+                'current_user': traccar_api.get_current_user(),
+                'permissions': traccar_api.get_user_permissions(),
+            },
+            'server_test': None,
+            'devices_test': None,
+            'direct_api_test': None
+        }
+
+        # Test 1: Connessione server
+        try:
+            import requests
+            response = requests.get(f"{TRACCAR_SERVER}/api/server", timeout=5)
+            debug_info['server_test'] = {
+                'status_code': response.status_code,
+                'reachable': response.status_code == 200,
+                'response': response.json() if response.status_code == 200 else response.text[:200]
+            }
+        except Exception as e:
+            debug_info['server_test'] = {'error': str(e)}
+
+        # Test 2: API dispositivi tramite TraccarAPI
+        try:
+            devices = traccar_api.get_devices()
+            debug_info['devices_test'] = {
+                'method': 'TraccarAPI.get_devices()',
+                'result_type': type(devices).__name__,
+                'count': len(devices) if isinstance(devices, list) else 0,
+                'devices': devices[:3] if isinstance(devices, list) else devices  # Prime 3 per debug
+            }
+        except Exception as e:
+            debug_info['devices_test'] = {'error': str(e)}
+
+        # Test 3: API diretta
+        try:
+            response = traccar_api.session.get(f"{TRACCAR_SERVER}/api/devices", timeout=10)
+            debug_info['direct_api_test'] = {
+                'status_code': response.status_code,
+                'headers': dict(response.headers),
+                'count': len(response.json()) if response.status_code == 200 else 0,
+                'response': response.json()[:3] if response.status_code == 200 else response.text[:200]
+            }
+        except Exception as e:
+            debug_info['direct_api_test'] = {'error': str(e)}
+
+        return jsonify(debug_info)
+
+    except Exception as e:
+        return jsonify({'error': str(e), 'traceback': traceback.format_exc()})
+
+
+@app.route('/api/devices/fix-session')
+@login_required
+def api_devices_fix_session():
+    """Tenta di riparare la sessione Traccar e ricaricare i dispositivi"""
+    try:
+        print("=== FIXING TRACCAR SESSION ===")
+
+        # Step 1: Logout dalla sessione corrente
+        try:
+            traccar_api.logout()
+        except:
+            pass
+
+        # Step 2: Re-login con credenziali
+        username = session.get('user_email') or session.get('username')
+        if not username:
+            return jsonify({
+                'success': False,
+                'error': 'Username non trovato in sessione',
+                'suggestion': 'Effettua logout e login nuovamente'
+            })
+
+        # In produzione, NON usare password hardcoded
+        # Questo è solo per debug - implementa un sistema sicuro
+        password = TRACCAR_PASSWORD or 'default_password'
+
+        result = traccar_api.login(username, password)
+        print(f"Re-login result: {result}")
+
+        if not result['success']:
+            return jsonify({
+                'success': False,
+                'error': f'Re-login fallito: {result["error"]}',
+                'suggestion': 'Verifica credenziali Traccar'
+            })
+
+        # Step 3: Prova a ricaricare i dispositivi
+        devices = traccar_api.get_devices()
+
+        if isinstance(devices, list):
+            return jsonify({
+                'success': True,
+                'message': 'Sessione riparata con successo',
+                'devices': devices,
+                'count': len(devices),
+                'user': traccar_api.get_current_user()
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Dispositivi non disponibili dopo re-login',
+                'devices_result': devices
+            })
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        })
 
 @app.route('/api/device/<int:device_id>/status')
 @login_required
@@ -1228,7 +1345,7 @@ def api_reports_route():
     device_ids = request.args.getlist('deviceId')
     days = int(request.args.get('days', 1))
 
-    to_time = datetime.utcnow()
+    to_time = datetime.now(datetime.timezone.utc)
     from_time = to_time - timedelta(days=days)
 
     reports = traccar_api.get_reports_route(device_ids, from_time, to_time)
@@ -1249,25 +1366,25 @@ def api_server_status():
             return jsonify({
                 'status': 'online',
                 'server': server_info,
-                'timestamp': datetime.utcnow().isoformat()
+                'timestamp': datetime.now().isoformat()
             })
         else:
             return jsonify({
                 'status': 'error',
                 'message': f'Server risponde con status {response.status_code}',
-                'timestamp': datetime.utcnow().isoformat()
+                'timestamp': datetime.now(datetime.timezone.utc).isoformat()
             })
     except requests.exceptions.ConnectionError:
         return jsonify({
             'status': 'offline',
             'message': 'Server Traccar non raggiungibile',
-            'timestamp': datetime.datetime.now(datetime.UTC).isoformat()
+            'timestamp': datetime.now(datetime.timezone.utc).isoformat()
         })
     except Exception as e:
         return jsonify({
             'status': 'error',
             'message': str(e),
-            'timestamp': datetime.datetime.now(datetime.UTC).isoformat()
+            'timestamp': datetime.now(datetime.timezone.utc).isoformat()
         })
 
 
@@ -1286,7 +1403,7 @@ def api_devices_status():
                 'device': device,
                 'status': status,
                 'online': status is not None and (
-                        datetime.utcnow() - datetime.fromisoformat(status['serverTime'].replace('Z', '+00:00'))
+                        datetime.now(datetime.timezone.utc) - datetime.fromisoformat(status['serverTime'].replace('Z', '+00:00'))
                 ).total_seconds() < 300  # Online se ultimo aggiornamento < 5 minuti
             })
 
