@@ -1,0 +1,1315 @@
+{% extends "base.html" %}
+
+{% block title %}Mappa Live - Traccar{% endblock %}
+
+{% block page_title %}Mappa Live{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Mappa Live</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+    /* Layout principale - mappa che rispetta la sidebar */
+    .map-container {
+        position: fixed;
+        top: 60px; /* Altezza header */
+        left: 250px; /* Larghezza sidebar */
+        right: 0;
+        bottom: 0;
+        z-index: 1;
+        transition: left 0.3s ease; /* Animazione quando cambia la sidebar */
+    }
+
+    /* Quando la sidebar è collassata */
+    body.sidebar-collapsed .map-container {
+        left: 60px; /* Larghezza sidebar collassata (circa 60px) */
+    }
+
+    #map {
+        height: 100%;
+        width: 100%;
+        border: none;
+    }
+
+    /* Pannello controlli flottante - MODIFICATO per chiusura verso l'alto */
+    .controls-panel {
+        position: fixed;
+        top: 80px;
+        left: 270px; /* 250px sidebar + 20px margin */
+        width: 320px;
+        max-height: calc(100vh - 100px);
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+        border: 1px solid #e3e6f0;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        overflow-y: auto;
+        z-index: 1000;
+        backdrop-filter: blur(10px);
+        background: rgba(255, 255, 255, 0.95);
+        transform-origin: top center;
+    }
+
+    /* Quando la sidebar è collassata */
+    body.sidebar-collapsed .controls-panel {
+        left: 80px; /* 60px sidebar collassata + 20px margin */
+    }
+
+    /* MODIFICATO: pannello collassato verso l'alto invece che verso sinistra */
+    .controls-panel.collapsed {
+        transform: translateY(-100%) scaleY(0);
+        opacity: 0;
+    }
+
+    /* Toggle button migliorato - MODIFICATO per indicare direzione verticale */
+    .collapse-toggle {
+        position: fixed;
+        top: 50px; /* Posizionato sopra il pannello */
+        left: 430px; /* Centro del pannello (270px + 160px metà larghezza) */
+        background: #0d6efd;
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 48px;
+        height: 48px;
+        cursor: pointer;
+        box-shadow: 0 4px 16px rgba(13, 110, 253, 0.3);
+        z-index: 1001;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+    }
+
+    /* Quando la sidebar è collassata */
+    body.sidebar-collapsed .collapse-toggle {
+        left: 240px; /* 80px + 160px */
+    }
+
+    .collapse-toggle:hover {
+        background: #0b5ed7;
+        transform: scale(1.1);
+        box-shadow: 0 6px 20px rgba(13, 110, 253, 0.4);
+    }
+
+    /* Quando il pannello è collassato - torna alla posizione originale */
+    .collapse-toggle.collapsed {
+        top: 80px; /* Stessa posizione del pannello quando aperto */
+        background: #28a745;
+        animation: pulse 2s infinite;
+    }
+
+    /* Quando sia sidebar che pannello sono collassati */
+    body.sidebar-collapsed .collapse-toggle.collapsed {
+        left: 240px;
+    }
+
+    .collapse-toggle.collapsed:hover {
+        background: #1e7e34;
+        animation: none;
+    }
+
+    /* Animazione per attirare l'attenzione */
+    @keyframes pulse {
+        0% {
+            box-shadow: 0 4px 16px rgba(40, 167, 69, 0.3);
+        }
+        50% {
+            box-shadow: 0 4px 16px rgba(40, 167, 69, 0.6), 0 0 0 10px rgba(40, 167, 69, 0.1);
+        }
+        100% {
+            box-shadow: 0 4px 16px rgba(40, 167, 69, 0.3);
+        }
+    }
+
+    /* Icona che ruota - MODIFICATO per frecce verticali */
+    .collapse-toggle .fas {
+        transition: transform 0.3s ease;
+    }
+
+    .collapse-toggle.collapsed .fas {
+        transform: rotate(180deg);
+    }
+
+    .stats-panel {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 15px;
+        margin-top: 20px;
+    }
+
+    .stats-title {
+        color: #495057;
+        font-weight: 600;
+        margin-bottom: 15px;
+    }
+
+    .stat-item {
+        text-align: center;
+        padding: 8px;
+    }
+
+    .stat-value {
+        font-size: 1.2em;
+        font-weight: bold;
+        margin-bottom: 2px;
+    }
+
+    .stat-label {
+        font-size: 0.8em;
+        color: #6c757d;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .loading-overlay {
+        display: none;
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.9);
+        z-index: 1000;
+        border-radius: 8px;
+    }
+
+    .loading-spinner {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+    }
+
+    .tracking-active .auto-refresh-indicator {
+        animation: pulse-green 2s infinite;
+    }
+
+    @keyframes pulse-green {
+        0% { opacity: 1; }
+        50% { opacity: 0.5; }
+        100% { opacity: 1; }
+    }
+
+    /* AGGIUNTA: Stile per toggle "Tutti i dispositivi" */
+    .all-devices-container {
+        margin-top: 10px;
+        padding: 10px;
+        background: #f8f9fa;
+        border-radius: 6px;
+        border: 2px dashed #dee2e6;
+    }
+
+    .all-devices-container.active {
+        background: #e7f3ff;
+        border-color: #0d6efd;
+    }
+
+    .floating-controls {
+        position: fixed;
+        top: 50%;
+        right: 20px;
+        transform: translateY(-50%);
+        z-index: 1000;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .floating-btn {
+        width: 44px;
+        height: 44px;
+        background: rgba(255, 255, 255, 0.95);
+        border: 1px solid #dee2e6;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        color: #495057;
+        transition: all 0.2s;
+        backdrop-filter: blur(5px);
+    }
+
+    .floating-btn:hover {
+        background: #0d6efd;
+        color: white;
+        transform: scale(1.1);
+    }
+
+    .floating-separator {
+        height: 1px;
+        background: #dee2e6;
+        margin: 4px 0;
+    }
+
+    /* Indicatore visivo per il pannello collassato - MODIFICATO */
+    .panel-collapsed-indicator {
+        position: fixed;
+        top: 50px; /* Posizionato sopra dove appare il toggle button */
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(40, 167, 69, 0.9);
+        color: white;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 500;
+        z-index: 999;
+        opacity: 0;
+        transform: translateX(-50%) translateY(-20px);
+        transition: all 0.3s ease;
+        backdrop-filter: blur(5px);
+        white-space: nowrap;
+    }
+
+    .panel-collapsed-indicator.show {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+
+    /* Responsive design */
+    @media (max-width: 768px) {
+        .controls-panel {
+            top: 70px;
+            left: 10px;
+            right: 10px;
+            width: auto;
+            max-width: none;
+        }
+
+        .collapse-toggle {
+            top: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .collapse-toggle.collapsed {
+            top: 70px;
+        }
+
+        .floating-controls {
+            right: 10px;
+            top: auto;
+            bottom: 20px;
+            transform: none;
+            flex-direction: row;
+            flex-wrap: wrap;
+            max-width: calc(100% - 20px);
+        }
+
+        .map-container {
+            top: 50px;
+        }
+
+        .panel-collapsed-indicator {
+            top: 30px;
+        }
+    }
+
+    /* Scrollbar personalizzata per il pannello */
+    .controls-panel::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .controls-panel::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 3px;
+    }
+
+    .controls-panel::-webkit-scrollbar-thumb {
+        background: #c1c1c1;
+        border-radius: 3px;
+    }
+
+    .controls-panel::-webkit-scrollbar-thumb:hover {
+        background: #a1a1a1;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Mappa a schermo intero -->
+<div class="map-container">
+    <div id="map"></div>
+
+    <!-- Loading overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Caricamento...</span>
+            </div>
+            <div class="mt-2">Caricamento dati GPS...</div>
+        </div>
+    </div>
+</div>
+
+<!-- Toggle button -->
+<button class="collapse-toggle" id="toggleBtn" onclick="toggleControlsPanel()" title="Nascondi/Mostra Pannello">
+    <i class="fas fa-chevron-up"></i>
+</button>
+
+<!-- Indicatore pannello collassato -->
+<div class="panel-collapsed-indicator" id="collapsedIndicator">
+    <i class="fas fa-cog me-1"></i> Pannello controlli nascosto
+</div>
+
+<!-- Pannello controlli flottante -->
+<div class="controls-panel p-3" id="controlsPanel">
+    <!-- Selezione dispositivo -->
+    <div class="mb-3">
+        <label class="form-label">
+            <i class="fas fa-mobile-alt text-primary"></i> <strong>Dispositivo</strong>
+        </label>
+        <select class="form-select" id="deviceSelect">
+            <option value="">Caricamento...</option>
+        </select>
+    </div>
+
+    <!-- AGGIUNTA: Toggle per tutti i dispositivi -->
+    <div class="all-devices-container" id="allDevicesContainer">
+        <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="showAllDevices">
+            <label class="form-check-label" for="showAllDevices">
+                <i class="fas fa-globe text-info"></i> <strong>Mostra tutti i dispositivi</strong>
+            </label>
+        </div>
+        <small class="text-muted">Visualizza simultaneamente tutti i dispositivi sulla mappa</small>
+    </div>
+
+    <!-- Selezione periodo -->
+    <div class="mb-3">
+        <label class="form-label">
+            <i class="fas fa-calendar text-warning"></i> <strong>Periodo</strong>
+        </label>
+        <div class="row g-2">
+            <div class="col-6">
+                <input type="datetime-local" class="form-control form-control-sm" id="fromDate">
+            </div>
+            <div class="col-6">
+                <input type="datetime-local" class="form-control form-control-sm" id="toDate">
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtri rapidi -->
+    <div class="mb-3">
+        <label class="form-label"><strong>Filtri rapidi</strong></label>
+        <div class="btn-group-vertical d-grid gap-1">
+            <button class="btn btn-outline-primary btn-sm" onclick="setTimeRange(1)">
+                <i class="fas fa-clock me-1"></i> Ultima ora
+            </button>
+            <button class="btn btn-outline-primary btn-sm" onclick="setTimeRange(6)">
+                <i class="fas fa-clock me-1"></i> Ultime 6 ore
+            </button>
+            <button class="btn btn-outline-primary btn-sm" onclick="setTimeRange(24)">
+                <i class="fas fa-clock me-1"></i> Ultime 24 ore
+            </button>
+            <button class="btn btn-outline-primary btn-sm" onclick="setTimeRange(168)">
+                <i class="fas fa-clock me-1"></i> Ultima settimana
+            </button>
+        </div>
+    </div>
+
+    <!-- Opzioni mappa -->
+    <div class="mb-3">
+        <label class="form-label">
+            <i class="fas fa-cog text-secondary"></i> <strong>Opzioni</strong>
+        </label>
+        <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="showPath" checked>
+            <label class="form-check-label" for="showPath">
+                <i class="fas fa-route text-primary me-1"></i> Mostra percorso
+            </label>
+        </div>
+        <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="showMarkers" checked>
+            <label class="form-check-label" for="showMarkers">
+                <i class="fas fa-map-marker-alt text-danger me-1"></i> Mostra markers
+            </label>
+        </div>
+        <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="autoRefresh">
+            <label class="form-check-label" for="autoRefresh">
+                <i class="fas fa-sync-alt text-success me-1"></i> Auto-aggiornamento
+                <span class="auto-refresh-indicator ms-1" style="display: none;">
+                    <i class="fas fa-circle text-success" style="font-size: 8px;"></i>
+                </span>
+            </label>
+        </div>
+    </div>
+
+    <!-- Pannello statistiche -->
+    <div class="stats-panel">
+        <h6 class="stats-title">
+            <i class="fas fa-chart-bar text-info"></i> Statistiche
+        </h6>
+        <div class="row g-2">
+            <div class="col-6">
+                <div class="stat-item">
+                    <div class="stat-value text-primary" id="totalDistance">0 km</div>
+                    <div class="stat-label">Distanza</div>
+                </div>
+            </div>
+            <div class="col-6">
+                <div class="stat-item">
+                    <div class="stat-value text-success" id="avgSpeed">0 km/h</div>
+                    <div class="stat-label">Vel. Media</div>
+                </div>
+            </div>
+            <div class="col-6">
+                <div class="stat-item">
+                    <div class="stat-value text-warning" id="maxSpeed">0 km/h</div>
+                    <div class="stat-label">Vel. Max</div>
+                </div>
+            </div>
+            <div class="col-6">
+                <div class="stat-item">
+                    <div class="stat-value text-info" id="totalTime">0h 0m</div>
+                    <div class="stat-label">Tempo</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Controlli flottanti -->
+<div class="floating-controls">
+    <div class="floating-btn" onclick="updateMapAction()" title="Aggiorna Mappa">
+        <i class="fas fa-sync-alt"></i>
+    </div>
+    <div class="floating-btn" onclick="fitMapToBounds()" title="Adatta Vista">
+        <i class="fas fa-expand-arrows-alt"></i>
+    </div>
+    <div class="floating-btn" onclick="exportData()" title="Esporta Dati">
+        <i class="fas fa-download"></i>
+    </div>
+
+    <div class="floating-separator"></div>
+
+    <div class="floating-btn" onclick="map.zoomIn()" title="Zoom In">
+        <i class="fas fa-plus"></i>
+    </div>
+    <div class="floating-btn" onclick="map.zoomOut()" title="Zoom Out">
+        <i class="fas fa-minus"></i>
+    </div>
+    <div class="floating-btn" onclick="locateUser()" title="Mia Posizione">
+        <i class="fas fa-crosshairs"></i>
+    </div>
+
+    <div class="floating-separator"></div>
+
+    <div class="floating-btn" onclick="toggleAutoTracking()" title="Auto-Tracking" id="trackingToggleBtn">
+        <i class="fas fa-satellite-dish"></i>
+    </div>
+    <div class="floating-btn" onclick="toggleLayerControl()" title="Livelli Mappa">
+        <i class="fas fa-layers"></i>
+    </div>
+</div>
+
+<!-- Toast container per notifiche -->
+<div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 2100;">
+    <!-- I toast verranno inseriti qui dinamicamente -->
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+let map;
+let markersLayer;
+let pathLayer;
+let currentData = [];
+let allDevices = [];
+let autoTrackingEnabled = false;
+let autoRefreshInterval = null;
+
+// Inizializzazione quando la pagina è caricata
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Initializing map page...');
+
+    // Verifica che Leaflet sia caricato
+    if (typeof L === 'undefined') {
+        console.error('Leaflet not loaded!');
+        showToast('Errore: Leaflet non caricato. Controlla la connessione internet.', 'error');
+        return;
+    }
+
+    initializeMap();
+    loadDevices();
+    initializeDateInputs();
+    setupSidebarObserver(); // Nuovo: osserva i cambiamenti della sidebar
+
+    // AGGIUNTA: Event listener per checkbox "tutti i dispositivi"
+    document.getElementById('showAllDevices').addEventListener('change', function() {
+        const container = document.getElementById('allDevicesContainer');
+        if (this.checked) {
+            container.classList.add('active');
+            updateMapAllDevices();
+        } else {
+            container.classList.remove('active');
+            // Torna alla modalità singolo dispositivo
+            const deviceId = document.getElementById('deviceSelect').value;
+            if (deviceId) {
+                updateMap();
+            }
+        }
+    });
+});
+
+// Nuovo: Funzione per osservare i cambiamenti della sidebar
+function setupSidebarObserver() {
+    // Osserva i cambiamenti nella classe del body per rilevare quando la sidebar viene collassata
+    const observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+                // Quando cambia la classe del body, ridimensiona la mappa
+                setTimeout(() => {
+                    if (map) {
+                        map.invalidateSize();
+                    }
+                }, 350); // Delay per aspettare la fine dell'animazione CSS
+            }
+        });
+    });
+
+    // Inizia l'osservazione
+    observer.observe(document.body, {
+        attributes: true,
+        attributeFilter: ['class']
+    });
+
+    // Controlla anche se ci sono elementi con classe .sidebar che potrebbero cambiare
+    const sidebar = document.querySelector('.sidebar, .nav-sidebar, #sidebar, [class*="sidebar"]');
+    if (sidebar) {
+        observer.observe(sidebar, {
+            attributes: true,
+            attributeFilter: ['class']
+        });
+    }
+
+    // Fallback: controlla periodicamente se la sidebar è collassata
+    setInterval(() => {
+        checkSidebarState();
+    }, 1000);
+}
+
+// Nuovo: Funzione per controllare lo stato della sidebar
+function checkSidebarState() {
+    // Metodi comuni per rilevare se la sidebar è collassata
+    const body = document.body;
+    const sidebar = document.querySelector('.sidebar, .nav-sidebar, #sidebar, [class*="sidebar"]');
+
+    let isCollapsed = false;
+
+    // Controlla diverse convenzioni per sidebar collassata
+    if (body.classList.contains('sidebar-collapsed') ||
+        body.classList.contains('sidebar-mini') ||
+        body.classList.contains('nav-collapsed') ||
+        body.classList.contains('sidebar-collapse')) {
+        isCollapsed = true;
+    }
+
+    // Controlla anche la larghezza della sidebar se presente
+    if (sidebar) {
+        const sidebarWidth = sidebar.offsetWidth;
+        if (sidebarWidth < 100) { // Se la sidebar è più stretta di 100px, considerala collassata
+            isCollapsed = true;
+        }
+    }
+
+    // Applica o rimuove la classe
+    if (isCollapsed && !body.classList.contains('sidebar-collapsed')) {
+        body.classList.add('sidebar-collapsed');
+    } else if (!isCollapsed && body.classList.contains('sidebar-collapsed')) {
+        body.classList.remove('sidebar-collapsed');
+    }
+}
+
+function initializeMap() {
+    console.log('Creating Leaflet map...');
+
+    try {
+        // Inizializza mappa Leaflet
+        map = L.map('map', {
+            center: [41.9028, 12.4964], // Roma, Italia
+            zoom: 6,
+            zoomControl: false // Rimuovi controlli default
+        });
+
+        // Aggiungi layer tiles
+        const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        });
+
+        const satelliteLayer = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+            attribution: 'Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        });
+
+        // Aggiungi layer di default
+        osmLayer.addTo(map);
+
+        // Crea controllo layers
+        window.layerControl = L.control.layers({
+            'OpenStreetMap': osmLayer,
+            'Topografica': satelliteLayer
+        }, {}, {
+            position: 'topright',
+            collapsed: true
+        });
+
+        // Inizializza gruppi di layer
+        markersLayer = L.layerGroup().addTo(map);
+        pathLayer = L.layerGroup().addTo(map);
+
+        console.log('Map initialized successfully');
+
+        // Ridimensiona mappa dopo inizializzazione
+        setTimeout(() => {
+            map.invalidateSize();
+        }, 500);
+
+    } catch (error) {
+        console.error('Error initializing map:', error);
+        showToast('Errore nell\'inizializzazione della mappa: ' + error.message, 'error');
+    }
+}
+
+// FUNZIONE MODIFICATA: toggleControlsPanel ora gestisce l'animazione verso l'alto
+function toggleControlsPanel() {
+    const panel = document.getElementById('controlsPanel');
+    const toggleBtn = document.getElementById('toggleBtn');
+    const indicator = document.getElementById('collapsedIndicator');
+
+    const isCollapsed = panel.classList.contains('collapsed');
+
+    if (isCollapsed) {
+        // Mostra pannello
+        panel.classList.remove('collapsed');
+        toggleBtn.classList.remove('collapsed');
+        indicator.classList.remove('show');
+        toggleBtn.innerHTML = '<i class="fas fa-chevron-up"></i>';
+        toggleBtn.title = 'Nascondi Pannello';
+
+        // Cambia colore del bottone
+        setTimeout(() => {
+            toggleBtn.style.background = '#0d6efd';
+        }, 150);
+
+    } else {
+        // Nascondi pannello
+        panel.classList.add('collapsed');
+        toggleBtn.classList.add('collapsed');
+        indicator.classList.add('show');
+        toggleBtn.innerHTML = '<i class="fas fa-chevron-down"></i>';
+        toggleBtn.title = 'Mostra Pannello';
+
+        // Mostra indicatore dopo un delay
+        setTimeout(() => {
+            if (panel.classList.contains('collapsed')) {
+                indicator.classList.add('show');
+            }
+        }, 300);
+    }
+
+    // Ridimensiona mappa
+    setTimeout(() => {
+        map.invalidateSize();
+    }, 350);
+}
+
+// Funzione wrapper per aggiornare la mappa
+function updateMapAction() {
+    if (document.getElementById('showAllDevices').checked) {
+        updateMapAllDevices();
+    } else {
+        updateMap();
+    }
+}
+
+function loadDevices() {
+    console.log('Loading devices...');
+
+    fetch('/api/devices')
+        .then(response => response.json())
+        .then(devices => {
+            console.log('Devices loaded:', devices);
+            allDevices = devices;
+            const deviceSelect = document.getElementById('deviceSelect');
+            deviceSelect.innerHTML = '<option value="">Seleziona un dispositivo</option>';
+
+            devices.forEach(device => {
+                const option = document.createElement('option');
+                option.value = device.id;
+                option.textContent = `${device.name} (${device.uniqueId})`;
+                deviceSelect.appendChild(option);
+            });
+
+            if (devices.length === 0) {
+                showToast('Nessun dispositivo trovato', 'warning');
+            } else {
+                showToast(`Caricati ${devices.length} dispositivi`, 'success');
+            }
+        })
+        .catch(error => {
+            console.error('Error loading devices:', error);
+            const deviceSelect = document.getElementById('deviceSelect');
+            deviceSelect.innerHTML = '<option value="">Errore caricamento dispositivi</option>';
+            showToast('Errore nel caricamento dei dispositivi', 'error');
+        });
+}
+
+function initializeDateInputs() {
+    const now = new Date();
+    const from = new Date(now.getTime() - 24 * 60 * 60 * 1000); // 24 ore fa
+
+    // FIX FUSO ORARIO: usa il timezone locale invece di UTC
+    const formatLocalDateTime = (date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        return `${year}-${month}-${day}T${hours}:${minutes}`;
+    };
+
+    document.getElementById('fromDate').value = formatLocalDateTime(from);
+    document.getElementById('toDate').value = formatLocalDateTime(now);
+
+    console.log('Date inputs initialized:');
+    console.log('From (local):', formatLocalDateTime(from));
+    console.log('To (local):', formatLocalDateTime(now));
+}
+
+function setTimeRange(hours) {
+    const now = new Date();
+    const from = new Date(now.getTime() - hours * 60 * 60 * 1000);
+
+    // FIX FUSO ORARIO: usa il timezone locale
+    const formatLocalDateTime = (date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        return `${year}-${month}-${day}T${hours}:${minutes}`;
+    };
+
+    document.getElementById('fromDate').value = formatLocalDateTime(from);
+    document.getElementById('toDate').value = formatLocalDateTime(now);
+
+    console.log(`Time range set to ${hours} hours:`);
+    console.log('From (local):', formatLocalDateTime(from));
+    console.log('To (local):', formatLocalDateTime(now));
+
+    showToast(`Periodo impostato: ultime ${hours} ore`, 'info');
+}
+
+function updateMap() {
+    const deviceId = document.getElementById('deviceSelect').value;
+    const fromDate = document.getElementById('fromDate').value;
+    const toDate = document.getElementById('toDate').value;
+
+    if (!deviceId || !fromDate || !toDate) {
+        showToast('Seleziona dispositivo e periodo', 'warning');
+        return;
+    }
+
+    console.log('Updating map for device:', deviceId);
+    console.log('Date range (local inputs):', fromDate, 'to', toDate);
+    showLoading(true);
+
+    // Crea oggetti Date dalle stringhe (questi sono già in timezone locale)
+    const fromTime = new Date(fromDate);
+    const toTime = new Date(toDate);
+
+    // Calcola la differenza in ore tra le due date
+    const hoursDiff = Math.ceil((toTime - fromTime) / (1000 * 60 * 60));
+
+    console.log(`Time range: ${fromTime.toLocaleString()} to ${toTime.toLocaleString()}`);
+    console.log(`Requesting ${hoursDiff} hours of data for device ${deviceId}`);
+
+    // USA l'API corretta che si aspetta deviceId e hours
+    fetch(`/api/positions?deviceId=${deviceId}&hours=${hoursDiff}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(positions => {
+            console.log('Positions loaded from API:', positions.length);
+
+            // Filtra le posizioni per il range di tempo specificato dall'utente
+            const filteredPositions = positions.filter(pos => {
+                const posTime = new Date(pos.serverTime || pos.deviceTime);
+                const inRange = posTime >= fromTime && posTime <= toTime;
+
+                if (!inRange) {
+                    console.log(`Position ${pos.serverTime || pos.deviceTime} outside range ${fromTime.toISOString()} - ${toTime.toISOString()}`);
+                }
+
+                return inRange;
+            });
+
+            console.log(`Filtered ${filteredPositions.length} positions from ${positions.length} total`);
+            console.log('Date filter range:', fromTime.toISOString(), 'to', toTime.toISOString());
+
+            if (filteredPositions.length > 0) {
+                console.log('First position time:', new Date(filteredPositions[0].serverTime || filteredPositions[0].deviceTime).toISOString());
+                console.log('Last position time:', new Date(filteredPositions[filteredPositions.length - 1].serverTime || filteredPositions[filteredPositions.length - 1].deviceTime).toISOString());
+            }
+
+            currentData = filteredPositions;
+            displayPositionsOnMap(filteredPositions);
+            calculateStatistics(filteredPositions);
+            showLoading(false);
+            showToast(`Caricati ${filteredPositions.length} punti GPS`, 'success');
+        })
+        .catch(error => {
+            console.error('Error loading positions:', error);
+            showLoading(false);
+            showToast(`Errore nel caricamento delle posizioni: ${error.message}`, 'error');
+        });
+}
+
+// AGGIUNTA: Funzione per aggiornare mappa con tutti i dispositivi
+function updateMapAllDevices() {
+    console.log('Updating map for all devices');
+    showLoading(true);
+
+    const fromDate = document.getElementById('fromDate').value;
+    const toDate = document.getElementById('toDate').value;
+
+    const fromTime = new Date(fromDate);
+    const toTime = new Date(toDate);
+    const hoursDiff = Math.ceil((toTime - fromTime) / (1000 * 60 * 60));
+
+    console.log(`Requesting ${hoursDiff} hours of data for all ${allDevices.length} devices`);
+
+    const promises = allDevices.map(device =>
+        fetch(`/api/positions?deviceId=${device.id}&hours=${hoursDiff}`)
+            .then(response => response.ok ? response.json() : [])
+            .then(positions => ({
+                device: device,
+                positions: positions.filter(pos => {
+                    const posTime = new Date(pos.serverTime || pos.deviceTime);
+                    return posTime >= fromTime && posTime <= toTime;
+                })
+            }))
+            .catch(error => {
+                console.error(`Error loading positions for device ${device.id}:`, error);
+                return { device: device, positions: [] };
+            })
+    );
+
+    Promise.all(promises)
+        .then(deviceData => {
+            displayAllDevicesOnMap(deviceData);
+            showLoading(false);
+
+            const totalPositions = deviceData.reduce((sum, data) => sum + data.positions.length, 0);
+            showToast(`Caricati ${totalPositions} punti GPS da ${allDevices.length} dispositivi`, 'success');
+
+            console.log('All devices data loaded:', deviceData.map(d => ({
+                device: d.device.name,
+                positions: d.positions.length
+            })));
+        })
+        .catch(error => {
+            console.error('Error loading all devices data:', error);
+            showLoading(false);
+            showToast('Errore nel caricamento dei dati', 'error');
+        });
+}
+
+function displayPositionsOnMap(positions) {
+    console.log('Displaying positions on map:', positions.length);
+
+    // Pulisci layer esistenti
+    markersLayer.clearLayers();
+    pathLayer.clearLayers();
+
+    if (positions.length === 0) {
+        showToast('Nessuna posizione trovata per il periodo selezionato', 'warning');
+        return;
+    }
+
+    const showPath = document.getElementById('showPath').checked;
+    const showMarkers = document.getElementById('showMarkers').checked;
+
+    // Ordina le posizioni per tempo
+    positions.sort((a, b) => new Date(a.serverTime || a.deviceTime) - new Date(b.serverTime || b.deviceTime));
+
+    // Crea percorso
+    if (showPath && positions.length > 1) {
+        const latlngs = positions.map(pos => [pos.latitude, pos.longitude]);
+        const polyline = L.polyline(latlngs, {
+            color: '#0d6efd',
+            weight: 3,
+            opacity: 0.8
+        }).addTo(pathLayer);
+    }
+
+    // Aggiungi markers
+    if (showMarkers) {
+        positions.forEach((position, index) => {
+            const isFirst = index === 0;
+            const isLast = index === positions.length - 1;
+
+            let markerColor = '#0d6efd';
+            let markerIcon = 'circle';
+
+            if (isFirst) {
+                markerColor = '#198754';
+                markerIcon = 'play';
+            } else if (isLast) {
+                markerColor = '#dc3545';
+                markerIcon = 'stop';
+            }
+
+            const marker = L.marker([position.latitude, position.longitude], {
+                icon: L.divIcon({
+                    html: `<div style="background: ${markerColor}; width: 18px; height: 18px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center;"><i class="fas fa-${markerIcon}" style="color: white; font-size: 7px;"></i></div>`,
+                    iconSize: [18, 18],
+                    className: 'custom-div-icon'
+                })
+            });
+
+            const popupContent = `
+                <div>
+                    <strong>${isFirst ? 'Inizio' : isLast ? 'Fine' : 'Posizione'}</strong><br>
+                    <small>
+                        Coordinate: ${position.latitude.toFixed(6)}, ${position.longitude.toFixed(6)}<br>
+                        Velocità: ${(position.speed || 0).toFixed(1)} km/h<br>
+                        Data: ${new Date(position.serverTime || position.deviceTime).toLocaleString()}
+                    </small>
+                </div>
+            `;
+
+            marker.bindPopup(popupContent);
+            marker.addTo(markersLayer);
+        });
+    }
+
+    // Adatta vista alla mappa
+    fitMapToBounds();
+}
+
+// AGGIUNTA: Funzione per visualizzare tutti i dispositivi
+function displayAllDevicesOnMap(deviceData) {
+    // Pulisci layer esistenti
+    markersLayer.clearLayers();
+    pathLayer.clearLayers();
+
+    const colors = ['#0d6efd', '#198754', '#dc3545', '#fd7e14', '#6f42c1', '#d63384', '#20c997', '#ffc107'];
+
+    deviceData.forEach((data, deviceIndex) => {
+        const { device, positions } = data;
+        const color = colors[deviceIndex % colors.length];
+
+        if (positions.length === 0) return;
+
+        // Ordina posizioni per tempo
+        positions.sort((a, b) => new Date(a.serverTime || a.deviceTime) - new Date(b.serverTime || b.deviceTime));
+
+        const showPath = document.getElementById('showPath').checked;
+        const showMarkers = document.getElementById('showMarkers').checked;
+
+        // Crea percorso per questo dispositivo
+        if (showPath && positions.length > 1) {
+            const latlngs = positions.map(pos => [pos.latitude, pos.longitude]);
+            const polyline = L.polyline(latlngs, {
+                color: color,
+                weight: 3,
+                opacity: 0.8
+            }).addTo(pathLayer);
+
+            polyline.bindPopup(`<strong>${device.name}</strong><br>${positions.length} posizioni`);
+        }
+
+        // Aggiungi marker per ultima posizione
+        if (showMarkers && positions.length > 0) {
+            const lastPosition = positions[positions.length - 1];
+
+            const marker = L.marker([lastPosition.latitude, lastPosition.longitude], {
+                icon: L.divIcon({
+                    html: `<div style="background: ${color}; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; color: white; font-size: 10px; font-weight: bold;">${deviceIndex + 1}</div>`,
+                    iconSize: [20, 20],
+                    className: 'custom-div-icon'
+                })
+            });
+
+            const popupContent = `
+                <div>
+                    <strong>${device.name}</strong><br>
+                    <small>
+                        ID: ${device.uniqueId}<br>
+                        Coordinate: ${lastPosition.latitude.toFixed(6)}, ${lastPosition.longitude.toFixed(6)}<br>
+                        Velocità: ${(lastPosition.speed || 0).toFixed(1)} km/h<br>
+                        Ultima posizione: ${new Date(lastPosition.serverTime || lastPosition.deviceTime).toLocaleString()}<br>
+                        Punti totali: ${positions.length}
+                    </small>
+                </div>
+            `;
+
+            marker.bindPopup(popupContent);
+            marker.addTo(markersLayer);
+        }
+    });
+
+    // Calcola statistiche aggregate
+    const allPositions = deviceData.flatMap(data => data.positions);
+    calculateStatistics(allPositions);
+
+    // Adatta vista
+    fitMapToBounds();
+}
+
+function calculateStatistics(positions) {
+    if (positions.length === 0) {
+        document.getElementById('totalDistance').textContent = '0 km';
+        document.getElementById('avgSpeed').textContent = '0 km/h';
+        document.getElementById('maxSpeed').textContent = '0 km/h';
+        document.getElementById('totalTime').textContent = '0h 0m';
+        return;
+    }
+
+    let totalDistance = 0;
+    let maxSpeed = 0;
+    let totalSpeed = 0;
+    let speedCount = 0;
+
+    // Ordina per tempo
+    positions.sort((a, b) => new Date(a.serverTime || a.deviceTime) - new Date(b.serverTime || b.deviceTime));
+
+    for (let i = 0; i < positions.length; i++) {
+        const pos = positions[i];
+
+        if (pos.speed !== null && pos.speed !== undefined) {
+            maxSpeed = Math.max(maxSpeed, pos.speed);
+            totalSpeed += pos.speed;
+            speedCount++;
+        }
+
+        if (i > 0) {
+            const prevPos = positions[i - 1];
+            const distance = calculateDistance(
+                prevPos.latitude, prevPos.longitude,
+                pos.latitude, pos.longitude
+            );
+            totalDistance += distance;
+        }
+    }
+
+    const avgSpeed = speedCount > 0 ? totalSpeed / speedCount : 0;
+    const startTime = new Date(positions[0].serverTime || positions[0].deviceTime);
+    const endTime = new Date(positions[positions.length - 1].serverTime || positions[positions.length - 1].deviceTime);
+    const totalTimeMs = endTime - startTime;
+    const hours = Math.floor(totalTimeMs / (1000 * 60 * 60));
+    const minutes = Math.floor((totalTimeMs % (1000 * 60 * 60)) / (1000 * 60));
+
+    document.getElementById('totalDistance').textContent = `${totalDistance.toFixed(2)} km`;
+    document.getElementById('avgSpeed').textContent = `${avgSpeed.toFixed(1)} km/h`;
+    document.getElementById('maxSpeed').textContent = `${maxSpeed.toFixed(1)} km/h`;
+    document.getElementById('totalTime').textContent = `${hours}h ${minutes}m`;
+}
+
+function calculateDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371; // Raggio terrestre in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+}
+
+function fitMapToBounds() {
+    try {
+        const allLayers = [];
+
+        markersLayer.eachLayer(layer => allLayers.push(layer));
+        pathLayer.eachLayer(layer => allLayers.push(layer));
+
+        if (allLayers.length === 0) return;
+
+        const group = new L.featureGroup(allLayers);
+        const bounds = group.getBounds();
+
+        if (bounds && bounds.isValid()) {
+            map.fitBounds(bounds.pad(0.1));
+        }
+    } catch (error) {
+        console.error('Error fitting bounds:', error);
+    }
+}
+
+function locateUser() {
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            function(position) {
+                const lat = position.coords.latitude;
+                const lng = position.coords.longitude;
+
+                map.setView([lat, lng], 16);
+
+                L.marker([lat, lng], {
+                    icon: L.divIcon({
+                        html: `<div style="background: #0d6efd; width: 18px; height: 18px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 8px rgba(13,110,253,0.5);"></div>`,
+                        iconSize: [18, 18],
+                        className: 'custom-div-icon'
+                    })
+                }).addTo(markersLayer)
+                  .bindPopup('La tua posizione')
+                  .openPopup();
+
+                showToast('Posizione rilevata', 'success');
+            },
+            function(error) {
+                showToast('Errore nella geolocalizzazione: ' + error.message, 'error');
+            }
+        );
+    } else {
+        showToast('Geolocalizzazione non supportata', 'error');
+    }
+}
+
+function toggleAutoTracking() {
+    autoTrackingEnabled = !autoTrackingEnabled;
+    const autoRefreshCheckbox = document.getElementById('autoRefresh');
+
+    if (autoTrackingEnabled) {
+        document.body.classList.add('tracking-active');
+        autoRefreshCheckbox.checked = true;
+        startAutoRefresh();
+        showToast('Auto-tracking attivato', 'success');
+    } else {
+        document.body.classList.remove('tracking-active');
+        autoRefreshCheckbox.checked = false;
+        stopAutoRefresh();
+        showToast('Auto-tracking disattivato', 'info');
+    }
+}
+
+function startAutoRefresh() {
+    if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+    }
+
+    autoRefreshInterval = setInterval(() => {
+        console.log('Auto-refreshing map...');
+
+        // Controlla se è attivata la modalità "tutti i dispositivi"
+        if (document.getElementById('showAllDevices').checked) {
+            updateMapAllDevices();
+        } else {
+            const deviceId = document.getElementById('deviceSelect').value;
+            if (deviceId) {
+                updateMap();
+            }
+        }
+    }, 30000); // Aggiorna ogni 30 secondi
+}
+
+function stopAutoRefresh() {
+    if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+        autoRefreshInterval = null;
+    }
+}
+
+function exportData() {
+    if (currentData.length === 0) {
+        showToast('Nessun dato da esportare. Carica prima i dati della mappa.', 'warning');
+        return;
+    }
+
+    let csvContent = 'DateTime,DeviceId,Latitude,Longitude,Speed,Altitude,Accuracy\n';
+
+    currentData.forEach(pos => {
+        const deviceId = pos.deviceId || 'N/A';
+        const dateTime = new Date(pos.serverTime || pos.deviceTime).toISOString();
+        csvContent += `"${dateTime}",${deviceId},${pos.latitude},${pos.longitude},${pos.speed || 0},${pos.altitude || ''},${pos.accuracy || ''}\n`;
+    });
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `positions_${new Date().toISOString().slice(0,10)}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    showToast('Dati esportati con successo', 'success');
+}
+
+function toggleLayerControl() {
+    if (window.layerControl._map) {
+        map.removeControl(window.layerControl);
+    } else {
+        map.addControl(window.layerControl);
+    }
+}
+
+function showLoading(show) {
+    const overlay = document.getElementById('loadingOverlay');
+    overlay.style.display = show ? 'block' : 'none';
+}
+
+function showToast(message, type = 'info') {
+    const toastContainer = document.querySelector('.toast-container');
+
+    const toastId = 'toast_' + Date.now();
+    const toastHtml = `
+        <div class="toast" id="${toastId}" role="alert" aria-live="assertive" aria-atomic="true" data-bs-delay="3000">
+            <div class="toast-header bg-${type === 'error' ? 'danger' : type === 'success' ? 'success' : type === 'warning' ? 'warning' : 'primary'} text-white">
+                <i class="fas fa-${type === 'error' ? 'exclamation-triangle' : type === 'success' ? 'check-circle' : type === 'warning' ? 'exclamation-triangle' : 'info-circle'} me-2"></i>
+                <strong class="me-auto">${type === 'error' ? 'Errore' : type === 'success' ? 'Successo' : type === 'warning' ? 'Attenzione' : 'Info'}</strong>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+            </div>
+            <div class="toast-body">${message}</div>
+        </div>
+    `;
+
+    toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+
+    const toastElement = document.getElementById(toastId);
+    const toast = new bootstrap.Toast(toastElement);
+    toast.show();
+
+    // Rimuovi il toast dal DOM dopo che si nasconde
+    toastElement.addEventListener('hidden.bs.toast', () => {
+        toastElement.remove();
+    });
+}
+
+// Auto-inizializzazione se arriva da un link diretto con parametri
+document.addEventListener('DOMContentLoaded', function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const deviceParam = urlParams.get('device');
+
+    if (deviceParam) {
+        // Attendi che i dispositivi siano caricati
+        setTimeout(() => {
+            const deviceSelect = document.getElementById('deviceSelect');
+            deviceSelect.value = deviceParam;
+            updateMap();
+        }, 1000);
+    }
+});
+</script>
+{% endblock %}
