@@ -2073,7 +2073,7 @@ import tempfile
 from simulatore.google_maps_route import GoogleMapsRouteGenerator, create_simulator_config_with_google_route
 
 # Aggiungi la configurazione della API key di Google Maps
-GOOGLE_MAPS_API_KEY = os.getenv('GOOGLE_MAPS_API_KEY', 'AIzaSyAZLNmrmri-HUzex5s4FaJZPk8xVeAyFVk')
+GOOGLE_MAPS_API_KEY = os.getenv('GOOGLE_MAPS_API_KEY', '')
 
 
 @app.route('/simulator/google-maps')
