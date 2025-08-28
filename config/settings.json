@@ -13,8 +13,8 @@
     "enableHttps": false,
     "enableCors": true,
     "enableNotifications": true,
-    "soundNotifications": false,
-    "emailNotifications": false,
+    "soundNotifications": true,
+    "emailNotifications": true,
     "notificationDuration": 5000,
     "notificationPosition": "top-right",
     "offlineAlerts": true,
@@ -28,5 +28,5 @@
     "sidebarCollapsed": false,
     "fontSize": "normal",
     "animations": "full",
-    "lastUpdated": "2025-08-28T15:58:31.314715"
+    "lastUpdated": "2025-08-28T16:08:46.733499"
 }

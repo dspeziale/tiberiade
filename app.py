@@ -2067,6 +2067,113 @@ def geocoding_test_page():
     return render_template('test.html')
 
 
+# Se preferisci usare "import datetime" invece di "from datetime import ..."
+# Usa questa versione con datetime.timezone.utc
+from datetime import timedelta,datetime, timezone
+
+
+@app.route('/api/test-connection')
+@login_required
+def api_test_connection():
+    """API per testare la connessione generale del sistema"""
+    try:
+        result = {
+            'success': True,
+            'timestamp': datetime.now(timezone.utc).isoformat(),
+            'tests': {}
+        }
+
+        # Test 1: Connessione al server Traccar
+        try:
+            import requests
+            response = requests.get(f"{TRACCAR_SERVER}/api/server", timeout=10)
+
+            result['tests']['traccar_server'] = {
+                'status': 'success' if response.status_code == 200 else 'error',
+                'status_code': response.status_code,
+                'reachable': response.status_code == 200,
+                'response_time_ms': int(response.elapsed.total_seconds() * 1000) if hasattr(response,
+                                                                                            'elapsed') else None
+            }
+
+            if response.status_code == 200:
+                server_info = response.json()
+                result['tests']['traccar_server']['version'] = server_info.get('version')
+        except Exception as e:
+            result['tests']['traccar_server'] = {
+                'status': 'error',
+                'error': str(e)
+            }
+
+        # Test 2: Sessione utente Traccar
+        try:
+            current_user = traccar_api.get_current_user()
+            result['tests']['user_session'] = {
+                'status': 'success' if current_user else 'error',
+                'user_id': current_user.get('id') if current_user else None,
+                'username': current_user.get('name') if current_user else None,
+                'admin': current_user.get('administrator') if current_user else False
+            }
+        except Exception as e:
+            result['tests']['user_session'] = {
+                'status': 'error',
+                'error': str(e)
+            }
+
+        # Test 3: Accesso ai dispositivi
+        try:
+            devices = traccar_api.get_devices()
+            result['tests']['devices_access'] = {
+                'status': 'success' if isinstance(devices, list) else 'error',
+                'device_count': len(devices) if isinstance(devices, list) else 0,
+                'has_devices': len(devices) > 0 if isinstance(devices, list) else False
+            }
+        except Exception as e:
+            result['tests']['devices_access'] = {
+                'status': 'error',
+                'error': str(e)
+            }
+
+        # Test 4: Stato Flask session
+        result['tests']['flask_session'] = {
+            'status': 'success',
+            'logged_in': session.get('logged_in', False),
+            'user_id': session.get('user_id'),
+            'username': session.get('username'),
+            'session_timeout': session.permanent
+        }
+
+        # Test 5: Google Maps API Key (se configurata)
+        google_api_key = os.getenv('GOOGLE_MAPS_API_KEY')
+        result['tests']['google_maps'] = {
+            'status': 'success' if google_api_key else 'warning',
+            'api_key_configured': bool(google_api_key),
+            'api_key_preview': google_api_key[:20] + '...' if google_api_key else None
+        }
+
+        # Verifica se tutti i test essenziali sono passati
+        essential_tests = ['traccar_server', 'user_session', 'devices_access']
+        failed_tests = [
+            test for test in essential_tests
+            if result['tests'][test]['status'] == 'error'
+        ]
+
+        if failed_tests:
+            result['success'] = False
+            result['failed_tests'] = failed_tests
+            result['message'] = f"Test falliti: {', '.join(failed_tests)}"
+        else:
+            result['message'] = "Tutti i test di connessione superati"
+
+        return jsonify(result)
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'timestamp': datetime.now(timezone.utc).isoformat(),
+            'message': 'Errore interno nel test di connessione'
+        }), 500
 # Aggiungi queste route al tuo app.py esistente
 
 import os
