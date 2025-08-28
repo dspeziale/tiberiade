@@ -40,39 +40,44 @@
         <div class="col-12">
             <div class="card">
                 <div class="card-header">
-                    <ul class="nav nav-tabs card-header-tabs" role="tablist">
-                        <li class="nav-item">
-                            <a class="nav-link active" data-bs-toggle="tab" href="#general">
+                    <ul class="nav nav-tabs card-header-tabs" id="settingsTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="general-tab" data-bs-toggle="tab" data-bs-target="#general"
+                                    type="button" role="tab" aria-controls="general" aria-selected="true">
                                 <i class="fas fa-sliders-h"></i> Generale
-                            </a>
+                            </button>
                         </li>
-                        <li class="nav-item">
-                            <a class="nav-link" data-bs-toggle="tab" href="#server">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="server-tab" data-bs-toggle="tab" data-bs-target="#server"
+                                    type="button" role="tab" aria-controls="server" aria-selected="false">
                                 <i class="fas fa-server"></i> Server
-                            </a>
+                            </button>
                         </li>
-                        <li class="nav-item">
-                            <a class="nav-link" data-bs-toggle="tab" href="#notifications">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="notifications-tab" data-bs-toggle="tab" data-bs-target="#notifications"
+                                    type="button" role="tab" aria-controls="notifications" aria-selected="false">
                                 <i class="fas fa-bell"></i> Notifiche
-                            </a>
+                            </button>
                         </li>
-                        <li class="nav-item">
-                            <a class="nav-link" data-bs-toggle="tab" href="#appearance">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="appearance-tab" data-bs-toggle="tab" data-bs-target="#appearance"
+                                    type="button" role="tab" aria-controls="appearance" aria-selected="false">
                                 <i class="fas fa-paint-brush"></i> Aspetto
-                            </a>
+                            </button>
                         </li>
-                        <li class="nav-item">
-                            <a class="nav-link" data-bs-toggle="tab" href="#about">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="about-tab" data-bs-toggle="tab" data-bs-target="#about"
+                                    type="button" role="tab" aria-controls="about" aria-selected="false">
                                 <i class="fas fa-info-circle"></i> Informazioni
-                            </a>
+                            </button>
                         </li>
                     </ul>
                 </div>
                 <div class="card-body">
-                    <div class="tab-content">
+                    <div class="tab-content" id="settingsTabsContent">
                         <!-- Tab Generale -->
-                        <div class="tab-pane fade show active" id="general">
-                            <form id="generalSettingsForm">
+                        <div class="tab-pane fade show active" id="general" role="tabpanel" aria-labelledby="general-tab">
+                            <div id="generalSettingsForm">
                                 <div class="row mb-4">
                                     <div class="col-12">
                                         <h5><i class="fas fa-info"></i> Informazioni Sistema</h5>
@@ -157,12 +162,12 @@
                                         </div>
                                     </div>
                                 </div>
-                            </form>
+                            </div>
                         </div>
 
                         <!-- Tab Server -->
-                        <div class="tab-pane fade" id="server">
-                            <form id="serverSettingsForm">
+                        <div class="tab-pane fade" id="server" role="tabpanel" aria-labelledby="server-tab">
+                            <div id="serverSettingsForm">
                                 <div class="row mb-4">
                                     <div class="col-12">
                                         <h5><i class="fas fa-link"></i> Connessione Traccar</h5>
@@ -239,12 +244,12 @@
                                         </div>
                                     </div>
                                 </div>
-                            </form>
+                            </div>
                         </div>
 
                         <!-- Tab Notifiche -->
-                        <div class="tab-pane fade" id="notifications">
-                            <form id="notificationSettingsForm">
+                        <div class="tab-pane fade" id="notifications" role="tabpanel" aria-labelledby="notifications-tab">
+                            <div id="notificationSettingsForm">
                                 <div class="row mb-4">
                                     <div class="col-12">
                                         <h5><i class="fas fa-bell"></i> Notifiche Sistema</h5>
@@ -290,7 +295,7 @@
 
                                 <div class="row mb-4">
                                     <div class="col-12">
-                                        <h5><i class="fas fa-exclamation-triangle"></i> Alerti</h5>
+                                        <h5><i class="fas fa-exclamation-triangle"></i> Allarmi</h5>
                                         <hr>
                                     </div>
                                     <div class="col-md-4">
@@ -336,12 +341,12 @@
                                         <div class="form-text">Velocità oltre la quale attivare l'allarme</div>
                                     </div>
                                 </div>
-                            </form>
+                            </div>
                         </div>
 
                         <!-- Tab Aspetto -->
-                        <div class="tab-pane fade" id="appearance">
-                            <form id="appearanceSettingsForm">
+                        <div class="tab-pane fade" id="appearance" role="tabpanel" aria-labelledby="appearance-tab">
+                            <div id="appearanceSettingsForm">
                                 <div class="row mb-4">
                                     <div class="col-12">
                                         <h5><i class="fas fa-palette"></i> Tema</h5>
@@ -437,11 +442,11 @@
                                         </button>
                                     </div>
                                 </div>
-                            </form>
+                            </div>
                         </div>
 
                         <!-- Tab Informazioni -->
-                        <div class="tab-pane fade" id="about">
+                        <div class="tab-pane fade" id="about" role="tabpanel" aria-labelledby="about-tab">
                             <div class="row">
                                 <div class="col-md-8">
                                     <div class="mb-4">
@@ -545,6 +550,54 @@
 </div>
 
 <style>
+/* Stili per tab */
+.nav-tabs .nav-link {
+    color: #495057 !important;
+    border: 1px solid transparent;
+    border-top-left-radius: 0.375rem;
+    border-top-right-radius: 0.375rem;
+    background: none;
+    padding: 0.75rem 1rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.nav-tabs .nav-link:hover {
+    color: #0d6efd !important;
+    background-color: rgba(13, 110, 253, 0.1);
+    border-color: #dee2e6 #dee2e6 #fff;
+}
+
+.nav-tabs .nav-link.active {
+    color: #0d6efd !important;
+    background-color: #fff;
+    border-color: #dee2e6 #dee2e6 #fff;
+    font-weight: 600;
+}
+
+.nav-tabs .nav-link i {
+    font-size: 1rem;
+}
+
+.card-header-tabs .nav-link {
+    margin-bottom: -1px;
+}
+
+.card-header {
+    padding: 0;
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.nav-tabs {
+    border-bottom: none;
+    margin: 0;
+    padding: 0 1rem;
+}
+
+/* Accent color buttons */
 .accent-color {
     border: 2px solid transparent !important;
     border-radius: 50% !important;
@@ -557,25 +610,6 @@
 
 .progress {
     height: 8px;
-}
-
-.timeline-item {
-    position: relative;
-    padding-left: 30px;
-}
-
-.timeline-marker {
-    position: absolute;
-    left: 0;
-    top: 5px;
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-}
-
-.timeline-content {
-    border-left: 2px solid #e9ecef;
-    padding-left: 15px;
 }
 
 .btn:disabled {
@@ -591,12 +625,55 @@
 </style>
 
 <script>
+// Variabili globali
 let currentSettings = {};
 
+// Funzione showAlert
+function showAlert(message, type = 'info', duration = 5000) {
+    document.querySelectorAll('.auto-alert').forEach(alert => alert.remove());
+
+    const alertHtml = `
+        <div class="alert alert-${type} alert-dismissible fade show position-fixed auto-alert"
+             style="top: 80px; right: 20px; z-index: 2000; min-width: 300px;" role="alert">
+            <i class="fas fa-${getAlertIcon(type)}"></i> ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', alertHtml);
+
+    setTimeout(() => {
+        const alert = document.querySelector('.auto-alert');
+        if (alert) alert.remove();
+    }, duration);
+}
+
+function getAlertIcon(type) {
+    const icons = {
+        'success': 'check-circle',
+        'danger': 'exclamation-triangle',
+        'warning': 'exclamation-circle',
+        'info': 'info-circle'
+    };
+    return icons[type] || 'info-circle';
+}
+
+// Inizializzazione quando il DOM è caricato
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('Inizializzazione pagina settings...');
+    setTimeout(() => initializeSettings(), 100);
+});
+
+function initializeSettings() {
+    const saveBtn = document.getElementById('saveBtn');
+    if (!saveBtn) {
+        showAlert('Errore: elemento saveBtn non trovato', 'danger');
+        return;
+    }
+
     loadSettings();
     setupEventListeners();
-});
+}
 
 function setupEventListeners() {
     // Accent color selection
@@ -604,7 +681,8 @@ function setupEventListeners() {
         btn.addEventListener('click', function() {
             document.querySelectorAll('.accent-color').forEach(b => b.classList.remove('active'));
             this.classList.add('active');
-            document.getElementById('accentColor').value = this.dataset.color;
+            const accentInput = document.getElementById('accentColor');
+            if (accentInput) accentInput.value = this.dataset.color;
         });
     });
 
@@ -613,14 +691,12 @@ function setupEventListeners() {
         input.addEventListener('change', previewTheme);
     });
 
-    // Auto-save on change (debounced)
+    // Auto-save on change
     let saveTimeout;
     document.querySelectorAll('input, select').forEach(element => {
         element.addEventListener('change', function() {
             clearTimeout(saveTimeout);
-            saveTimeout = setTimeout(() => {
-                autoSave();
-            }, 2000); // Auto-save after 2 seconds of inactivity
+            saveTimeout = setTimeout(() => autoSave(), 2000);
         });
     });
 }
@@ -629,61 +705,121 @@ async function loadSettings() {
     try {
         showLoading(true);
         const response = await fetch('/api/settings');
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
         const data = await response.json();
 
-        if (data.success) {
-            currentSettings = data.settings;
-            populateForm(data.settings);
-            applySettings(data.settings);
-            updateAboutInfo(data.settings);
+        if (data && data.success) {
+            currentSettings = data.settings || {};
+            populateForm(currentSettings);
+            applySettings(currentSettings);
+            updateAboutInfo(currentSettings);
         } else {
-            showAlert('Errore nel caricamento delle impostazioni', 'danger');
+            throw new Error(data?.error || 'Risposta server non valida');
         }
     } catch (error) {
         console.error('Errore nel caricamento:', error);
-        showAlert('Errore di connessione al server', 'danger');
+        loadDefaultSettings();
+        showAlert('Caricate impostazioni di default', 'warning');
     } finally {
         showLoading(false);
         testConnection();
     }
 }
 
+function loadDefaultSettings() {
+    const defaultSettings = {
+        appName: 'Traccar Dashboard',
+        appVersion: '1.0.0',
+        language: 'it',
+        timezone: 'Europe/Rome',
+        defaultMapType: 'osm',
+        defaultZoom: 10,
+        autoRefreshInterval: 30,
+        enableAutoRefresh: true,
+        traccarServer: 'http://localhost:8082',
+        connectionTimeout: 30,
+        cacheTtl: 300,
+        enableHttps: false,
+        enableCors: false,
+        enableNotifications: true,
+        soundNotifications: false,
+        emailNotifications: false,
+        notificationDuration: 5000,
+        notificationPosition: 'top-right',
+        offlineAlerts: true,
+        speedingAlerts: true,
+        geofenceAlerts: true,
+        offlineThreshold: 5,
+        speedLimit: 80,
+        theme: 'light',
+        accentColor: 'primary',
+        compactMode: false,
+        sidebarCollapsed: false,
+        fontSize: 'normal',
+        animations: 'full'
+    };
+
+    currentSettings = defaultSettings;
+    populateForm(defaultSettings);
+    applySettings(defaultSettings);
+    updateAboutInfo(defaultSettings);
+}
+
 function populateForm(settings) {
+    if (!settings) return;
+
     Object.keys(settings).forEach(key => {
         const element = document.getElementById(key);
-        if (element) {
+        if (!element) return;
+
+        try {
             if (element.type === 'checkbox') {
-                element.checked = settings[key];
+                element.checked = Boolean(settings[key]);
             } else if (element.type === 'radio') {
-                if (element.value === settings[key]) {
+                if (element.value === String(settings[key])) {
                     element.checked = true;
                 }
             } else {
-                element.value = settings[key];
+                element.value = settings[key] || '';
             }
+        } catch (error) {
+            console.warn(`Errore nell'impostazione del campo '${key}':`, error);
         }
     });
 
-    // Special handling for accent color
+    // Gestione accent color
     if (settings.accentColor) {
         document.querySelectorAll('.accent-color').forEach(btn => btn.classList.remove('active'));
         const accentBtn = document.querySelector(`[data-color="${settings.accentColor}"]`);
-        if (accentBtn) {
-            accentBtn.classList.add('active');
-        }
+        if (accentBtn) accentBtn.classList.add('active');
     }
 }
 
 function updateAboutInfo(settings) {
-    if (settings.appVersion) {
-        document.getElementById('aboutVersion').textContent = settings.appVersion;
+    if (!settings) return;
+
+    const versionElement = document.getElementById('aboutVersion');
+    if (versionElement) {
+        versionElement.textContent = settings.appVersion || '1.0.0';
     }
-    if (settings.lastUpdated) {
-        const date = new Date(settings.lastUpdated);
-        document.getElementById('lastUpdated').textContent = date.toLocaleString('it-IT');
+
+    const lastUpdatedElement = document.getElementById('lastUpdated');
+    if (lastUpdatedElement) {
+        if (settings.lastUpdated) {
+            const date = new Date(settings.lastUpdated);
+            lastUpdatedElement.textContent = date.toLocaleString('it-IT');
+        } else {
+            lastUpdatedElement.textContent = new Date().toLocaleString('it-IT');
+        }
     }
-    if (settings.traccarServer) {
-        document.getElementById('traccarServerInfo').textContent = settings.traccarServer;
+
+    const traccarServerElement = document.getElementById('traccarServerInfo');
+    if (traccarServerElement) {
+        traccarServerElement.textContent = settings.traccarServer || 'http://localhost:8082';
     }
 }
 
@@ -693,6 +829,11 @@ async function saveAllSettings() {
 
         const settings = collectFormData();
 
+        if (Object.keys(settings).length === 0) {
+            showAlert('Nessuna impostazione da salvare', 'warning');
+            return;
+        }
+
         const response = await fetch('/api/settings', {
             method: 'POST',
             headers: {
@@ -701,23 +842,37 @@ async function saveAllSettings() {
             body: JSON.stringify(settings)
         });
 
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
         const data = await response.json();
 
-        if (data.success) {
+        if (data && data.success) {
             showAlert('Impostazioni salvate con successo', 'success');
             currentSettings = { ...currentSettings, ...settings };
             applySettings(settings);
             updateAboutInfo(settings);
         } else {
-            if (data.errors) {
+            const errorMsg = data?.error || 'Errore nel salvataggio';
+            if (data?.errors && Array.isArray(data.errors)) {
                 showAlert('Errori di validazione: ' + data.errors.join(', '), 'warning');
             } else {
-                showAlert(data.error || 'Errore nel salvataggio', 'danger');
+                showAlert(errorMsg, 'danger');
             }
         }
     } catch (error) {
         console.error('Errore nel salvataggio:', error);
-        showAlert('Errore di connessione al server', 'danger');
+        showAlert('Errore di connessione: ' + error.message, 'danger');
+
+        // Fallback locale
+        try {
+            const settings = collectFormData();
+            localStorage.setItem('traccar_settings', JSON.stringify(settings));
+            showAlert('Impostazioni salvate localmente', 'warning');
+        } catch (localError) {
+            console.error('Errore nel salvataggio locale:', localError);
+        }
     } finally {
         showLoading(false);
     }
@@ -725,24 +880,31 @@ async function saveAllSettings() {
 
 function collectFormData() {
     const settings = {};
-    const forms = ['generalSettingsForm', 'serverSettingsForm', 'notificationSettingsForm', 'appearanceSettingsForm'];
+    const containers = ['generalSettingsForm', 'serverSettingsForm', 'notificationSettingsForm', 'appearanceSettingsForm'];
 
-    forms.forEach(formId => {
-        const form = document.getElementById(formId);
-        if (form) {
-            const formData = new FormData(form);
-            for (let [key, value] of formData.entries()) {
-                const element = form.querySelector(`[name="${key}"]`);
-                if (element) {
-                    if (element.type === 'checkbox') {
-                        settings[key] = element.checked;
-                    } else if (element.type === 'number') {
-                        settings[key] = parseInt(value) || 0;
-                    } else {
-                        settings[key] = value;
+    containers.forEach(containerId => {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+
+        try {
+            const inputs = container.querySelectorAll('input, select');
+            inputs.forEach(element => {
+                if (!element.name) return;
+
+                if (element.type === 'checkbox') {
+                    settings[element.name] = element.checked;
+                } else if (element.type === 'radio') {
+                    if (element.checked) {
+                        settings[element.name] = element.value;
                     }
+                } else if (element.type === 'number') {
+                    settings[element.name] = parseInt(element.value) || 0;
+                } else {
+                    settings[element.name] = element.value;
                 }
-            }
+            });
+        } catch (error) {
+            console.error(`Errore nella raccolta dati dal container ${containerId}:`, error);
         }
     });
 
@@ -754,7 +916,6 @@ async function autoSave() {
         const settings = collectFormData();
         const changedSettings = {};
 
-        // Only save changed settings
         Object.keys(settings).forEach(key => {
             if (currentSettings[key] !== settings[key]) {
                 changedSettings[key] = settings[key];
@@ -772,7 +933,7 @@ async function autoSave() {
 
             if (response.ok) {
                 currentSettings = { ...currentSettings, ...changedSettings };
-                showAlert('Impostazioni salvate automaticamente', 'info', 2000);
+                showAlert('Salvato automaticamente', 'info', 2000);
             }
         }
     } catch (error) {
@@ -781,7 +942,7 @@ async function autoSave() {
 }
 
 async function resetSettings() {
-    if (!confirm('Sei sicuro di voler ripristinare tutte le impostazioni ai valori di default?')) {
+    if (!confirm('Ripristinare tutte le impostazioni ai valori di default?')) {
         return;
     }
 
@@ -792,17 +953,21 @@ async function resetSettings() {
             method: 'POST'
         });
 
-        const data = await response.json();
-
-        if (data.success) {
-            showAlert('Impostazioni ripristinate ai valori di default', 'success');
-            await loadSettings(); // Reload settings
+        if (response.ok) {
+            const data = await response.json();
+            if (data && data.success) {
+                showAlert('Impostazioni ripristinate', 'success');
+                await loadSettings();
+            } else {
+                throw new Error(data?.error || 'Errore nel ripristino');
+            }
         } else {
-            showAlert(data.error || 'Errore nel ripristino', 'danger');
+            throw new Error(`HTTP ${response.status}`);
         }
     } catch (error) {
         console.error('Errore nel ripristino:', error);
-        showAlert('Errore di connessione al server', 'danger');
+        loadDefaultSettings();
+        showAlert('Caricate impostazioni di default locali', 'warning');
     } finally {
         showLoading(false);
     }
@@ -810,23 +975,37 @@ async function resetSettings() {
 
 async function testConnection() {
     const statusElement = document.getElementById('connectionStatus');
+    if (!statusElement) return;
+
     statusElement.innerHTML = '<span class="badge bg-warning"><i class="fas fa-spinner fa-spin"></i> Test...</span>';
 
     try {
         const response = await fetch('/api/test-connection');
-        const data = await response.json();
 
-        if (data.success) {
-            statusElement.innerHTML = '<span class="badge bg-success"><i class="fas fa-check"></i> Connesso</span>';
+        if (response.status === 404) {
+            statusElement.innerHTML = '<span class="badge bg-secondary"><i class="fas fa-question"></i> Non disponibile</span>';
+            return;
+        }
+
+        if (response.ok) {
+            const data = await response.json();
+            if (data && data.success) {
+                statusElement.innerHTML = '<span class="badge bg-success"><i class="fas fa-check"></i> Connesso</span>';
+            } else {
+                statusElement.innerHTML = '<span class="badge bg-danger"><i class="fas fa-times"></i> Errore</span>';
+            }
         } else {
-            statusElement.innerHTML = '<span class="badge bg-danger"><i class="fas fa-times"></i> Errore</span>';
+            statusElement.innerHTML = '<span class="badge bg-warning"><i class="fas fa-exclamation-triangle"></i> Errore HTTP</span>';
         }
     } catch (error) {
-        statusElement.innerHTML = '<span class="badge bg-danger"><i class="fas fa-times"></i> Offline</span>';
+        console.error('Errore nel test di connessione:', error);
+        statusElement.innerHTML = '<span class="badge bg-warning"><i class="fas fa-exclamation-triangle"></i> Errore test</span>';
     }
 }
 
 function applySettings(settings) {
+    if (!settings) return;
+
     if (settings.theme) {
         document.documentElement.setAttribute('data-theme', settings.theme);
     }
@@ -839,15 +1018,20 @@ function applySettings(settings) {
         document.documentElement.setAttribute('data-font-size', settings.fontSize);
     }
 
-    if (settings.compactMode) {
+    if (typeof settings.compactMode === 'boolean') {
         document.body.classList.toggle('compact-mode', settings.compactMode);
     }
 }
 
 function previewTheme() {
-    const theme = document.querySelector('input[name="theme"]:checked')?.value || 'light';
-    const accentColor = document.getElementById('accentColor').value;
-    const fontSize = document.getElementById('fontSize').value;
+    const themeInput = document.querySelector('input[name="theme"]:checked');
+    const theme = themeInput ? themeInput.value : 'light';
+
+    const accentInput = document.getElementById('accentColor');
+    const accentColor = accentInput ? accentInput.value : 'primary';
+
+    const fontSizeInput = document.getElementById('fontSize');
+    const fontSize = fontSizeInput ? fontSizeInput.value : 'normal';
 
     document.documentElement.setAttribute('data-theme', theme);
     document.documentElement.setAttribute('data-accent', accentColor);
@@ -857,40 +1041,62 @@ function previewTheme() {
 }
 
 function resetTheme() {
-    document.getElementById('themeLight').checked = true;
-    document.getElementById('accentColor').value = 'primary';
-    document.getElementById('fontSize').value = 'normal';
-    document.getElementById('compactMode').checked = false;
+    const lightTheme = document.getElementById('themeLight');
+    const accentInput = document.getElementById('accentColor');
+    const fontSizeInput = document.getElementById('fontSize');
+    const compactMode = document.getElementById('compactMode');
+
+    if (lightTheme) lightTheme.checked = true;
+    if (accentInput) accentInput.value = 'primary';
+    if (fontSizeInput) fontSizeInput.value = 'normal';
+    if (compactMode) compactMode.checked = false;
 
     document.querySelectorAll('.accent-color').forEach(btn => btn.classList.remove('active'));
-    document.querySelector('[data-color="primary"]').classList.add('active');
+    const primaryBtn = document.querySelector('[data-color="primary"]');
+    if (primaryBtn) primaryBtn.classList.add('active');
 
     previewTheme();
-    showAlert('Tema ripristinato ai valori di default', 'success');
+    showAlert('Tema ripristinato', 'success');
 }
 
+function showLoading(show, message = 'Caricamento...') {
+    const saveBtn = document.getElementById('saveBtn');
+    if (!saveBtn) return;
+
+    if (show) {
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${message}`;
+    } else {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = '<i class="fas fa-save"></i> Salva Impostazioni';
+    }
+}
+
+// Funzioni per import/export
 async function exportSettings() {
     try {
         const response = await fetch('/api/settings');
+        if (!response.ok) throw new Error('Errore nel recupero impostazioni');
+
         const data = await response.json();
+        if (!data.success) throw new Error('Dati non validi');
 
-        if (data.success) {
-            const blob = new Blob([JSON.stringify(data.settings, null, 2)], {
-                type: 'application/json'
-            });
+        const blob = new Blob([JSON.stringify(data.settings, null, 2)], {
+            type: 'application/json'
+        });
 
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `traccar-settings-${new Date().toISOString().split('T')[0]}.json`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `traccar-settings-${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
 
-            showAlert('Configurazione esportata con successo', 'success');
-        }
+        showAlert('Configurazione esportata', 'success');
     } catch (error) {
+        console.error('Errore nell\'esportazione:', error);
         showAlert('Errore nell\'esportazione', 'danger');
     }
 }
@@ -902,8 +1108,9 @@ function importSettings() {
 
 async function processImport() {
     const fileInput = document.getElementById('importFile');
-    const file = fileInput.files[0];
+    if (!fileInput) return;
 
+    const file = fileInput.files[0];
     if (!file) {
         showAlert('Seleziona un file JSON', 'warning');
         return;
@@ -921,58 +1128,26 @@ async function processImport() {
             body: JSON.stringify(settings)
         });
 
-        const data = await response.json();
-
-        if (data.success) {
-            showAlert('Configurazione importata con successo', 'success');
-            bootstrap.Modal.getInstance(document.getElementById('importModal')).hide();
-            await loadSettings();
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success) {
+                showAlert('Configurazione importata', 'success');
+                const modalElement = document.getElementById('importModal');
+                const modal = bootstrap.Modal.getInstance(modalElement);
+                if (modal) modal.hide();
+                await loadSettings();
+            } else {
+                throw new Error(data.error || 'Errore nell\'importazione');
+            }
         } else {
-            showAlert('Errore nell\'importazione: ' + (data.error || 'File non valido'), 'danger');
+            throw new Error(`HTTP ${response.status}`);
         }
     } catch (error) {
-        showAlert('File JSON non valido', 'danger');
+        console.error('Errore nell\'importazione:', error);
+        showAlert('File JSON non valido o errore server', 'danger');
     }
 }
 
-function showLoading(show, message = 'Caricamento...') {
-    const saveBtn = document.getElementById('saveBtn');
-    if (show) {
-        saveBtn.disabled = true;
-        saveBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${message}`;
-    } else {
-        saveBtn.disabled = false;
-        saveBtn.innerHTML = '<i class="fas fa-save"></i> Salva Impostazioni';
-    }
-}
-
-function showAlert(message, type = 'info', duration = 5000) {
-    const alertHtml = `
-        <div class="alert alert-${type} alert-dismissible fade show position-fixed"
-             style="top: 80px; right: 20px; z-index: 2000; min-width: 300px;" role="alert">
-            <i class="fas fa-${getAlertIcon(type)}"></i> ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    `;
-
-    document.body.insertAdjacentHTML('beforeend', alertHtml);
-
-    setTimeout(() => {
-        const alert = document.querySelector('.alert');
-        if (alert) {
-            alert.remove();
-        }
-    }, duration);
-}
-
-function getAlertIcon(type) {
-    const icons = {
-        'success': 'check-circle',
-        'danger': 'exclamation-triangle',
-        'warning': 'exclamation-circle',
-        'info': 'info-circle'
-    };
-    return icons[type] || 'info-circle';
-}
+console.log('✅ Settings JavaScript caricato correttamente');
 </script>
 {% endblock %}

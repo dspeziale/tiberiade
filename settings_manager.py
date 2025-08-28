@@ -9,7 +9,7 @@ class SettingsManager:
         self.settings_file = settings_file
         self.default_settings = {
             # Impostazioni Generali
-            'appName': 'Traccar Dashboard',
+            'appName': 'Tracker Dashboard',
             'appVersion': '2.1.0',
             'language': 'it',
             'timezone': 'Europe/Rome',
@@ -19,7 +19,7 @@ class SettingsManager:
             'enableAutoRefresh': True,
 
             # Impostazioni Server
-            'traccarServer': 'http://localhost:8082',
+            'traccarServer': 'http://torraccia.iliadboxos.it:59000',
             'connectionTimeout': 30,
             'cacheTtl': 60,
             'enableHttps': False,
