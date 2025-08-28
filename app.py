@@ -20,6 +20,8 @@ TRACCAR_SERVER = os.environ.get('TRACCAR_SERVER', 'http://torraccia.iliadboxos.i
 TRACCAR_USERNAME = os.environ.get('TRACCAR_USERNAME', 'dspeziale@gmail.com')
 TRACCAR_PASSWORD = os.environ.get('TRACCAR_PASSWORD', 'Elisa2025!')
 
+A=18827
+
 import subprocess
 import threading
 import json
