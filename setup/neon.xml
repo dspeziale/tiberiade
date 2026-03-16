@@ -15,6 +15,9 @@
     <entry key='database.user'>neondb_owner</entry>
     <entry key='database.password'>npg_aRYitp4Vc6oK</entry>
 
+    <entry key='logger.file'>./tmp/traccar.log</entry>
+    <entry key='logger.console'>true</entry>
+
     <!-- 
         Overriding with environment variables (recommended for Neon):
         DATABASE_URL, DATABASE_USER, DATABASE_PASSWORD
