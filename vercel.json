@@ -1,0 +1,25 @@
+{
+  "version": 2,
+  "name": "traccar-frontend",
+  "builds": [
+    {
+      "src": "traccar-web/package.json",
+      "use": "@vercel/static-build",
+      "config": { "distDir": "build" }
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/api/socket",
+      "destination": "https://your-backend-url.com/api/socket"
+    },
+    {
+      "source": "/api/(.*)",
+      "destination": "https://your-backend-url.com/api/$1"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/traccar-web/$1"
+    }
+  ]
+}

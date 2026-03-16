@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE properties SYSTEM 'http://java.sun.com/dtd/properties.dtd'>
+<properties>
+
+    <!-- 
+        Neon PostgreSQL Configuration
+        Based on official Traccar documentation: https://www.traccar.org/postgresql/
+        This configuration uses environment variables for sensitive credentials.
+    -->
+
+    <entry key='config.useEnvironmentVariables'>true</entry>
+
+    <entry key='database.driver'>org.postgresql.Driver</entry>
+    <entry key='database.url'>jdbc:postgresql://ep-holy-truth-adm8yz0r-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require</entry>
+    <entry key='database.user'>neondb_owner</entry>
+    <entry key='database.password'>npg_aRYitp4Vc6oK</entry>
+
+    <!-- 
+        Overriding with environment variables (recommended for Neon):
+        DATABASE_URL, DATABASE_USER, DATABASE_PASSWORD
+    -->
+
+</properties>
